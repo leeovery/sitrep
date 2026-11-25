@@ -2,39 +2,44 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// Where the asks panel draws its words and marks inside its layout's boxes, the same in black and in glass, which
-/// differ only in what they fill and colour them with: the top line's name, project and page dots, the title's lines,
-/// an answer's label and its "recommended", the foot's words, Snooze's chevron, the held answer's check, and the
-/// pills' words.
+/// Where the asks panel draws its words and marks inside its layout's boxes: the top line's name, project and page
+/// dots, the title's lines, an answer's label and its "recommended", the foot's words, Snooze's chevron, the held
+/// answer's check, and the pills' words.
 @MainActor
 enum AsksPanelParts {
-    /// The top line: the session's name, kept whole first, 8 before its project; and its page dots at its right where
-    /// the session has more than one ask, the current one wide.
+    /// The top line's words: the session's name, kept whole first, 8 before its project, which ends before its page
+    /// dots (`dots`).
     struct Top {
         let name: CGRect
         let project: CGRect
-        let dots: [Dot]
     }
 
+    /// A page dot, and how much of the current one it is, 1 for the ask shown at rest, passing to the next as its
+    /// asks slide.
     struct Dot {
         let box: CGRect
-        let isCurrent: Bool
+        let current: Double
     }
 
     static func top(_ asks: AsksShown) -> Top {
         let box = asks.layout.top, line = AsksLayout.textLine, gap = 8.0, y = box.midY - line / 2
-        let dots = asks.layout.dots(page: asks.page, of: asks.pages).enumerated().map { index, box in
-            Dot(box: box, isCurrent: index == asks.page)
-        }
-        let room = (dots.first.map { $0.box.minX - gap } ?? box.maxX) - box.minX
+        let firstDot = asks.layout.dots(page: asks.page, of: asks.pages).first
+        let room = (firstDot.map { $0.minX - gap } ?? box.maxX) - box.minX
         let whole = TextLine.width(TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink))
         let projectX = box.minX + min(whole, room) + gap
 
         return Top(
             name: CGRect(x: box.minX, y: y, width: min(whole + Self.slack, room), height: line),
-            project: CGRect(x: projectX, y: y, width: max(0, box.minX + room - projectX), height: line),
-            dots: dots
+            project: CGRect(x: projectX, y: y, width: max(0, box.minX + room - projectX), height: line)
         )
+    }
+
+    /// The page dots at the top line's right where the session has more than one ask, the current one wide, as far as
+    /// its asks have slid: their run as long throughout, so the words before them never move.
+    static func dots(_ asks: AsksShown) -> [Dot] {
+        asks.layout.dots(at: asks.progress, of: asks.pages).enumerated().map { index, box in
+            Dot(box: box, current: AsksLayout.nearness(of: index, to: asks.progress))
+        }
     }
 
     /// Room past words set whole in a box as wide as Core Text sets them, which SwiftUI may set a hair wider and cut.
@@ -56,8 +61,8 @@ enum AsksPanelParts {
         }
     }
 
-    /// An answer's row as it shows, in black and in glass (Paper's board H3): Claude's pick, in lilac, or not; and its
-    /// ground, held, lifted under the pointer, or filled.
+    /// An answer's row as it shows (Paper's board H3): Claude's pick, in lilac, or not; and its ground, held, lifted
+    /// under the pointer, or filled.
     struct AnswerRow: Equatable {
         enum Ground {
             /// The answer held.
@@ -91,7 +96,7 @@ enum AsksPanelParts {
 
     /// An answer's lines on its row as they show, each with its box in the row's frame and the slack past it that
     /// words set whole take: across the row; held, before its check, on no more lines than the layout left it, so the
-    /// row keeps its height. A tag on a line of its own is lowered onto the words' baseline, in black and glass alike.
+    /// row keeps its height. A tag on a line of its own is lowered onto the words' baseline.
     static func answerLines(_ index: Int, of asks: AsksShown) -> [(line: AnswerLine, box: CGRect)] {
         let row = asks.layout.answers[index].size, shows = answerRow(index, of: asks)
         let check = shows.isHeld ? AsksLayout.checkSide + AsksLayout.checkGap : 0
@@ -313,14 +318,11 @@ final class CountdownRing {
         }
     }
 
-    /// Whether its arc runs down, or has run out, in the render server.
-    var isCounting: Bool { arc.animation(forKey: Self.key) != nil }
-
     private static let key = "countdown"
 }
 
 extension AsksMeasure {
-    /// How the asks panel's words are set in black and in glass alike, for the run to lay it out: its title's lines,
+    /// How the asks panel's words are set, for the run to lay it out: its title's lines,
     /// its answers' lines, and its foot's words' widths.
     nonisolated static let drawn = AsksMeasure(
         titleLines: { title in

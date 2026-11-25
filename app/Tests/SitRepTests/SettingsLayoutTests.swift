@@ -27,10 +27,10 @@ struct SettingsLayoutTests {
     }
 
     /// Each pane's controls at its rows' right, top to bottom: Open at login, Terminal, Command, Restore Default;
-    /// Edge, Display, Style, Material, Reduce motion; Send Test, the two Notify me's, Notification Settings…, the two
+    /// Edge, Display, Style, Reduce motion; Send Test, the two Notify me's, Notification Settings…, the two
     /// Play a sound's, each with its Sound, and the two Pulse's; the two windows' Show and Copy.
     private static let controls: [(SettingsPane, Int)] = [
-        (.general, 4), (.edge, 5), (.notifications, 10), (.claudeCode, 3),
+        (.general, 4), (.edge, 4), (.notifications, 10), (.claudeCode, 3),
     ]
 
     /// The column fills the pane, less its insets, at any width: each card spans it, and every control at a row's
@@ -60,8 +60,8 @@ struct SettingsLayoutTests {
         let button = try #require(hosted.all(NSPopUpButton.self).first)
         let popUp = hosted.frame(of: button)
 
-        // Edge, Style, Material: Left · Right, Meniscus · Card, Black · Glass
-        #expect(segmented.map { ($0.width * 2).rounded() / 2 } == [106, 155, 109])
+        // Edge, Style: Left · Right, Meniscus · Card
+        #expect(segmented.map { ($0.width * 2).rounded() / 2 } == [106, 155])
         // to the window's half points, where the stock one, in none, rounds to whole ones
         #expect(abs(popUp.width - NSPopUpButton.stock(holding: button.itemArray).intrinsicContentSize.width) <= 0.5)
     }
@@ -93,8 +93,8 @@ struct SettingsLayoutTests {
         let segmented = hosted.all(NSSegmentedControl.self).map { hosted.frame(of: $0).width }
         let slider = try hosted.frame(of: #require(hosted.all(NSSlider.self).first))
 
-        // Edge, Length, Material
-        #expect(segmented.map { ($0 * 2).rounded() / 2 } == [106, 117, 109])
+        // Edge, Length
+        #expect(segmented.map { ($0 * 2).rounded() / 2 } == [106, 117])
         #expect(slider.size == CGSize(width: 160, height: 16))
         #expect(abs(slider.maxX - (Self.edge + Self.column(744) - 10)) < 0.5)
     }
@@ -168,13 +168,13 @@ struct SettingsLayoutTests {
     /// Down the column, each pane is black but for its cards and the desktop corner, and the words of a caption under a
     /// card, its first 13 under the toolbar: a section's header's line of 16 and 10 over its card, the sections 26
     /// apart. General's Startup a row of 52, Terminal's a row of 38 and one of 52, Resume command's a row of 38, its
-    /// caption's words in the 8 and four lines of 14 under it; Edge's the Show row's 86, then Notch's four, 52, 38, 52 and 52, then Motion's
-    /// 52; Notifications' corner of 150 and the caption's row of 32, then Banners' three rows of 52, Sound's 52 and 38
-    /// twice, a new ask's and Lee's turn's, and Notch's two rows of 52. What is shorter than a row is a caption's
-    /// words, and lies in its lines. Within a pixel at the screen's scale, which lays the pane out.
+    /// caption's words in the 8 and four lines of 14 under it; Edge's the Show row's 86, then Notch's three, 52, 38 and
+    /// 52, then Motion's 52; Notifications' corner of 150 and the caption's row of 32, then Banners' three rows of 52,
+    /// Sound's 52 and 38 twice, a new ask's and Lee's turn's, and Notch's two rows of 52. What is shorter than a row is
+    /// a caption's words, and lies in its lines. Within a pixel at the screen's scale, which lays the pane out.
     @Test(arguments: [
         (SettingsPane.general, [39 ... 91, 143 ... 233.5, 285.5 ... 323.5], [323.5 ... 389.5]),
-        (.edge, [13 ... 99, 151 ... 346.5, 398.5 ... 450.5], []),
+        (.edge, [13 ... 99, 151 ... 294, 346 ... 398], []),
         (.notifications, [13 ... 163, 247 ... 404, 456 ... 637.5, 689.5 ... 794], [163 ... 195]),
     ] as [(SettingsPane, [ClosedRange<CGFloat>], [ClosedRange<CGFloat>])])
     func eachPanesCardsStandAtTheirHeights(
@@ -213,13 +213,13 @@ struct SettingsLayoutTests {
         }
     }
 
-    /// Notch's card, Edge, Display, Style and Material: a hairline of 0.5 between each two rows, none at its top or its
-    /// foot, 10 in from both its ends. Within a pixel at the screen's scale.
+    /// Notch's card, Edge, Display and Style: a hairline of 0.5 between each two rows, none at its top or its foot, 10
+    /// in from both its ends. Within a pixel at the screen's scale.
     @Test func aCardsHairlinesAreHalfAPointBetweenItsRowsOnly() async throws {
         let drawn = try await Hosted.drawn(.edge, width: Self.drawingsPane)
         let card = try #require(drawn.litSpans(atX: Self.edge + 232).dropFirst().first)
         let lines = { (x: CGFloat) in drawn.lines(atX: Self.edge + x, in: card) }
-        let rows: [CGFloat] = [52, 38, 52]
+        let rows: [CGFloat] = [52, 38]
         let drawing = rows.indices.map { row in
             let top = card.lowerBound + rows[...row].reduce(0, +) + CGFloat(row) * 0.5
 
@@ -255,9 +255,9 @@ struct SettingsLayoutTests {
         }
     }
 
-    /// Edge ends 20 under Motion's card: the notch's four rows in its card, the strip's five, Max among them. Laid out
+    /// Edge ends 20 under Motion's card: the notch's three rows in its card, the strip's four, Max among them. Laid out
     /// at 2×, its hairlines 0.5 each, as no window holds it to give it the screen's scale.
-    @Test(arguments: [(EdgeSettings.Show.notch, 470.5), (.strip, 523.0)])
+    @Test(arguments: [(EdgeSettings.Show.notch, 418.0), (.strip, 470.5)])
     func edgeEnds20UnderItsLastCard(show: EdgeSettings.Show, height: CGFloat) async {
         let settings = await Hosted.settings { $0.show = show }
         let pane = SettingsPaneContent(pane: .edge, settings: settings).environment(\.displayScale, 2)
@@ -472,7 +472,7 @@ struct Hosted {
                     DisplayChoice.Connected(id: "B", name: "Studio Display", isMain: false),
                 ]
             },
-            hasGlass: true, jump: { asked.jumps.append($0) }, sendTest: {}, copy: { asked.copies.append($0) },
+            jump: { asked.jumps.append($0) }, sendTest: {}, copy: { asked.copies.append($0) },
             sounds: sounds, noticeLeave: { said.notices ?? .unasked }, askForNotices: {},
             login: { said.login ?? LoginItem(.notFound) }, chooseLogin: {}, ghostty: { said.ghostty ?? .unknown },
             allowGhostty: { .allowed }, open: { _ in }

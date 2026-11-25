@@ -2,11 +2,11 @@ import AppKit
 import SitRepPanel
 
 /// The strip in black: its black, each tab's black, and the hairlines, through the edge's mirror; over them the marks
-/// and each tab's words, placed through it but never mirrored themselves. All are layers in the stage's own coordinates
-/// (y down from the screen's top), hung from the menu bar the window starts under. A frame changes paths, places,
-/// opacities and clips; a tab's words and a mark's letters are laid out once.
+/// and each tab's words, and over all the asks panel, placed through it but never mirrored themselves. All are layers in
+/// the stage's own coordinates (y down from the screen's top), hung from the menu bar the window starts under. A frame
+/// changes paths, places, opacities and clips; a tab's words and a mark's letters are laid out once.
 @MainActor
-final class StripView: StageHost, StripDrawing {
+final class StripView: StageHost {
     /// The blacks, through the edge's mirror, ...
     private let stage = CALayer()
     private let fading = CAShapeLayer()
@@ -18,6 +18,7 @@ final class StripView: StageHost, StripDrawing {
     private let marks = CALayer()
     private var tabs: [Int: Tab] = [:]
     private var shownMarks: [MarkKey: StripMarkLayer] = [:]
+    private let asks = AsksPanelLayer()
 
     /// A tab's black, and its words in a box clipped to its body.
     private struct Tab {
@@ -38,6 +39,7 @@ final class StripView: StageHost, StripDrawing {
         fading.isHidden = true
         stage.addSublayer(rules)
         over.addSublayer(marks)
+        over.addSublayer(asks.layer)
         root.addSublayer(stage)
         root.addSublayer(over)
     }
@@ -70,6 +72,7 @@ final class StripView: StageHost, StripDrawing {
             showHairlines(frame.hairlines)
             showMarks(scene)
         }
+        asks.show(scene.asks, mirror: scene.mirror, now: scene.now)
     }
 
     private func showHairlines(_ lines: [StripFrame.Hairline]) {
@@ -85,9 +88,10 @@ final class StripView: StageHost, StripDrawing {
         }
     }
 
-    /// The stage, hung from the menu bar, its blacks turned about its centre for the window's mirror.
+    /// The stage, hung from the menu bar, as wide as the window, its blacks turned about its centre for the window's
+    /// mirror.
     private func place(_ scene: StripScene) {
-        let size = CGSize(width: Strip.depth, height: scene.menu + bounds.height)
+        let size = CGSize(width: bounds.width, height: scene.menu + bounds.height)
         let hung = CGRect(origin: CGPoint(x: 0, y: -scene.menu), size: size)
 
         for layer in [stage, over] {
@@ -119,16 +123,20 @@ final class StripView: StageHost, StripDrawing {
         }
     }
 
-    /// A tab's words, each laid out once as it comes, and again should what they say of the board change, or how
-    /// they move.
+    /// A tab's words, each laid out once as it comes, and its newest again should what they say of the board change, or
+    /// how they move; words going out stay as they were laid out as they fade. Only the newest take the row's arrow:
+    /// going out, theirs looks as it last did.
     private func showWords(_ tab: StripFrame.Tab, in drawn: inout Tab, _ scene: StripScene) {
         for gone in Set(drawn.words.keys).subtracting(tab.words.map(\.id)) {
             drawn.words[gone]?.layer.removeFromSuperlayer()
             drawn.words[gone] = nil
         }
+
+        let newest = tab.words.last?.id
+
         for words in tab.words {
-            let frame = scene.frame(words, in: tab)
-            let layer = drawn.words[words.id].flatMap { $0.says(scene) ? $0 : nil } ?? {
+            let frame = scene.frame(words, in: tab), isNewest = words.id == newest
+            let layer = drawn.words[words.id].flatMap { !isNewest || $0.says(scene) ? $0 : nil } ?? {
                 let made = StripWordsLayer(words, in: frame, scene)
 
                 drawn.words[words.id]?.layer.removeFromSuperlayer()
@@ -138,8 +146,16 @@ final class StripView: StageHost, StripDrawing {
             }()
 
             drawn.words[words.id] = layer
-            layer.show(words, in: frame, hover: tab.isLive ? scene.hoverRow : nil, now: scene.now)
+            layer.show(
+                words, in: frame, hover: tab.isLive ? scene.hoverRow : nil,
+                arrow: tab.isLive && isNewest ? scene.arrow(on: words) : nil, now: scene.now
+            )
         }
+    }
+
+    /// A tab's words as drawn, by their ids: internal only for the tests, which read how they are laid out.
+    func words(ofTab id: Int) -> [Int: StripWordsLayer] {
+        tabs[id]?.words ?? [:]
     }
 
     private func addTab() -> Tab {
@@ -148,7 +164,7 @@ final class StripView: StageHost, StripDrawing {
         tab.shape.fillColor = EdgeStyle.black
         tab.box.mask = tab.clip
         stage.insertSublayer(tab.shape, below: rules)
-        over.addSublayer(tab.box)
+        over.insertSublayer(tab.box, below: asks.layer)
         return tab
     }
 
@@ -176,6 +192,9 @@ final class StripView: StageHost, StripDrawing {
     private func rescaleToWindow() {
         rescaled(stage)
         rescaled(over)
+        if let scale = window?.backingScaleFactor {
+            asks.rescaled(to: scale)
+        }
     }
 
     /// Drawn at the window's pixel density, once there is a window.

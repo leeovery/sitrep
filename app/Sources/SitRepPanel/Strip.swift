@@ -96,6 +96,8 @@ public final class Strip {
     /// ... and from this frame on the other edge.
     var swapsEdge = false
 
+    /// A panel beside the open tab, as the last input had it (`StripInput.beside`).
+    var beside: CGPath?
     /// The mark under the pointer, or the open tab's.
     var hot: MarkKey?
     /// While a menu shows, the hover as it opened (`holdHover`).
@@ -217,6 +219,7 @@ public final class Strip {
     /// held to the screen, which carries a drag.
     private func take(_ input: StripInput) {
         reducesMotion = input.reducesMotion
+        beside = input.beside
         if input.stage != stage {
             stage = input.stage
             centre = clampCentre(stage.height * along)
@@ -258,10 +261,11 @@ public final class Strip {
     /// Its sessions are its rows, each a mark by its key (`Session.markID`), so a session with a row in Snoozed and
     /// another in Needs you or Working has two; a snooze or a wake moving its one row into Snoozed or out of it keeps
     /// its mark (`carry`). `reworded`, what the tabs say of the board changed with it, as when it goes stale: each open
-    /// tab that says it takes its new words. A tab takes them once, though its row changed too.
+    /// tab that says it takes its new words; `rewording`, what they say of these marks' rows, by their keys, as their
+    /// row's arrow comes or goes: each open tab of theirs does. A tab takes them once, though its row changed too.
     public func show(
         _ board: [Session], new: Set<String>, stopped: Set<String> = [], pulses: Set<Need> = [.ask],
-        reworded: Bool = false
+        reworded: Bool = false, rewording: Set<String> = []
     ) {
         let renamed = carry(into: board)
         let was = Dictionary(sessions.map { (renamed[$0.markID] ?? $0.markID, $0) }) { first, _ in first }
@@ -285,10 +289,20 @@ public final class Strip {
             sortLater()
         }
 
-        let rewords = reworded ? tabsSayingTheBoard : tabs.filter { tab in
-            tab.phase == .open && inPlace.contains { tab.key == .session($0.markID) }
-        }
+        let rewords = reworded ? tabsSayingTheBoard : tabs(of: Set(inPlace.map(\.markID)).union(rewording))
+
         rewords.forEach(reword)
+    }
+
+    /// What these marks' rows say changed with no new board, by their keys, as their row's arrow goes with an answer:
+    /// each open tab of theirs takes its new words.
+    public func reword(_ keys: Set<String>) {
+        tabs(of: keys).forEach(reword)
+    }
+
+    /// The open tabs of these marks, by their keys.
+    private func tabs(of keys: Set<String>) -> [StripTab] {
+        tabs.filter { tab in tab.phase == .open && keys.contains { tab.key == .session($0) } }
     }
 
     /// Sessions this board snoozes or wakes, each one's row in Snoozed come as its row elsewhere goes, or the other way

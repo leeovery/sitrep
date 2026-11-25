@@ -30,7 +30,7 @@ struct WelcomeNothingTests {
 
         let nothing = await made.settled()
 
-        #expect(Self.segments(in: nothing).count == 3)
+        #expect(Self.segments(in: nothing).count == 2)
         expectEvery(Self.segments(in: nothing)) { !$0.isEnabled }
         #expect(Self.rows(in: nothing) == rows)
     }

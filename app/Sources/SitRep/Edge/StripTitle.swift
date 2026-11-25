@@ -1,14 +1,12 @@
 import AppKit
 import SitRepPanel
-import SwiftUI
 
 /// A title in the strip, a tab's or a count's row's, in its runs, each in its own type and spacing: its verb, then
 /// what follows it, a command in code type, else what it acts on or waits on, plain or a wake's countdown in tabular
-/// figures, then its count (`more`), 6 after it. The black sets the runs as attributed text and glass as `Text`, so
-/// the words glass draws are the words the black measures and draws.
+/// figures, then its count (`more`), 6 after it, the runs set as attributed text.
 @MainActor
 struct StripTitle {
-    /// What a run is, for its colour, which each material gives its own way.
+    /// What a run is, for its colour.
     enum Part {
         case verb, follows, more
     }
@@ -96,39 +94,5 @@ struct StripTitle {
             }
             text.append(set)
         }
-    }
-
-    /// Set on glass, its count in the tertiary label colour, the parts `soft` in the secondary and those `hidden`
-    /// clear, the rest in whatever colour the view gives it.
-    @available(macOS 26, *)
-    func glass(soft: Set<Part> = [], hidden: Set<Part> = []) -> Text {
-        runs.reduce(Text("")) { title, run in
-            let text = Self.onGlass(run)
-
-            if hidden.contains(run.part) {
-                return title + text.foregroundStyle(Color.clear)
-            }
-            if soft.contains(run.part) {
-                return title + text.foregroundStyle(.secondary)
-            }
-            return title + (run.part == .more ? text.foregroundStyle(.tertiary) : text)
-        }
-    }
-
-    /// A run on glass, its gap after its last character, as the black's.
-    @available(macOS 26, *)
-    private static func onGlass(_ run: Run) -> Text {
-        guard let gap = run.gap, let last = run.words.last else {
-            return spaced(run.words, run.font, by: run.kern)
-        }
-
-        return spaced(String(run.words.dropLast()), run.font, by: run.kern) + spaced(String(last), run.font, by: gap)
-    }
-
-    @available(macOS 26, *)
-    private static func spaced(_ words: String, _ font: NSFont, by kern: CGFloat?) -> Text {
-        let text = Text(words).font(Font(font))
-
-        return kern.map(text.kerning) ?? text
     }
 }

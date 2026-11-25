@@ -153,7 +153,7 @@ struct WelcomeFocusTests {
         let stops = Self.stops(made)
         let reading = stops.sorted { ($1.midY, $0.minX) < ($0.midY, $1.minX) }
 
-        #expect(stops.count == 9)
+        #expect(stops.count == 8)
         #expect(stops == reading)
         expectEvery(stops.suffix(3)) { $0.maxY <= WelcomeStyle.footer }
     }

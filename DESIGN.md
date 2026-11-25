@@ -40,8 +40,8 @@ Settled with Lee on 16 October 2026.
 | **finished** | A session Claude or Lee finished, once it was complete with nothing left on it; what it parked is its project's, and stays. | |
 | **notch** | The SitRep notch, where it needs telling from the camera's: the black shape at the edge of the screen that opens into the panel. | |
 | **panel** | What the notch opens, the notch panel or the SitRep panel: a glance at the board, and a jump. | |
-| **row's arrow** | A Needs you row's button at its right end, shown in its time's place while the pointer is on the row, that opens the asks panel (24 November 2026). | |
-| **asks panel** | The panel beside the list that shows one session's asks, one at a time, to answer from; a Needs you row's arrow opens it (24 November 2026; see "Answering from the panel"). | |
+| **row's arrow** | A Needs you row's button at its end toward the asks panel, its right on the left edge and its left on the right, shown while the pointer is on the row, that opens the asks panel (24 November 2026); a strip's tab takes it too (25 November 2026). | |
+| **asks panel** | The panel beside the list, or beside the strip's tab, that shows one session's asks, one at a time, to answer from; a Needs you row's arrow opens it (24 November 2026; see "Answering from the panel"). | |
 | **strip** | The alternative to the notch and its panel: a narrow strip the height of the screen. | |
 | **menu bar item** | SitRep's icon in the menu bar, and its menu. | |
 | **Settings** | Where Lee sets SitRep up. | |
@@ -3238,7 +3238,7 @@ own snooze worked, and how its lines are still read.
   moves after every one with a time. On the card it is a Snoozed row whose
   mark is, since 13 November 2026, a snoozed ask's dot in blue, dimmed the
   same (see "How each row reads"); until then a ring 9 across, its stroke
-  1.5, in the faint grey, #5C5C63 (on glass the tertiary). In its time's
+  1.5, in the faint grey, #5C5C63. In its time's
   place, in the soft grey, it says when it wakes, or "until it moves". A
   row of a session's turn alone still reads so.
 - **The CLI** named the turn by `--turn <ms>`, its end as `watch` gives its
@@ -4477,7 +4477,7 @@ truth. There is still no background service. None of it is built now. Lee:
       them after its id.`). Until then a words ask was refused, its words
       needing Claude Code's prompt.
     - `--wants` (25 November 2026) gives what the ask wanted as Lee saw it, and
-      the asks panel and a banner always pass it: an ask Claude reshaped since
+      the asks panel always passes it: an ask Claude reshaped since
       is refused at the write (`k1 now wants words, not a yes: look at it
       again.`), so "Go" is never taken for a words ask's words.
     - It writes a reply, `yes`, `choose` with its option, `answer` with its
@@ -5440,9 +5440,8 @@ that takes Lee to the window a session is in.
     Mac. SitRep to the helper: ready, post, a request for the leave, or
     to ask for it first, each with an id its answer gives back, hand
     back the front, and cleared, an ask's banners taken down (25 November
-    2026). The helper to SitRep: ready, with its own pid,
-    clicked (the session's id), answered (24 November 2026; see "Its
-    buttons", below), and the leave. Each carries SitRep's pid,
+    2026). The helper to SitRep: ready, with its own pid, clicked (the
+    session's id), and the leave. Each carries SitRep's pid,
     whichever way it goes, and each side reads only its own SitRep's, so
     a helper left over from another SitRep is not heard, nor heeds one.
     Each side says ready as it starts listening. The helper answers each
@@ -5479,90 +5478,45 @@ that takes Lee to the window a session is in.
     SitRep ends, watching its `NSRunningApplication`. A click that
     starts the helper while SitRep is not running starts SitRep, not
     activated, and is held until SitRep says it is ready.
-  - **Its buttons** (24 November 2026, Paper's board D on the page
-    "Answering from the notch" of the file "SitRep · side panel"). A new
-    ask's banner answers the ask, with the buttons macOS draws, shown as
-    the pointer reaches the banner, by the ask's shape:
-    - a yes: one button, its yes, in the ask's words (`Go`);
-    - a choice: a button for each option, Claude's pick first, which
-      macOS gathers under Options where there are several;
-    - a words ask: Reply, macOS's text field in the banner, with Send.
-
-    No banner offers Ignore: closing a banner is not ignoring its ask. A
-    banner's answer goes at once, with no Undo, since a banner has nowhere
-    to show one; the asks panel's two seconds are the panel's alone (see
-    "Answering from the panel"). A click on the banner itself still jumps,
-    as before. The post SitRep relays carries the ask's shape beside its
-    words: its id, what it wants, its yes and its options, and its title
-    and its project and session as the banner shows them. The helper
-    registers a category of the banner's own, its actions those buttons,
-    before posting it, and relays a button's response back to SitRep: the
-    ask as the banner showed it, and the answer pressed or the words
-    typed. SitRep runs
-    `sitrep answer` with them, the words kept to one line as the CLI keeps
-    them. A refusal, the ask answered in its window meanwhile among them,
-    posts a banner "Not answered" over the CLI's words, as a refused
-    snooze posts "Not snoozed". A banner for Lee's turn, the test
-    notification, a refusal's banner and the banner of an ask with no
-    options to choose from have no buttons.
-
-    Settled in review, 25 November 2026: each button needs the Mac
-    unlocked; a press hands the front back, as nothing jumps; Reply sent
-    empty posts "Not answered", saying it had no words. Every answer, the
-    asks panel's too, passes `--wants`, what the ask wanted as Lee saw
-    it, so the CLI refuses one Claude reshaped since. For a banner's
-    answer SitRep refuses it first where its last board already shows
-    the change; the asks panel's held answer is left to the CLI. A
-    refusal's banner names the ask by its title in place of its id,
-    under its project and session, as its new ask's banner does, from
-    the session's row on the board, any row, Working among them, or its
-    row in Snoozed, and a click on it jumps there.
-    An ask that waits on Lee no more, answered anywhere, ignored,
-    commented on, resolved or gone with its session, has its banners
-    still in Notification Center taken down, over the relay's `cleared`,
-    so no old button answers it and the helper's categories stay bounded
-    to the banners on screen and the ten last posted. Only while SitRep
-    runs, and from a line whose projects read: an ask that left while it
-    was off keeps its banner, and the CLI refuses a press on it.
-
-    Settled in the phase review, 25 November 2026:
-    - **An ask edited since its banner** never takes the old banner's
-      answer. Claude may edit an ask's title, keeping its shape and its
-      yes: "Deploy to staging?" made "Deploy to production?", still
-      `Go`. The CLI sees no title, so SitRep's check is the one that
-      holds: a press on a banner whose title differs from the board's
-      posts "Not answered", saying the ask changed after its banner
-      showed, and sends nothing. Where the board doesn't hold the ask, as
-      for a press that starts SitRep or a line whose projects don't read,
-      the answer goes to the CLI, and so does a press in the second before
-      the edited line lands: rare, and accepted, since closing them would
-      take the title to the CLI.
-    - **An ask edited while it waits** has its banners taken down, over
-      `cleared`, as one that left: its title, its yes, its options or
-      what it wants changed against the last line, the ask waiting on
-      Lee on both. By the same rules: only from a line whose projects
-      read, against a last line whose projects read, and never on the
-      first line SitRep hears. An edit the banner never shows, Claude's
-      pick or what a words ask needs, leaves it up. The asks panel draws
-      the live ask, so it needs neither; an answer already held there
-      when Claude retitles still goes, the new title drawn above its Undo.
-      Banners are taken down before new ones are posted, so an ask woken
-      on the line that edits it keeps its fresh banner.
-    - **An edited ask gets no fresh banner.** A banner announces a new
-      ask, and an edit is none: the ask stays lit in Needs you, and a
-      Reply being typed goes with its banner.
-    - **A refusal names the ask as its banner showed it** where the board
-      holds it no more, as for an ask answered in Claude while SitRep was
-      off: never by its id.
-    - **A banner's answer to the ask held** in the asks panel takes the
-      hold back first, as Undo does, and goes at once, so the CLI never
-      refuses it as answered already.
+  - **Its buttons, built and removed.** From 24 November 2026 a new ask's
+    banner answered its ask with the buttons macOS draws: a yes's one
+    button, a choice's options, or Reply with Send for a words ask (Paper's
+    board D on the page "Answering from the notch" of the file "SitRep ·
+    side panel"). Lee removed them after his second live try, 25 November
+    2026: "I don't think I want asks in notifications. Let's leave
+    notifications simple. They appear. If you click it, it takes you to the
+    window, and leave them like that." Every banner posts with no buttons
+    again, and a click on one jumps. What the round built for the asks
+    panel stays:
+    - every answer passes `--wants`, what the ask wanted as Lee saw it, so
+      the CLI refuses one Claude reshaped since;
+    - a refusal posts "Not answered" over the CLI's words, the ask named
+      by its title in place of its id, under its project and session, from
+      the session's row on the board, any row, Working among them, or its
+      row in Snoozed, and a click on it jumps there;
+    - an ask that waits on Lee no more, answered anywhere, ignored,
+      commented on, resolved or gone with its session, has its banners
+      still in Notification Center taken down, over the relay's
+      `cleared`, so Notification Center keeps to what still waits. Only
+      while SitRep runs, and from a line whose projects read, against a
+      last line whose projects read, never on the first line SitRep hears.
+      Banners are taken down before new ones post. Until the review of the
+      removal (25 November 2026) an ask edited while it waited, its title,
+      its yes, its options or what it wanted, had its banners taken down
+      too, so a button could never answer what the ask no longer asked;
+      with no buttons, that only took down a banner of an ask still
+      waiting, with nothing in its place, and it went.
+    - the helper registers no banner categories as it starts, which clears
+      those the builds with buttons registered: macOS keeps a build's
+      until another registers its own, and their buttons would show on a
+      banner still, a press on one going nowhere.
 - **Answering from the edge** (24 November 2026; see "Answering from the
-  panel"): a yes or a choice from the asks panel, and a yes, a choice or
-  words from a new ask's banner (above), each through `sitrep answer`. A
-  words ask on the panel, a permission prompt and Claude Code's question
-  stay in Claude Code: the panel shows them, and takes Lee there. From 17
-  October 2026 until then, all answering stayed in Claude Code.
+  panel"): a yes or a choice from the asks panel, through `sitrep answer`.
+  A words ask, a permission prompt and Claude Code's question stay in
+  Claude Code: the panel shows them, and takes Lee there. From 17 October
+  2026 until then, all answering stayed in Claude Code. A new ask's banner
+  answered too, from 24 to 25 November 2026 (see "Its buttons, built and
+  removed", above).
 - **Clicking** a session, an ask or a macOS notification takes Lee to the
   Ghostty window showing that session, on whatever Space it is, and leaves
   SitRep's windows on their own Space. A
@@ -5627,17 +5581,15 @@ light inside. It opens into a black panel:
 - front corners of radius 24, and flares of 18 into the bezel;
 - kept 40 from the top and bottom of the screen's visible frame.
 
-In Glass (Settings' Material; Black by default), Meniscus and the card are
-thick Liquid Glass from rest, the light drawn over the glass and the rows in
-the system's label colours. Clear glass that narrow hardly reads (Lee, 20
-October 2026: "the hovering box maybe is a little too subtle"), so the
-notch is marked as the black is by its dark: the glass tinted black at 0.5,
-with a white rim 1 point wide at 0.22 inside its edge. It is in full at
-the notch at rest, and near it while something needs Lee or the notch
-reaches for the pointer (the tint 0.44 to 0.49), as it eases off with how
-far out the outline is past the notch at rest, to the plain glass of the
-panel open, which Lee liked as it was. Under reduced motion each outline
-of the cross-fade keeps its own.
+**Black only** (25 November 2026). The notch, its panel, the asks panel
+and the strip are drawn in black alone. Until then Settings' Material
+offered Glass beside Black, macOS 26's Liquid Glass, drawn in SwiftUI over
+the same layouts; Lee removed it after his second live try of the asks
+panel: "Glass actually looks really shit. Let's just remove that
+entirely and just remove the option for the material and just stick to
+black." The Material row went with it. A Material saved by an earlier
+version is passed over, so a Glass saved draws in black, with nothing
+asked.
 
 It sits on the left edge by default, at Lee's asking, 0.42 of the way down
 the screen, a little above the middle, as the prototypes have it and where
@@ -5780,7 +5732,7 @@ with it.
   and Tailspin's three are 4), then its stopped in #124's blue, its
   your-turn rows, one a session; each is drawn only above zero, so 4 asks
   and 7 stopped read "4 7", asks alone the orange one, stopped alone the
-  blue. On glass the same, in Claude's orange and the blue. Until then it
+  blue. Until then it
   had one count, in orange, the turns counted in it since they joined
   Needs you that morning, so 4 asks and 7 turns read 11. Working counts
   its rows, as Your turn did; Snoozed counts its lines, as Needs you its
@@ -5831,9 +5783,9 @@ with it.
   its own motion, one folding away finishing and one arriving, the new
   ask's own row among them, folding in.
 - **One shape** (board J2, 4 November 2026): every row is one line, 30
-  tall, inset 10, its lift's corners 10, with no gap between rows, in black
-  and on glass alike (see "How each row reads"). Lee, of board I's card,
-  its rows of two heights: they "look a little odd". From board I that
+  tall, inset 10, its lift's corners 10, with no gap between rows (see "How
+  each row reads"). Lee, of board I's card, its rows of two heights: they
+  "look a little odd". From board I that
   morning Needs you's and Your turn's rows were drawn whole, two lines, 49
   tall, and Working's and Snoozed's one line; from 22 October 2026 until
   board I Your turn's rows were the one line and Working's two, so the less
@@ -6062,7 +6014,7 @@ right, Your turn's row alone on one line from 22 October 2026:
   on one line since board I (4 November 2026), 30 tall. Its dot 7 across
   with no glow, its orange dimmed by the away rows' 0.61, which stands it
   about as bright on the black as the faint grey, #5C5C63, it was until 13
-  November 2026 (on glass the orange at 0.61); the session's name 13 in the soft
+  November 2026; the session's name 13 in the soft
   grey, #98989F, cut short, its count faint after it; its project in a lane
   at its right, 12 in the faint grey. An away row is drawn the same, since
   an ask Lee put off urges nothing until it wakes; it still jumps nowhere.
@@ -6136,8 +6088,9 @@ menu shows, the card holds open as if the pointer rested where it was
 opened, wherever the pointer goes on the menu, and its grace starts only
 once the menu closes, so a choice made on it finds its row still there.
 Under the pointer a row's time stays, but on a Needs you row with an ask
-the asks panel answers, whose arrow takes its place (24 November 2026; see
-"Answering from the panel"): the button that took its place until 5
+the asks panel answers on the left edge, whose arrow takes its place (24
+November 2026; on the right edge the arrow takes the dot's, 25 November
+2026; see "Answering from the panel"): the button that took its place until 5
 November 2026, opening the session in the SitRep window, went with the
 window, and so did the menu's Open in SitRep.
 
@@ -6370,7 +6323,8 @@ with their velocity kept when a target changes.
 Decided with Lee on 24 November 2026, and drawn in Paper (the file "SitRep
 · side panel", the page "Answering from the notch"). Board F is the design,
 keeping boards E1 and E2's arrow; boards A, B and E were drawn and not
-taken; board D is the banner (see "The menu bar", "Its buttons"). One
+taken; board D is the banner, built and removed (see "The menu bar", "Its
+buttons, built and removed"). One
 (getone.one) and every notch app for Claude Code answer from the screen's
 edge, and SitRep's plumbing was there already: `sitrep answer` writes a
 reply into the session's inbox, and the session's window delivers it as
@@ -6387,17 +6341,26 @@ it lights and waits, and Lee comes to it.
 least one board ask the panel can answer, a yes, a choice or a words ask,
 has two places to click:
 - its words: a click jumps to the session's window, as before;
-- its arrow, at its right end: a button of its own, 40 wide and 26 tall,
-  radius 8, in the time lane's place while the pointer is on the row, the
-  time showing otherwise. Unlit, its chevron is the soft grey on the row's
-  hover fill; it lights as the pointer reaches it, its fill #34343B and
-  its chevron white. A click on it opens the asks panel. Its chevron
-  points toward where the asks panel opens, › on the left edge and ‹ on
-  the right, and turns 180° while its asks panel is open, so a second
-  press reads as taking the asks panel back (Lee, 25 November 2026, after
-  his first live try). It turns as the asks panel opens and closes, a
-  rotation of 0.2 seconds, never a cross-fade, and at once under Reduce
-  motion, in Black and Glass alike.
+- its arrow, at its end toward the asks panel, shown while the pointer is
+  on the row, a button of its own, radius 8:
+  - **on the left edge** at its right end, 40 wide and 26 tall, in the
+    time lane's place, the time showing otherwise;
+  - **on the right edge** at its left end, 26 by 26, centred on the dot's
+    slot, the dot hidden while the arrow shows and the time showing, so
+    the words and the time never move (Lee, 25 November 2026, after his
+    second live try: "the chevron should be on the left, not the right").
+    Until then it stood at the row's right end on either edge, the end
+    away from the asks panel on the right.
+
+  Unlit, its chevron is the soft grey on the row's hover fill; it lights
+  as the pointer reaches it, its fill #34343B and its chevron white. A
+  click on it opens the asks panel. Its chevron points toward where the
+  asks panel opens, › on the left edge and ‹ on the right, and turns 180°
+  while its asks panel is open, so a second press reads as taking the
+  asks panel back (Lee, 25 November 2026, after his first live try): ‹ on
+  the left edge and › on the right. It turns as the asks panel opens and
+  closes, a rotation of 0.2 seconds, never a cross-fade, and at once under
+  Reduce motion.
 
 A row whose waiting lines are only Claude Code's own permission prompts or
 questions has no arrow, since the panel can't answer those. Nor have
@@ -6469,7 +6432,10 @@ leaves the asks panel with it, and the asks panel closes once none is left.
   holds it open while the pointer keeps closing in on it: judged over the
   last 80ms, with 1pt of slack for a hand's jitter, and for 400ms at most
   from leaving the list. A pointer resting, turning away or out of the
-  triangle is off the list at once.
+  triangle is off the list at once. The way from the arrow starts where
+  the arrow stands, at the row's end by the asks panel on either edge, so
+  from the arrow the pointer seldom leaves both; the longest way, which
+  the 400ms is set by, starts at the row's far end.
 - **A scroll of the list** of more than 10 points from where it stood as
   the asks panel opened closes the asks panel, as a Mac menu's scroll
   closes its submenu; a sideways swipe's drift leaves it open.
@@ -6483,23 +6449,94 @@ the dots only showed which ask was on screen). Paging is no answer: the
 300ms beat after the ask changes holds for an answer row, Ignore, Snooze
 ▾ and Undo as for any change, and an answer held stays held, its Undo
 with its ask.
-- **A click on a dot** shows its ask, at once, beat or none: a dot pages
-  the same whatever ask shows, so clicks from dot to dot in quick
-  succession each land (the review, 25 November 2026). Each dot takes the clicks nearest
-  it across the dots and 6 points past each end, the top line's whole
-  height, so a dot 5 wide is no target to aim at.
-- **A horizontal swipe** of two fingers on the asks panel, or a mouse's
-  horizontal scroll, steps to the next ask or the previous one, one ask a
-  gesture, once it has gone 12 points across, more across than down. The
-  asks lie left to right, as their dots do, and the scroll goes the way
-  the Mac scrolls anything sideways: with natural scrolling, fingers moving
-  left show the next, as swiping between pages in Safari does. Nothing
-  wraps: past the last ask, or before the first, a swipe does nothing.
+- **A click on a dot** shows its ask, beat or none: a dot pages the same
+  whatever ask shows, so clicks from dot to dot in quick succession each
+  land (the review, 25 November 2026), during a slide's settle too. Each
+  dot takes the clicks nearest it across the dots and 6 points past each
+  end, the top line's whole height, so a dot 5 wide is no target to aim
+  at. Its ask slides in as a completed swipe's does (below), the ask it
+  leaves sliding out on the other side, however many asks lie between,
+  from where the two stand, but never from further than one ask away,
+  which would leave the black between them. While the dots follow a
+  slide, each takes the clicks where it is drawn, not where it stands at
+  rest (the review, 25 November 2026).
+- **A horizontal swipe** of two fingers on the asks panel follows the
+  fingers, as the Mac's swipe between Spaces does (Lee, 25 November 2026,
+  after his second live try; until then a swipe stepped once it had gone
+  12 points across, and the ask changed at once). The asks lie left to
+  right, as their dots do, and the scroll goes the way the Mac scrolls
+  anything sideways: with natural scrolling, fingers moving left bring in
+  the next, as swiping between pages in Safari does. A gesture takes hold
+  once it has gone 6 points, more across than down; more down than
+  across, it is no swipe.
+  - **As the fingers move,** the ask slides with them, a point for a
+    point, and the ask beside it slides in from that side, both clipped
+    to the asks panel's shape; never further than one ask a gesture. What
+    slides is what differs from ask to ask: the title and age, and the
+    answers. The frame, the top line and the foot stay. The top line is
+    the session's, the same for every ask, and its dots follow the slide,
+    the wide orange one passing to the next as it goes. The asks panel's
+    height follows the slide from one ask's height to the other's, and
+    the foot stays at its bottom, over a band of the black as tall as the
+    foot and the gap above it, which the taller ask's answers pass under.
+    The foot stays because its Ignore, Snooze ▾ and Open in Claude are the
+    same for every ask: slid with its ask, the taller ask's foot was cut
+    off at the bottom as the height closed in, the shorter's left black
+    under it (the first build's still, 25 November 2026). Only a sending
+    line differs, an answer held for one of the two asks: it cross-fades
+    with the other ask's foot as the slide goes.
+  - **On the lift,** the ask beside completes its slide past a third of
+    the asks panel's width, 124 points, or on a flick toward it faster
+    than 0.5 points a millisecond, the fingers' speed over their last
+    100ms; else the ask springs back, as it does on a flick the other way
+    however far it went, and on a cancelled gesture. The settle is
+    critically damped, as SwiftUI's spring of response 0.3 seconds and
+    damping 1, within half a Retina pixel of its place in under half a
+    second from a whole ask away: it takes up the fingers' speed, held to
+    what it can take without passing its place, and never overshoots, so
+    no third ask shows, a lift with the ask beside slid all the way in
+    too. A swipe during the settle takes the slide from where it stands,
+    with the same two asks, a dot's settle across asks too; on its lift a
+    flick the way its fingers went completes that way, so a second flick
+    during the first's settle goes on to the ask after, as the Mac's
+    swipe between Spaces does (the review, 25 November 2026). One that
+    goes on before the slide has passed its place starts its ask from no
+    more than one ask away, as a dot's click does, so the ask going out
+    jumps the rest of the way to its place in a frame, 20 to 120 points
+    at a flick's pace (accepted in the second review, 25 November 2026).
+  - **Past the first or the last ask** it rubber-bands: it moves a share
+    of the fingers' travel, the share shrinking as they go, as a Mac
+    scroll view's edge does, and springs back on the lift, from rest.
+    Nothing wraps.
+  - The ask changes at the lift that completes it, and the 300ms beat
+    starts there. During a drag or the settle nothing on it lights under
+    the pointer, and a press lands on nothing, but for a dot during the
+    settle (above).
   - A trackpad's gesture runs from its fingers' first touch to their lift
     (the scroll's phases); its momentum after is no gesture, so a flick
-    takes no second step.
-  - A mouse's wheel has no phases: its scrolls are one gesture until 300ms
-    pass with none.
+    takes no second step. Every scroll of a swipe under way is the asks
+    panel's, and the window takes clicks until it ends, wherever the
+    pointer goes, as when the asks panel shrinks from under a still
+    pointer as it slides to a shorter ask. A gesture whose lift never
+    came, gone to another window all the same, ends at the next
+    gesture's first scroll, or a wheel's, its ask springing back and that
+    scroll going where the pointer is; the asks panel closing ends its swipe
+    (the review, 25 November 2026).
+  - **The slide is its two asks'**, the one shown and the one beside. Any
+    other ask leaving or coming moves nothing under the fingers: the
+    slide goes on with the same two asks. Either of them leaving, its
+    answer gone or the board leaving it out, stands the ask shown still
+    at its place, and the rest of the gesture moves nothing until the
+    fingers lift, so no ask is skipped and no other slides in where it
+    was (the review, 25 November 2026; the ask beside, the second
+    review).
+- **A mouse's horizontal scroll** has no lift to follow, as its wheel has
+  no phases: it steps to the next ask or the previous one once it has gone
+  12 points across, more across than down, one ask a gesture, its scrolls
+  one gesture until 300ms pass with none. Its step slides as a dot's does.
+- **Under Reduce motion** nothing slides: the ask stays still under the
+  fingers, running no frames, and a completed swipe, a dot or a wheel's
+  step shows the other ask at once, its dots and height with it.
 
 **Answering, with two seconds to undo.** A click on an answer row turns it
 white: a white fill, its words in ink, Claude's pick's tag in ink at half,
@@ -6517,8 +6554,6 @@ hover.
 - Leaving the notch within the two seconds, or moving the asks panel to
   another row, doesn't cancel: the answer still goes.
 - Once it goes, the asks panel steps to the session's next ask.
-- A banner's answer to the ask held takes the hold back, as Undo does,
-  and goes in its place (see "Its buttons").
 - Quitting SitRep sends the answer held at once, its hold cut short, and
   waits on the CLI to write it, and every answer gone before it, each
   within the CLI's 10 seconds.
@@ -6534,8 +6569,6 @@ Accepted in the phase review, 25 November 2026, and recorded:
   landing.
 - A CLI stopped at its 10 seconds after it wrote the answer says "Not
   answered" for an answer that went.
-- A held answer gone to the CLI and a banner's press on the same ask: the
-  first to write wins, and the CLI refuses the other as answered already.
 
 The answer then travels as any `sitrep answer` does: into the session's
 inbox, delivered by the session's window as "From the board:". The ask
@@ -6551,23 +6584,67 @@ refusal posts "Not snoozed" over the CLI's words, as the row's does. The
 row's right-click Snooze stays the session's. Until 25 November 2026
 Snooze ▾ offered the row's Snooze and snoozed the session.
 
-**Black and Glass.** The asks panel draws in both Materials, as the panel
-does. In Glass it is the panel's glass, its words in the system's label
-colours, as the Glass rows are; its rows and outlines keep their shapes,
-filled in the glass's tints in place of the black's greys, and its
-current page dot keeps Claude's orange. Claude's pick keeps its lilac at
-the black's strengths: #B1B9F9 and its tag #9AA2EE in the dark
-appearance, and in the light one the pane's darker #7178C7 for both,
-where the pale lilac would barely stand off the glass. The answer held is
-white with ink in the dark appearance, as in Black, and near-black with
-light words in the light one, where white would barely stand off the
-glass; either stands apart from the lilac pick. The asks
-panel's edge is a hairline in the separator colour, the open Glass panel
-having no rim of its own.
+**On the strip** (Lee, 25 November 2026, after his second live try:
+"Obviously, this should have worked with the strip view as well"). Under
+the pointer a mark pours its panel row out as a tab (see "The strip");
+the tab of a session whose notch row would take the arrow, needing Lee
+with an ask the panel answers, takes it too, and the asks panel opens
+from it beside the tab, as the notch's does beside its row.
+- **The tab's arrow** is 40 by 26, radius 8, on the tab's middle at its
+  front end, its right on the left edge and its left on the right, toward
+  where the asks panel opens. It stands 17 in from the tab's front, as far
+  as a notch row's arrow stands from the list's front (3 in from the
+  row's end, the row 14 inside the list), so the asks panel, overlapping
+  the front by 8, leaves 9 beside it and never cuts its rounded end (the
+  review, 25 November 2026; it stood 3 in until then, 5 points of it
+  under the asks panel). A click between it and the tab's front end is
+  its too, so a pointer coming from the strip that overshoots it opens
+  the asks panel rather than jumping (the review, 25 November 2026). A
+  tab is out only under the pointer, so its
+  arrow always shows on it, and the tab makes room for it rather than
+  hiding the time: it is 51 points wider, the arrow and its inset, with
+  8 between the arrow and the time on the left edge, or 6 between the
+  arrow and the words on the right, the pad at that end giving way to it.
+  That holds while the tab is between its least width and its most: one
+  held at either grows less.
+  Its words and its time keep the layout they would have in the rest. It
+  lights, points and turns as the row's arrow does, fades with the tab's
+  words as they go, drawing back or gliding on, and hides while a click
+  presses the tab in. Words going out stay as they were laid out, their
+  arrow as it last looked, as the tab's newest words take the arrow, or
+  give it back. A count's tab of rows takes none.
+- **The arrow and its room have one source:** the sessions the asks panel
+  answers an ask of, an ask whose answer went left out. Once the last
+  ask's answer goes, the arrow goes, and the tab's words give back its
+  room, as they do when the board alone changes which sessions take it.
+- **The asks panel** opens beside the tab, level with it, its top 12
+  above the tab's words, overlapping the tab's front by 8 and on top of
+  it, kept inside the screen's visible frame, under the menu bar and
+  above the Dock, as the notch's is. The strip's window grows into the
+  screen for it while it is open, as the notch's does.
+- **Everything the notch's asks panel does holds here:** its answers and
+  the two seconds to undo, the 300ms beat, paging by its dots and the
+  swipe, Snooze ▾ for the ask shown, and Open in Claude, which jumps as a
+  click on the tab does, pressing it in. The arrow pressed again closes
+  it, and nothing but the arrow opens it. While it is open, a press on
+  the strip or the tab anywhere but the arrow, on the tab's words or a
+  mark, closes it and does nothing else: letting go jumps nowhere and
+  drags nothing; the next click acts. A click in another app closes it
+  with the tab.
+- **The pointer on it, or on its way to it,** is on the tab: the tab stays
+  out, and nothing re-sorts under it. Leaving the strip, the tab and the
+  asks panel starts the tab's grace, and draws the tab back, the asks
+  panel closing with it. The way to it is the notch's triangle, from
+  where the pointer last was on the strip or the tab.
+- **Another mark** takes the tab: the pointer moving along the strip onto
+  another mark glides the tab there, as it always does, and the asks
+  panel, its session's, closes with the tab's words; the other session's
+  arrow opens its own. The strip has one tab, where the notch lists every
+  row, so the asks panel can stay only while its tab does (decided in the
+  build, 25 November 2026).
 
-**Not in this build** (see "Later"): the strip, whose tab could take the
-arrow later; the menu bar item; permission prompts and Claude Code's
-question dialog; keys.
+**Not in this build** (see "Later"): the menu bar item; permission
+prompts and Claude Code's question dialog; keys.
 
 ### The strip
 
@@ -6633,7 +6710,7 @@ prototype is `prototypes/strip/strip.html`.
     it, in the ring's place, as on any mark, and the ring comes back after.
   - **in Snoozed** (14 November 2026): an ask's ring orange and a turn's
     blue, each dimmed as a Snoozed row's dot is, with no glow, the letters
-    faint, in black and on glass alike; it never flashes nor washes.
+    faint; it never flashes nor washes.
 
   **Three sections**, as the panel's (14 November 2026, Lee): Needs you,
   Working and Snoozed, in the panel's order, a hairline between each two
@@ -6687,12 +6764,15 @@ prototype is `prototypes/strip/strip.html`.
   "+2" was (board F, 22 October 2026, after the proposal Lee agreed: "a row
   is a session on every surface"). An away one's name sits over "No window
   holds it. Carry it on in Claude.", its words dimming as one, as the
-  panel's (see "The rows"; 3 November 2026), on the black and on glass, in
-  a tab and in a count's rows alike. A tab's title says what follows its
-  verb on every kind, as the card's row does, and on a working tab the
+  panel's (see "The rows"; 3 November 2026), in a tab and in a count's rows
+  alike. A tab's title says what follows its verb on every kind, as the
+  card's row does, and on a working tab the
   verb alone shimmers, what follows it still in its grey; with a count,
   what follows gives way, cut with an ellipsis, before the count does (17
-  November 2026).
+  November 2026). A tab whose session has an ask the asks panel answers
+  takes the row's arrow at its front end, and a click on the arrow opens
+  the asks panel beside the tab (25 November 2026; see "Answering from the
+  panel", "On the strip").
 - **Moving.** The strip never shuts, so the panel's "a changed row moves
   only once it closes" becomes one rule (Lee, 14 November 2026): a mark
   moves at once whenever its session changes group, pointer on the strip or
@@ -6878,9 +6958,9 @@ prototype is `prototypes/strip/strip.html`.
     are made, and never out: hidden, each is clear and lets every click
     through, and the turns and sweeps Core Animation runs for it in the
     render server are paused, to run again as it shows.
-- **Material:** Black, the bezel's, or Glass, macOS 26's Liquid Glass, for
-  the strip and its tabs alike, as one shape (Lee, 18 October 2026: "I like
-  the glass and the black, actually"). See Settings.
+- **Black**, the bezel's, the strip and its tabs alike, as one shape. Glass
+  was offered beside it from 18 October 2026 (Lee: "I like the glass and the
+  black, actually") until 25 November 2026 (see "The notch and its panel").
 
 **How the strip moves**, felt in the browser spike (18 October 2026, the
 prototype's Strip tab, now `prototypes/strip/strip.html`; Lee kept its
@@ -6928,16 +7008,9 @@ defaults):
   it.
 - **Reduced motion:** no springs and no reach; a tab's shape fades in and
   out, and marks snap to their places and fade in.
-- **In glass**, Liquid Glass has two thicknesses and picks one from a
-  shape's size: the strip alone would be thin, the strip with a tab out
-  thick, and a shape rebuilt every frame switches at once (Lee: "it needs
-  to be a little more graded rather than instant"). A thin glass fading out
-  over the thick one still read on the display as two steps, so the strip
-  is thick glass from rest, one look in every frame (Lee, 19 October 2026:
-  "the glass panel looks good as it is"). A mark's ring lifts once under
-  the pointer, over 110ms, and settles back once. The working arcs and the
-  shimmer turn in Core Animation, in the render server, so the strip at
-  rest does no work in the app.
+- **A mark's ring** lifts once under the pointer, over 110ms, and settles
+  back once. The working arcs and the shimmer turn in Core Animation, in
+  the render server, so the strip at rest does no work in the app.
 
 They ship fixed, as the notch's do (above, "The app ships these values
 fixed"). Lee's settings:
@@ -7177,10 +7250,9 @@ does; the boards first drew it on a band of black.
   3. **Your edge:** "Choose what sits at your edge." Notch or Strip as
      Settings' own pictures, at the window's size, the one chosen ringed in
      the accent; under them a grouped form in System Settings' rows: Style,
-     Meniscus or Card; Material, Black or Glass (from macOS 26, as in
-     Settings); and Edge, Left or Right. At Strip, Length, Grows or Full,
-     takes Style's place in a cross-fade, one row for another, so the form
-     keeps its height and holds only what applies. Settings' Edge pane
+     Meniscus or Card; and Edge, Left or Right. At Strip, Length, Grows or
+     Full, takes Style's place in a cross-fade, one row for another, so the
+     form keeps its height and holds only what applies. Settings' Edge pane
      changes at once instead, as its height changes with it (Lee found its
      motion jarring). Under the form, a quiet text button, Show nothing
      at the edge, sets Show to Nothing (Lee, 3 November 2026: "I think I
@@ -7231,7 +7303,7 @@ does; the boards first drew it on a band of black.
      the first hover takes it away for good. The strip, if chosen, shows
      it as the notch would.
 - **Leaving early:** Skip setup, ⌘W or the close button keep what Lee set
-  and the defaults for the rest: the notch on the left, Meniscus, Black,
+  and the defaults for the rest: the notch on the left, Meniscus, the sound
   Glass, and open at login, macOS's notice with it. Nothing is asked of
   macOS.
 - **Borrowed**, from Lee's saved references and what was looked at:
@@ -7435,18 +7507,17 @@ live changed, and how they group.
   jarring"):
   - **Notch:** Edge, Left or Right ("or drag it across the middle");
     Display, the main one unless another is chosen; Style, Meniscus or Card
-    ("Meniscus pours, Card slides"); Material. Then Motion.
+    ("Meniscus pours, Card slides"). Then Motion.
   - **Strip:** Edge; Display; Length, Grows or Full ("grows with what's on
     it, or runs the screen's height"); Max, only at Grows, a slider 160
-    wide whose right end is Full ("how long it grows"); Material. Then
-    Motion.
+    wide whose right end is Full ("how long it grows"). Then Motion.
   - **Nothing:** neither section; the pane is the Show row's card alone,
     and Show has a line under it, as a row's line is set, saying the menu
     carries the board. Under the notch or the strip,
     Show has no line.
 
-  Material is Black or Glass, for the notch and the strip alike, Black by
-  default, from macOS 26 (before it, Black and no row). Reduce motion is
+  Until 25 November 2026 a Material row, Black or Glass, closed both
+  sections (see "The notch and its panel"). Reduce motion is
   off, its line saying SitRep follows the Mac's own setting either way
   (Lee, 18 October 2026: "One thing we might want to ship... is the ability
   to reduce motion").
@@ -8671,7 +8742,7 @@ open), and tmux passing an escape sequence through from Claude's own pane
         before any, "SitRep can't read the board", and in a SitRep with no
         plugin to run, the trouble that left it none (step 9).
       - **Frames run only while something moves**: the notch, a row
-        folding, the ghost, a new row's wash in glass. A pointer resting
+        folding, the ghost. A pointer resting
         anywhere, by the notch or on the still panel, costs nothing; the
         open panel's times are drawn again as they change, each minute.
       - **The spike's panel that stayed open**, found in the tests: frames
@@ -8766,9 +8837,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
         prototype's `.mk.jumping .arc` does, so a quick answer still shows
         it, and out over the mark's 240, as it fades in over 240 for a mark
         turning working. The ring, its glow and the letters' colour ease over
-        240 and the pressed fill over 110, each on its own, in black and in
-        glass. The caption is the panel's, over the strip's screen, once the
-        spin is over. As the panel's, a click while a jump runs, from
+        240 and the pressed fill over 110, each on its own. The caption is
+        the panel's, over the strip's screen, once the spin is over. As the
+        panel's, a click while a jump runs, from
         anywhere, jumps in its place (none was taken until 4 November 2026);
         an answer to an earlier click changes nothing; and the
         session jumped to is the one the strip pressed in. A click is a
@@ -10497,8 +10568,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
      nothing new on it (`retold`), so nothing swells or washes twice. On the
      strip an ask's mark takes the away look, and other marks keep theirs.
    - **The look**: no new styling. Working and on-its-own-work titles now
-     dim by `Away.dim` on the card, the strip's tab and count rows and on
-     glass, as a your-turn row's and an ask's did already; the menu dimmed
+     dim by `Away.dim` on the card and the strip's tab and count rows, as a
+     your-turn row's and an ask's did already; the menu dimmed
      every away row's words already.
    - **After review** (13 November 2026):
      - the suspended rule goes by the read of here, never the jump's
@@ -10816,8 +10887,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
         the same way.
 
 9. **Answering from the panel and the banner**, decided with Lee on 24
-   November 2026 (see "Answering from the panel", and "Its buttons" under
-   "The menu bar"). In order, each step a PR:
+   November 2026 (see "Answering from the panel", and "Its buttons, built
+   and removed" under "The menu bar"): the banner's half removed on 25
+   November 2026. In order, each step a PR:
    1. **`sitrep answer` takes words.** A words ask's words, a reply
       `{verdict: 'answer', note}` into the session's inbox, kept to one
       line; empty words refused; a comment and a permission prompt still
@@ -10832,7 +10904,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
       seconds, Undo taking it back, then runs it; a refusal posts the
       banner "Not answered" over the CLI's words, as a refused snooze
       posts "Not snoozed".
-   3. **The row's arrow and the asks panel**, in Black and in Glass. The
+   3. **The row's arrow and the asks panel**, in Black and in Glass, Glass
+      removed on 25 November 2026 (see "The notch and its panel"). The
       arrow on a Needs you row with an ask the panel answers; the asks
       panel beside the list, its window wider than the panel's while it is
       open, and taking clicks over the asks panel's shape as over the
@@ -10840,14 +10913,22 @@ open), and tmux passing an escape sequence through from Claude's own pane
       line with its countdown and Undo; staying open while the pointer is
       over the list or over it.
    4. **The banner's buttons**, through the notices helper. The post
-      carries the ask's id, what it wants, its yes and its options; the
-      helper registers a category for each banner, its actions the ask's
-      buttons, or Reply for words, and relays a response, the ask's id and
-      the answer or the words, back to SitRep, which runs the CLI at once.
+      carried the ask's id, what it wants, its yes and its options; the
+      helper registered a category for each banner, its actions the ask's
+      buttons, or Reply for words, and relayed a response back to SitRep,
+      which ran the CLI at once. Removed at Lee's call on 25 November 2026,
+      but for the banners taken down as their ask leaves.
    5. **The docs:** `docs/answering.md`, whose "SitRep, the Mac app,
       doesn't answer" goes; `docs/notch.md`; `docs/notifications.md`;
       `docs/cli.md`; and `docs/glossary.md`, for the asks panel and the
       row's arrow.
+   6. **The strip's tab takes the arrow** (25 November 2026, after Lee's
+      second live try; see "Answering from the panel", "On the strip"),
+      with the right edge's arrow moved to the row's left end. The asks
+      panel's run-level logic, its placing, its presses and its layouts,
+      lives in the asks panel itself (`AsksPanel`), over the rows a run
+      lists (`AsksRows`): the notch's panel rows, or the strip's open tab.
+      Both runs hold one, and draw it with the same layer.
 
 ## The board in a terminal
 
@@ -10997,11 +11078,13 @@ from the panel"):
 - **Permission prompts and Claude Code's question dialog** from the
   panel: a probe of the engine's `classic.PermissionRequest` hook, which
   may hide the terminal's dialog while it waits.
-- **The strip's tab taking the arrow**, to open the asks panel from the
-  strip.
 - **The menu bar item** answering, from its menu.
 
 Dropped:
+- **answering from a new ask's banner**, built on 24 November 2026 and
+  removed the next day (see "Its buttons, built and removed");
+- **the Glass material**, removed on 25 November 2026 (see "The notch and
+  its panel");
 - a standalone toast plugin (Claude Code has one);
 - a line in the new-ask toast saying the band opens it: Lee knows it does,
   and on the phone the toast is better short.
@@ -11039,8 +11122,9 @@ on 11 October 2026 (see "Build order"):
    reply into the session's inbox, which its window delivers as it delivers
    any reply. A words ask, a comment and a permission prompt stayed with
    Claude Code's prompt. Since 24 November 2026 it takes a words ask's
-   words too, for the banner's Reply; a comment and a permission prompt
-   still stay there (see "One engine, two front ends").
+   words too, for the banner's Reply, which went on 25 November 2026; a
+   comment and a permission prompt still stay there (see "One engine, two
+   front ends").
 
 ## Build order
 

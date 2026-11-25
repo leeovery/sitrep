@@ -16,10 +16,9 @@ struct SafeTriangle {
     /// `window` ago, and every one since; none while nothing holds it.
     private var samples: [(time: Double, point: CGPoint, distance: Double)] = []
 
-    /// How long, ms, the way holds after the pointer moves off the list. The longest way off both, from the right
-    /// edge's arrow at the row's far end to the last answer below a one-row list, is about 300pt: crossed at a
-    /// deliberate 0.75pt/ms, it takes 400ms. Longer adds nothing for a pointer on its way, since one resting or
-    /// turning away is off at once.
+    /// How long, ms, the way holds after the pointer moves off the list. The longest way off both, from a row's far
+    /// end to the last answer below a one-row list, is about 300pt: crossed at a deliberate 0.75pt/ms, it takes 400ms.
+    /// Longer adds nothing for a pointer on its way, since one resting or turning away is off at once.
     static let lasts = 400.0
     /// How long, ms, closing in is judged over, and a pointer rests before it is resting. A mouse reports at 125Hz or
     /// more and a trackpad at about 90Hz, so a pointer on its way gives several samples in it at any display's rate,

@@ -16,7 +16,6 @@ struct EdgeSettingsTests {
         #expect(settings.style == .meniscus)
         #expect(settings.length == .grows)
         #expect(settings.maxLength == .full)
-        #expect(settings.material == .black)
         #expect(!settings.reducesMotion)
     }
 
@@ -29,7 +28,6 @@ struct EdgeSettingsTests {
         settings.style = .card
         settings.length = .full
         settings.maxLength = StripMax(share: 0.25)
-        settings.material = .glass
         settings.reducesMotion = true
 
         let data = try JSONEncoder().encode(settings)
@@ -55,6 +53,16 @@ struct EdgeSettingsTests {
         expected.show = .strip
         expected.reducesMotion = true
         #expect(read == expected)
+    }
+
+    /// Settings saved while the edge had a Material read as they stand without it: a Glass saved draws in black.
+    @Test(arguments: ["glass", "black"])
+    func aMaterialSavedIsPassedOver(material: String) throws {
+        let json = #"{"style":"card","material":"\#(material)"}"#
+
+        var expected = EdgeSettings()
+        expected.style = .card
+        #expect(try JSONDecoder().decode(EdgeSettings.self, from: Data(json.utf8)) == expected)
     }
 
     /// Max is kept as how far along its slider it is, never in marks.
@@ -110,7 +118,6 @@ struct EdgeSettingsTests {
         changed.show = .notch
         changed.length = .full
         changed.maxLength = StripMax(share: 0.5)
-        changed.material = .glass
         changed.display = "2"
 
         var expected = changed

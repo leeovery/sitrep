@@ -6,11 +6,15 @@ public struct StripStage: Equatable, Sendable {
     public var height: Double
     /// The menu bar's height: the strip starts under it.
     public var menu: Double
+    /// How far down the screen's visible frame ends, above the Dock where it shows: the lowest the asks panel stands.
+    public var visibleBottom: Double
 
-    public init(width: Double, height: Double, menu: Double) {
+    /// The visible frame running to the screen's bottom where `visibleBottom` is nil.
+    public init(width: Double, height: Double, menu: Double, visibleBottom: Double? = nil) {
         self.width = width
         self.height = height
         self.menu = menu
+        self.visibleBottom = visibleBottom ?? height
     }
 }
 
@@ -26,15 +30,20 @@ public struct StripInput {
     public var stage: StripStage
     /// Whether to reduce motion, as the Mac or SitRep asks: then nothing springs, and shapes cross-fade.
     public var reducesMotion: Bool
+    /// A panel beside the open tab, the asks panel, and while the pointer is on its way there, the way to it: the
+    /// pointer on it is on the tab, so leaving both is leaving the tab, as the notch's `Input.beside`.
+    public var beside: CGPath?
 
     public init(
-        time: Double, pointer: CGPoint?, pointerAt: Double? = nil, stage: StripStage, reducesMotion: Bool = false
+        time: Double, pointer: CGPoint?, pointerAt: Double? = nil, stage: StripStage, reducesMotion: Bool = false,
+        beside: CGPath? = nil
     ) {
         self.time = time
         self.pointer = pointer
         self.pointerAt = pointerAt
         self.stage = stage
         self.reducesMotion = reducesMotion
+        self.beside = beside
     }
 
     /// When the pointer was read.

@@ -16,7 +16,7 @@ SitRep shows the board at the edge of your Mac's screen, whatever app you are in
 
 - **The panel lists your sessions in three sections.** Needs you comes first, then Working, then Snoozed. Working also holds the sessions that wait on work of their own. A click on a section heading folds it, and Snoozed starts folded.
 - **A click on a row jumps.** See [A click takes you there](jump.md). A right-click gives the row a menu, with **Jump to the window**. A row with asks or a Stopped row adds **Snooze**. A row in Snoozed adds **Wake now**. See [Putting a session off](snooze.md).
-- **An arrow opens the asks panel.** Point at a row with an ask, and an arrow shows at the right end of the row. See [Answering from the edge of your screen](answering-edge.md).
+- **An arrow opens the asks panel.** Point at a row with an ask, on the notch or the strip, and an arrow shows. See [Answering from the edge of your screen](answering-edge.md).
 - **The notch shows what waits.** While something needs you, the notch grows and lights. The light is orange while an ask or a permission prompt waits. With neither, it is blue while a session is Stopped. By default, a new ask or a new permission prompt makes it swell twice and flash.
 - **You can move it.** Drag the notch along the edge. Drag it past the middle of the screen, and it moves to the other edge.
 - **The strip can stand in for the notch.** It is a narrow column with a mark for each session, and the colour of the ring says where the session stands. Point at a mark to see its row. A click jumps, and a right-click gives the row menu.

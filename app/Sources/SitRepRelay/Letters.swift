@@ -42,13 +42,14 @@ public struct Letter<Message: Relayed>: Equatable, Sendable {
     private static var pidKey: String { "pid" }
 }
 
-/// A banner to post: its words, and the session a click on it jumps to, if any.
+/// A banner to post: its words, the session a click on it jumps to, if any, and the ask it tells of, if any.
 public struct Notice: Equatable, Sendable {
     public let title: String
     public let subtitle: String?
     public let body: String
     public let work: String?
-    /// The ask its buttons answer; nil for a banner with none.
+    /// The new ask it tells of, by which it is taken down once the ask waits on Lee no more; nil for every other
+    /// banner.
     public let ask: NoticeAsk?
 
     public init(title: String, subtitle: String?, body: String, work: String?, ask: NoticeAsk? = nil) {
@@ -64,7 +65,7 @@ public struct Notice: Equatable, Sendable {
             .merging(ask?.fields ?? [:]) { notice, _ in notice }
     }
 
-    /// An ask that does not read leaves the banner with no buttons.
+    /// An ask that does not read leaves the banner telling of none.
     init?(fields: [String: String]) {
         guard let title = fields["title"], let body = fields["body"] else {
             return nil
@@ -76,91 +77,27 @@ public struct Notice: Equatable, Sendable {
     }
 }
 
-/// The ask a new ask's banner answers with its buttons: its id, its session, its title and place as the banner shows
-/// them, and what it wants back, its yes or its options among it. Its fields go in the post, and in the banner's
-/// userInfo, which a button's response gives back.
+/// The ask a new ask's banner tells of, by its id and its session's. Its fields go in the post, and in the banner's
+/// userInfo, which the helper reads back to find the banners of an ask that waits on Lee no more.
 public struct NoticeAsk: Equatable, Sendable {
-    public enum Wants: Equatable, Sendable {
-        case yes(String)
-        /// Its options as its banner shows them, Claude's pick first; never none.
-        case choice([String])
-        case words
-    }
-
     public let id: String
     public let session: String
-    public let title: String
-    public let place: String
-    public let wants: Wants
 
-    public init(id: String, session: String, title: String, place: String, wants: Wants) {
+    public init(id: String, session: String) {
         self.id = id
         self.session = session
-        self.title = title
-        self.place = place
-        self.wants = wants
     }
 
-    /// Its title under a key of its own, as the post's `title` is the banner's.
     public var fields: [String: String] {
-        let wanted: [String: String] = switch wants {
-        case let .yes(yes): ["wants": "yes", "yes": yes]
-        case let .choice(options):
-            options.enumerated().reduce(into: ["wants": "choice"]) { $0[Self.optionKey($1.offset)] = $1.element }
-        case .words: ["wants": "words"]
-        }
-
-        return wanted.merging(["ask": id, "session": session, "askTitle": title, "place": place]) { _, ask in ask }
+        ["ask": id, "session": session]
     }
 
     public init?(fields: [String: String]) {
-        guard let id = fields["ask"], let session = fields["session"], let title = fields["askTitle"],
-              let place = fields["place"], let wants = Self.wants(fields)
-        else {
+        guard let id = fields["ask"], let session = fields["session"] else {
             return nil
         }
 
-        self.init(id: id, session: session, title: title, place: place, wants: wants)
-    }
-
-    private static func wants(_ fields: [String: String]) -> Wants? {
-        switch (fields["wants"], fields["yes"]) {
-        case let ("yes", yes?): return .yes(yes)
-        case ("words", _): return .words
-        case ("choice", _):
-            let options = Array((0...).lazy.map { fields[optionKey($0)] }.prefix { $0 != nil }.compactMap { $0 })
-
-            return options.isEmpty ? nil : .choice(options)
-        default: return nil
-        }
-    }
-
-    private static func optionKey(_ index: Int) -> String {
-        "option.\(index)"
-    }
-}
-
-/// An answer from a banner's button, or the words typed in its Reply, empty where none were: the ask as its banner
-/// showed it, so SitRep can tell an ask reshaped since, and the answer's words.
-public struct NoticeAnswer: Equatable, Sendable {
-    public let ask: NoticeAsk
-    public let words: String
-
-    public init(to ask: NoticeAsk, words: String) {
-        self.ask = ask
-        self.words = words
-    }
-
-    var fields: [String: String] {
-        ask.fields.merging(["words": words]) { _, words in words }
-    }
-
-    init?(fields: [String: String]) {
-        guard let ask = NoticeAsk(fields: fields), let words = fields["words"] else {
-            return nil
-        }
-
-        self.init(to: ask, words: words)
+        self.init(id: id, session: session)
     }
 }
 
@@ -175,7 +112,7 @@ public enum ToHelper: Relayed {
     case ask(id: String)
     /// The front given back to the app Lee was in: the jump for a click the helper relayed was refused.
     case handBack
-    /// The ask of the session waits on Lee no more: its banners still delivered go, their buttons with them.
+    /// The ask of the session waits on Lee no more: its banners still delivered go.
     case cleared(ask: String, session: String)
 
     public static let way = "to-helper"
@@ -221,8 +158,6 @@ public enum ToSitRep: Relayed {
     case ready(helper: Int32)
     /// A banner clicked, naming the session it jumps to.
     case clicked(work: String)
-    /// A banner's button pressed, or words sent from its Reply: the answer, which SitRep sends at once.
-    case answered(NoticeAnswer)
     /// What macOS lets SitRep do, for the request with this id.
     case status(NoticeLeave, id: String)
 
@@ -232,7 +167,6 @@ public enum ToSitRep: Relayed {
         switch self {
         case let .ready(helper): [kind: "ready", "helper": String(helper)]
         case let .clicked(work): [kind: "clicked", "work": work]
-        case let .answered(answer): answer.fields.merging([kind: "answered"]) { _, kind in kind }
         case let .status(leave, id): [kind: "status", "leave": leave.word, "id": id]
         }
     }
@@ -244,12 +178,6 @@ public enum ToSitRep: Relayed {
         switch (fields[kind], helper, fields["work"], leave, fields["id"]) {
         case let ("ready", helper?, _, _, _): self = .ready(helper: helper)
         case let ("clicked", _, work?, _, _): self = .clicked(work: work)
-        case ("answered", _, _, _, _):
-            guard let answer = NoticeAnswer(fields: fields) else {
-                return nil
-            }
-
-            self = .answered(answer)
         case let ("status", _, _, leave?, id?): self = .status(leave, id: id)
         default: return nil
         }

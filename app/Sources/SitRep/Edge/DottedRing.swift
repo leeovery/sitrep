@@ -1,6 +1,5 @@
 import AppKit
 import SitRepPanel
-import SwiftUI
 
 /// The mark of a session on its own work, from Paper's board D: a ring of round-capped dashes, centred in an 11-point
 /// lane, that never turns. Its sizes on the card, and round a strip mark's letters in its 24-point ring's place, where
@@ -44,30 +43,11 @@ struct DottedRing: Equatable {
         return ring
     }
 
-    /// Its dashes, each a path of its own, laid along the circle by Core Graphics as the layer's are, to stroke
-    /// undashed: SwiftUI's own dashing, drawn in a hosting view, measures a circle a little short, so the gap at its
-    /// end closes up, eight dashes reading as seven (measured on macOS 26).
-    var dashes: CGPath {
-        circle.copy(dashingWithPhase: 0, lengths: dash)
-    }
-
     /// The circle in its square.
     private var circle: CGPath {
         CGPath(
             ellipseIn: CGRect(x: side / 2 - radius, y: side / 2 - radius, width: 2 * radius, height: 2 * radius),
             transform: nil
         )
-    }
-}
-
-/// The dotted ring as a view, in its square, stroked in a style.
-struct DottedRingView<Ink: ShapeStyle>: View {
-    let ring: DottedRing
-    let ink: Ink
-
-    var body: some View {
-        Outline(path: Path(ring.dashes))
-            .stroke(ink, style: StrokeStyle(lineWidth: ring.line, lineCap: .round))
-            .frame(width: ring.side, height: ring.side)
     }
 }

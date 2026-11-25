@@ -80,18 +80,20 @@ public struct AsksMeasure: Sendable {
     )
 }
 
-/// Where the asks panel lays out one ask, the same in black and in glass (Paper's boards F and H3): its top line, the
-/// session's name and project and its page dots; the ask's title and its age; its answers' rows, each as tall as the
-/// lines its words wrap to, none for an ask Lee answers in Claude; and its foot, Ignore, Snooze ▾ where Snooze offers
-/// a time, and Open in Claude, which the sending line takes the place of while an answer is held. Every box is in the
-/// asks panel's own frame, from its top left, 372 wide.
+/// Where the asks panel lays out one ask (Paper's boards F and H3): its top line, the session's name and project and
+/// its page dots; the ask's title and its age; its answers' rows, each as tall as the lines its words wrap to, none for
+/// an ask Lee answers in Claude; and its foot, Ignore, Snooze ▾ where Snooze offers a time, and Open in Claude, which
+/// the sending line takes the place of while an answer is held. Every box is in the asks panel's own frame, from its
+/// top left, 372 wide.
 public struct AsksLayout: Equatable, Sendable {
     public static let width = 372.0, radius = 24.0
     /// How far it overlaps the list's front, on top of it, and how far its top stands above its row's.
     public static let overlap = 8.0, above = 12.0
     /// How far inside the screen's visible frame it keeps.
     public static let spare = 8.0
-    static let padTop = 12.0, padSide = 12.0, padBottom = 14.0, between = 14.0
+    static let padTop = 12.0, padSide = 12.0, padBottom = 14.0
+    /// Between its parts: the top line, the ask, its answers and its foot.
+    public static let between = 14.0
     /// Its rows' width, inside its sides.
     public static let inner = width - 2 * padSide
     static let topHeight = 28.0, topPadTop = 4.0
@@ -212,7 +214,13 @@ public struct AsksLayout: Equatable, Sendable {
     /// What a click at a point in its own frame lands on, showing the ask at `page` of `pages`: a page dot, which
     /// pages whatever is held; while an answer of its ask is held, Undo alone.
     public func part(at point: CGPoint, sending: Bool, page: Int, of pages: Int) -> AsksPart? {
-        if let dot = dot(at: point, page: page, of: pages) {
+        part(at: point, sending: sending, progress: Double(page), of: pages)
+    }
+
+    /// What a click lands on (above), its page dots standing as a slide between two asks has come to `progress`
+    /// (`dots(at:of:)`): a click on a dot lands on the dot drawn there.
+    public func part(at point: CGPoint, sending: Bool, progress: Double, of pages: Int) -> AsksPart? {
+        if let dot = dot(at: point, progress: progress, of: pages) {
             return .page(dot)
         }
         if sending {
@@ -233,6 +241,13 @@ public struct AsksLayout: Equatable, Sendable {
     /// The page dots at the top line's right, showing the ask at `page` of `pages`, the current one wide; none for one
     /// ask.
     public func dots(page: Int, of pages: Int) -> [CGRect] {
+        dots(at: Double(page), of: pages)
+    }
+
+    /// The page dots as a slide between two asks has come to `progress`, a page and a share of the way to the next
+    /// (DESIGN, "Paging"): each as wide as it is near it, the wide one passing from dot to dot, their run as long
+    /// throughout.
+    public func dots(at progress: Double, of pages: Int) -> [CGRect] {
         guard pages > 1 else {
             return []
         }
@@ -240,7 +255,7 @@ public struct AsksLayout: Equatable, Sendable {
         var x = top.maxX - Self.dotsWidth(pages)
 
         return (0 ..< pages).map { index in
-            let width = index == page ? Self.currentDot : Self.dotSide
+            let width = Self.dotSide + (Self.currentDot - Self.dotSide) * Self.nearness(of: index, to: progress)
             let dot = CGRect(x: x, y: top.midY - Self.dotSide / 2, width: width, height: Self.dotSide)
 
             x += width + Self.dotGap
@@ -248,10 +263,15 @@ public struct AsksLayout: Equatable, Sendable {
         }
     }
 
+    /// How near a dot is to a slide's progress, 1 on it, 0 a page or more from it: how much of the current dot it is.
+    public static func nearness(of dot: Int, to progress: Double) -> Double {
+        max(0, 1 - abs(progress - Double(dot)))
+    }
+
     /// The dot a click at a point in its own frame is nearest across the dots and `dotReach` past either end, the top
     /// line's whole height: a dot 5 wide is no target to aim at (DESIGN, "Paging").
-    private func dot(at point: CGPoint, page: Int, of pages: Int) -> Int? {
-        let dots = dots(page: page, of: pages)
+    private func dot(at point: CGPoint, progress: Double, of pages: Int) -> Int? {
+        let dots = dots(at: progress, of: pages)
 
         guard let first = dots.first, let last = dots.last else {
             return nil
@@ -279,11 +299,21 @@ public struct AsksLayout: Equatable, Sendable {
     }
 
     /// Where it stands on the stage beside a row whose top is this far down it, in a list whose front is this far from
-    /// the edge: past the front, overlapping it, its top line level with the row's, and moved just enough to keep
-    /// inside the screen's visible frame, as a Mac submenu is.
-    public func frame(besideRowAt rowTop: Double, front: Double, on stage: Stage) -> CGRect {
-        let highest = stage.visibleTop + Self.spare
-        let lowest = max(highest, stage.visibleBottom - Self.spare - height)
+    /// the edge, as tall as this ask, or as `height` while a slide takes it between two asks': past the front,
+    /// overlapping it, its top line level with the row's, and moved just enough to keep inside the screen's visible
+    /// frame, as a Mac submenu is.
+    public func frame(besideRowAt rowTop: Double, front: Double, on stage: Stage, height: Double? = nil) -> CGRect {
+        frame(besideRowAt: rowTop, front: front, within: stage.visibleTop ... stage.visibleBottom, height: height)
+    }
+
+    /// Where it stands on the stage beside a row, as `frame(besideRowAt:front:on:height:)` places it, kept inside
+    /// `visible`, from the highest it may stand on the stage to the lowest.
+    public func frame(
+        besideRowAt rowTop: Double, front: Double, within visible: ClosedRange<Double>, height: Double? = nil
+    ) -> CGRect {
+        let height = height ?? self.height
+        let highest = visible.lowerBound + Self.spare
+        let lowest = max(highest, visible.upperBound - Self.spare - height)
 
         return CGRect(
             x: front - Self.overlap, y: clamp(rowTop - Self.above, highest, lowest), width: Self.width, height: height
@@ -291,7 +321,12 @@ public struct AsksLayout: Equatable, Sendable {
     }
 
     /// How far from the edge the asks panel and its shadow reach, beside the open panel: what its window must hold.
-    public static let reach = Tuning.panelDepth - overlap + width + 40
+    public static let reach = reach(beside: Tuning.panelDepth)
+
+    /// How far from the edge the asks panel and its shadow reach beside a list whose front is this far from it.
+    public static func reach(beside front: Double) -> Double {
+        front - overlap + width + 40
+    }
 
     /// Where an answer's lines go in a row this big, as many as it wraps to, on its middle.
     public static func answerBoxes(in row: CGSize, lines: Int) -> [CGRect] {
@@ -317,27 +352,63 @@ public struct AsksLayout: Equatable, Sendable {
     }
 }
 
-/// A Needs you row's arrow (DESIGN, "The row's arrow"): a button 40 by 26 at the row's right end, in its time's place,
-/// 3 in from the row's lift, on its middle.
+/// A Needs you row's arrow (DESIGN, "The row's arrow"), at the end of its row it points toward, where the asks panel
+/// opens: on the left edge a button 40 by 26 at the row's right end, in its time's place, 3 in from the row's lift; on
+/// the right edge 26 by 26 at its left end, in its dot's place, centred on the dot. Each on the row's middle. A strip's
+/// tab has its arrow 40 by 26 at its front end on either edge, the tab's words making room for it.
 public enum RowArrow {
     public static let size = CGSize(width: 40, height: 26)
     public static let radius = 8.0, inset = 3.0
+    /// How far its far side stands in from the front of what its row stands in: 3 in from a notch row's end, which sits
+    /// 14 inside the list's front (`Content.paddingSide`). So the asks panel, overlapping that front by 8
+    /// (`AsksLayout.overlap`), leaves 9 between them, and a strip's tab's arrow stands as far in from the tab's front.
+    public static let fromFront = inset + Content.paddingSide
+    /// How far from a row's left its dot's centre stands, where the right edge's arrow stands (`SessionRowLayout`).
+    public static let dotSlot = 16.0
     /// How long, in seconds, its chevron takes to turn as its asks panel opens or closes.
     public static let turning = 0.2
 
-    /// Its box in a row this big, in the row's own frame.
-    public static func box(in row: CGSize) -> CGRect {
+    /// Its box in a row this big, in the row's own frame, read left to right: at the row's right end, or pointing
+    /// left, on the right edge, centred on its dot.
+    public static func box(in row: CGSize, pointsLeft: Bool = false) -> CGRect {
+        guard pointsLeft else {
+            return box(in: row, pointsLeft: false, in: inset)
+        }
+
+        let side = size.height
+
+        return CGRect(x: dotSlot - side / 2, y: (row.height - side) / 2, width: side, height: side)
+    }
+
+    /// Its box in a strip's tab's words this big, in their own frame, read left to right: at their end it points
+    /// toward, as far in as a notch row's stands from the list's front (`fromFront`), whole beside the asks panel.
+    public static func tabBox(in words: CGSize, pointsLeft: Bool) -> CGRect {
+        box(in: words, pointsLeft: pointsLeft, in: fromFront)
+    }
+
+    /// Where a click on a strip's tab's arrow lands, in their own frame: its box, stretched out to the words' front end,
+    /// so a pointer coming from the strip that overshoots it still opens the asks panel rather than jumping.
+    public static func tabHitBox(in words: CGSize, pointsLeft: Bool) -> CGRect {
+        let box = tabBox(in: words, pointsLeft: pointsLeft)
+
+        return pointsLeft
+            ? CGRect(x: 0, y: box.minY, width: box.maxX, height: box.height)
+            : CGRect(x: box.minX, y: box.minY, width: words.width - box.minX, height: box.height)
+    }
+
+    /// Its box on the middle of what is this big, this far in from the end it points toward.
+    private static func box(in whole: CGSize, pointsLeft: Bool, in inset: Double) -> CGRect {
         CGRect(
-            x: row.width - inset - size.width, y: (row.height - size.height) / 2, width: size.width,
-            height: size.height
+            x: pointsLeft ? inset : whole.width - inset - size.width, y: (whole.height - size.height) / 2,
+            width: size.width, height: size.height
         )
     }
 
-    /// Its chevron, 6 by 10, centred in the box's own frame, pointing right, or left, away from the screen's edge on
-    /// the right.
-    public static func chevron(pointsLeft: Bool) -> CGPath {
+    /// Its chevron, 6 by 10, centred in a box this big, in the box's own frame, pointing right, or left, away from the
+    /// screen's edge on the right.
+    public static func chevron(pointsLeft: Bool, in box: CGSize = size) -> CGPath {
         let path = CGMutablePath()
-        let origin = CGPoint(x: (size.width - 6) / 2, y: (size.height - 10) / 2)
+        let origin = CGPoint(x: (box.width - 6) / 2, y: (box.height - 10) / 2)
         let points = [CGPoint(x: 1.2, y: 1.2), CGPoint(x: 4.8, y: 5), CGPoint(x: 1.2, y: 8.8)]
 
         path.addLines(between: points.map { CGPoint(x: origin.x + (pointsLeft ? 6 - $0.x : $0.x), y: origin.y + $0.y) })

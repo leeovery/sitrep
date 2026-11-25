@@ -2,25 +2,7 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// One way of drawing the notch, in black or in glass: the list the panel holds, as it changes, and a frame at a time.
-@MainActor
-protocol NotchDrawing: NSView {
-    /// What the panel lists from now on.
-    func show(_ list: PanelList)
-    /// The shape and the content as the frame has them.
-    func show(_ scene: NotchScene)
-    /// The light as the frame places it, in these colours, round the notch's outline, through the mirror of the last
-    /// scene.
-    func showLight(_ placed: Frame.Light, outline: CGPath, colours: LiveLight)
-    /// These rows, by their keys, came new onto the board while the panel is out: each is washed orange from this
-    /// time on the display's clock, ms.
-    func wash(_ rows: Set<String>, at time: Double)
-    /// Where a box on the stage is drawn in the view, through the stage's layer as the last scene flipped it: what the
-    /// black and the light are drawn in. For the tests.
-    func onView(_ box: CGRect) -> CGRect
-}
-
-/// One frame as a drawing draws it.
+/// One frame as the notch draws it.
 struct NotchScene {
     let frame: Frame
     /// The row under the pointer, by its index among the items.

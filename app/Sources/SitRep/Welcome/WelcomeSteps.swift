@@ -60,9 +60,9 @@ private struct MomentLine: View {
 }
 
 /// Step 3, Your edge: Notch or Strip as Settings' own pictures, the one chosen ringed in the accent, then a grouped
-/// form: Style, or at Strip Length in its place, cross-fading so the form keeps its height; Material, from macOS 26;
-/// and Edge; then Show nothing at the edge. Each press sets the setting itself. At Nothing neither picture is ringed,
-/// and the form stays in its place, dimmed, taking no presses.
+/// form: Style, or at Strip Length in its place, cross-fading so the form keeps its height, and Edge; then Show nothing
+/// at the edge. Each press sets the setting itself. At Nothing neither picture is ringed, and the form stays in its
+/// place, dimmed, taking no presses.
 struct EdgeStep: View {
     let welcome: WelcomeModel
 
@@ -71,7 +71,7 @@ struct EdgeStep: View {
 
     var body: some View {
         let edge = welcome.preferences.edge
-        let rows = WelcomeEdgeForm.rows(edge, hasGlass: welcome.services.hasGlass)
+        let rows = WelcomeEdgeForm.rows(edge)
 
         VStack(alignment: .leading, spacing: 22) {
             StepWords(step: .edge)
@@ -179,7 +179,6 @@ private struct FormRow: View {
         switch row {
         case .style: "Style"
         case .length: "Length"
-        case .material: "Material"
         case .edge: "Edge"
         }
     }
@@ -188,7 +187,6 @@ private struct FormRow: View {
         switch row {
         case .style: segments(\.style, NotchStyle.allCases, \.title)
         case .length: segments(\.length, StripLength.allCases, \.title)
-        case .material: segments(\.material, EdgeSettings.Material.allCases, \.title)
         case .edge: segments(\.edge, EdgeSettings.Edge.allCases, \.title)
         }
     }

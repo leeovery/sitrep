@@ -27,7 +27,7 @@ final class Edge {
 
     /// What Lee set, followed as it changes; `jump` jumps to a session, and tells once it answers whether it jumped;
     /// `snoozes` snoozes and wakes a row's asks from its menu, and snoozes the ask the asks panel shows; `answers`
-    /// holds and sends the asks panel's answers, and tells the notch of each.
+    /// holds and sends the asks panel's answers, and tells the notch and the strip of each.
     init(
         _ preferences: Preferences, jump: @escaping (String, @escaping (JumpAnswer) -> Void) -> Void, snoozes: Snoozes,
         answers: Answers
@@ -43,10 +43,16 @@ final class Edge {
         notch.onWake = { snoozes.wakeRow($0) }
         notch.onAnswer = { answers.hold($0) }
         notch.onUndo = { answers.undo() }
-        answers.heard = { [unowned self] in notch.heard($0) }
+        answers.heard = { [unowned self] in
+            notch.heard($0)
+            strip.heard($0)
+        }
         strip.onJump = jump
         strip.onSnooze = notch.onSnooze
+        strip.onSnoozeAsk = notch.onSnoozeAsk
         strip.onWake = notch.onWake
+        strip.onAnswer = notch.onAnswer
+        strip.onUndo = notch.onUndo
         notch.onMoved = { [unowned self] in moved($0) }
         strip.onMoved = { [unowned self] in moved($0) }
         fullScreen.onChange = { [unowned self] in show() }

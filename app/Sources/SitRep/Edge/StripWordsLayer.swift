@@ -4,20 +4,31 @@ import SitRepPanel
 
 /// A tab's words in black, laid out once as the prototype's `.tl` lays them out: a session's panel row (its title, the
 /// line under it, an away ask's saying no window holds it, and its time at the right, or in Snoozed when it wakes, its
-/// words soft as the card's Snoozed rows are), a count's rows, or the notch at rest's two lines. Each frame sets only
-/// their opacity, their slide along the strip, how far a count's rows are scrolled, a click pressing them in, and the
-/// time, and a wake's countdown, as they tick.
+/// words soft as the card's Snoozed rows are, and the row's arrow at its front end where its session takes one), a
+/// count's rows, or the notch at rest's two lines. Each frame sets only their opacity, their slide along the strip, how
+/// far a count's rows are scrolled, a click pressing them in, the arrow as it looks, and the time, and a wake's
+/// countdown, as they tick.
 @MainActor
 final class StripWordsLayer {
     let layer = CALayer()
-    /// What they were laid out to say of the board, and whether with motion reduced.
+    /// What they were laid out to say of the board, whether with motion reduced, and whether on the right edge, the
+    /// arrow at their left.
     private let note: StripNote
     private let reducesMotion: Bool
+    private let pointsLeft: Bool
 
     /// What presses in: the row, scaled from the strip's side.
     private let content = CALayer()
     private let age = CALayer()
     private let spinner: Arc
+    /// The row's arrow, where its session takes one, and whether it has shown yet.
+    private var arrow: ArrowButton?
+    private var arrowShows = false
+
+    /// How the row's arrow looks while it shows; nil with none, or hidden: internal only for the tests.
+    var arrowLook: ArrowButton.Look? {
+        arrow?.box.isHidden == false ? arrow?.look : nil
+    }
     /// A count's rows, by their marks' keys (`Session.markID`), scrolled together.
     private let list = CALayer()
     private(set) var rows: [String: CALayer] = [:]
@@ -41,6 +52,7 @@ final class StripWordsLayer {
 
         note = scene.note
         reducesMotion = scene.reducesMotion
+        pointsLeft = scene.mirror.a < 0
         spinner = Arc(from: -0.75 * .pi)
         layer.frame = frame
         layer.masksToBounds = true
@@ -54,12 +66,20 @@ final class StripWordsLayer {
         }
     }
 
-    /// Whether they were laid out as the scene would lay them.
+    /// Whether they were laid out as the scene would lay them: a session's row with its arrow or without as the note
+    /// now has it.
     func says(_ scene: StripScene) -> Bool {
-        note == scene.note && reducesMotion == scene.reducesMotion
+        let alike = session.map { note.saysAlike(scene.note, of: $0) } ?? note.saysAlike(scene.note)
+
+        return alike && reducesMotion == scene.reducesMotion && pointsLeft == (scene.mirror.a < 0)
     }
 
-    func show(_ words: StripFrame.Words, in frame: CGRect, hover: String?, now: Double) {
+    /// As the frame has them, the count's row `hover` lifted, the row's arrow looking as `arrow` has it, or where that
+    /// is nil as it last did, so it fades with the words as they leave a tab drawing back or gliding on; hidden until
+    /// it first shows, and while a click presses them in; and their times as of `now` on the wall clock.
+    func show(
+        _ words: StripFrame.Words, in frame: CGRect, hover: String?, arrow look: ArrowButton.Look? = nil, now: Double
+    ) {
         layer.frame = frame
         layer.opacity = Float(words.alpha)
         layer.transform = CATransform3DMakeTranslation(0, words.dy, 0)
@@ -71,6 +91,11 @@ final class StripWordsLayer {
             pressed = words.isPressed
             press()
         }
+        if let look {
+            arrow?.show(look)
+            arrowShows = true
+        }
+        arrow?.box.isHidden = !arrowShows || pressed
         showAge(at: now)
         showCountdowns(at: now)
 
@@ -90,8 +115,9 @@ final class StripWordsLayer {
                     let now = Displays.wallNow
                     let words = rowWidth(session, at: now)
                     let age = StripRowLayout.ageWidth(said.age(session, at: now))
+                    let arrow = said.hasArrow(session) ? StripRowLayout.arrowRoom : 0
 
-                    return StripRowLayout.pad.left + words + StripRowLayout.gap + age + StripRowLayout.pad.right
+                    return StripRowLayout.pad.left + words + StripRowLayout.gap + age + StripRowLayout.pad.right + arrow
                 }
             },
             rows: { sessions in
@@ -117,7 +143,7 @@ final class StripWordsLayer {
     // MARK: A session's row
 
     private func lay(_ session: Session, in size: CGSize, now: Double) {
-        let at = StripRowLayout(session, note: note, in: size, now: now)
+        let at = StripRowLayout(session, note: note, in: size, now: now, pointsLeft: pointsLeft)
 
         self.session = session
         self.at = at
@@ -143,6 +169,13 @@ final class StripWordsLayer {
         spinner.layer.isHidden = true
         spinner.turn(every: 1)
         content.addSublayer(spinner.layer)
+        if let box = at.arrow {
+            let made = ArrowButton(in: box, scale: layer.contentsScale)
+
+            made.box.isHidden = true
+            content.addSublayer(made.box)
+            arrow = made
+        }
     }
 
     /// A still title, set again in place of the last as a wake's countdown reads differently.

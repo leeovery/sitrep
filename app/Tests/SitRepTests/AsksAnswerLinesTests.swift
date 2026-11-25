@@ -6,10 +6,10 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
-/// An answer's words on its row in the asks panel, as Paper's board H3 sets them, in black and in glass alike: wrapped
-/// to two lines at most, the second cut short with "…" past them; Claude's pick's "  ·  Recommended" after its words on
-/// their last line, alone on the next while there is one, else after its words cut short before it, so it always
-/// shows; and the lines the layout leaves room for, measured so.
+/// An answer's words on its row in the asks panel, as Paper's board H3 sets them: wrapped to two lines at most, the
+/// second cut short with "…" past them; Claude's pick's "  ·  Recommended" after its words on their last line, alone on
+/// the next while there is one, else after its words cut short before it, so it always shows; and the lines the layout
+/// leaves room for, measured so.
 @MainActor
 @Suite(.backstop)
 struct AsksAnswerLinesTests {
@@ -65,8 +65,8 @@ struct AsksAnswerLinesTests {
         #expect(Self.lines(words, isPick: false) == [.init(words: words, tag: nil)])
     }
 
-    /// The tag alone on its line, as the pick's words fill theirs, is lowered onto the words' baseline, for black and
-    /// glass alike: its box drops by as much as an 11pt line's baseline sits above a 13pt one's.
+    /// The tag alone on its line, as the pick's words fill theirs, is lowered onto the words' baseline: its box drops
+    /// by as much as an 11pt line's baseline sits above a 13pt one's.
     @Test func aTagAloneOnItsLineSitsOnTheWordsBaseline() throws {
         let words = Self.fillingALine()
         let ask = PanelAsk(

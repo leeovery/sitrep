@@ -92,25 +92,72 @@ struct AsksPanelDrawnTests {
 
     /// Its chevron's tip toward the asks panel: right on the left edge, left on the right.
     @Test func itsChevronPointsAwayFromTheEdge() throws {
-        let box = Self.arrowBox, middle = box.midY
-        let tipRight = CGPoint(x: box.midX + 1.5, y: middle), tipLeft = CGPoint(x: box.midX - 1.5, y: middle)
         let right = try Self.arrowed(isLit: true), left = try Self.arrowed(isLit: true, pointsLeft: true)
-        let light = { (drawn: Drawn, point: CGPoint) in drawn.pixel(at: point)?.lightness ?? 0 }
 
-        #expect(light(right, tipRight) > light(right, tipLeft))
-        #expect(light(left, tipLeft) > light(left, tipRight))
+        #expect(Self.tip(of: right, in: Self.arrowBox) == .right)
+        #expect(Self.tip(of: left, in: RowArrow.box(in: Self.row, pointsLeft: true)) == .left)
     }
 
-    /// Turned, while its asks panel is open, it points back the other way, on either edge.
+    /// Turned, while its asks panel is open, it points back the other way, on either edge: ‹ on the left, › on the
+    /// right.
     @Test func turnedItsChevronPointsBack() throws {
-        let box = Self.arrowBox, middle = box.midY
-        let tipRight = CGPoint(x: box.midX + 1.5, y: middle), tipLeft = CGPoint(x: box.midX - 1.5, y: middle)
         let right = try Self.arrowed(isLit: true, isTurned: true)
         let left = try Self.arrowed(isLit: true, pointsLeft: true, isTurned: true)
-        let light = { (drawn: Drawn, point: CGPoint) in drawn.pixel(at: point)?.lightness ?? 0 }
 
-        #expect(light(right, tipLeft) > light(right, tipRight))
-        #expect(light(left, tipRight) > light(left, tipLeft))
+        #expect(Self.tip(of: right, in: Self.arrowBox) == .left)
+        #expect(Self.tip(of: left, in: RowArrow.box(in: Self.row, pointsLeft: true)) == .right)
+    }
+
+    private enum Tip {
+        case left, right
+    }
+
+    /// Which way the chevron drawn in a box points: the side of its middle it is brighter on.
+    private static func tip(of drawn: Drawn, in box: CGRect) -> Tip {
+        let light = { (dx: CGFloat) in drawn.pixel(at: CGPoint(x: box.midX + dx, y: box.midY))?.lightness ?? 0 }
+
+        return light(1.5) > light(-1.5) ? .right : .left
+    }
+
+    /// On the right edge the arrow takes the dot's place at the row's left end, 26 by 26 on the dot's middle, the dot
+    /// hidden while it shows, its time and its words where they were; on the left edge it takes the time's place, the
+    /// dot showing.
+    @Test func onTheRightEdgeTheArrowTakesTheDotsPlaceAndTheTimeStays() throws {
+        let row = Self.arrowRow(), layout = SessionRowLayout(size: Self.row, project: 60)
+        let dot = CGRect(x: layout.mark.x - 6, y: layout.mark.y - 6, width: 12, height: 12)
+        let words = CGRect(x: layout.title.minX, y: 0, width: 80, height: Self.row.height)
+
+        row.isHighlighted = true
+        row.showAge(at: 4 * 60_000)
+
+        let before = try Drawn(row.layer)
+
+        row.arrow = SessionRow.Arrow(isLit: true, pointsLeft: true)
+
+        let after = try Drawn(row.layer), box = try #require(row.arrowLayer?.box.frame)
+
+        #expect(box == RowArrow.box(in: Self.row, pointsLeft: true))
+        #expect(box.size == CGSize(width: 26, height: 26) && box.midX == layout.mark.x && box.midY == layout.mark.y)
+        #expect(Double(layout.mark.x) == RowArrow.dotSlot)
+        #expect(Self.shows(0x34343B, at: CGPoint(x: box.minX + 3, y: box.midY), in: after))
+        let dotBefore = try before.brightest(in: dot), dotAfter = try after.brightest(in: dot)
+
+        #expect(Self.isOrange(dotBefore) && !Self.isOrange(dotAfter))
+        #expect(after.pixels(in: layout.age) == before.pixels(in: layout.age))
+        #expect(after.pixels(in: words) == before.pixels(in: words))
+
+        row.arrow = SessionRow.Arrow(isLit: true, pointsLeft: false)
+
+        let dotLeftEdge = try Drawn(row.layer).brightest(in: dot)
+
+        #expect(row.arrowLayer?.box.frame == Self.arrowBox)
+        #expect(Self.isOrange(dotLeftEdge))
+    }
+
+    /// Whether a colour is the asks' orange, as a Needs you row's dot draws it, not the white, grey or black of the
+    /// arrow and the row.
+    private static func isOrange(_ colour: NSColor) -> Bool {
+        colour.redComponent > 0.8 && colour.blueComponent < 0.5
     }
 
     /// The chevron's turns, as the render server runs them: half a turn in 0.2 seconds as its asks panel opens, and
@@ -337,6 +384,74 @@ struct AsksPanelDrawnTests {
         #expect(Self.brightest(Self.soft, in: right, of: drawn))
         #expect(Self.brightest(0x2C2C31, in: left, of: drawn))
         #expect(Self.shows(0x2C2C31, at: CGPoint(x: undo.midX, y: undo.minY + 0.25), in: drawn))
+    }
+
+    // MARK: Sliding
+
+    private static let approve = PanelAsk(
+        id: "k2", title: "Review Tickets & Replies, round 1", wants: .yes, answers: ["Approve"], since: 0
+    )
+
+    /// The choice slid halfway to the yes beside it, drawn over grey.
+    private static func slidHalfway(sending: Sending? = nil) throws -> (Drawn, AsksShown) {
+        let layout = AsksLayout(choice, measure: AsksMeasure.drawn)
+        let beside = AsksShown.Beside(
+            page: 1, ask: approve, layout: AsksLayout(approve, measure: AsksMeasure.drawn), sending: nil
+        )
+        var asks = AsksShown(
+            row: "needs:sr-nw0001", session: helpDesk, ask: choice, page: 0, pages: 2, layout: layout,
+            frame: .zero, sending: sending, hover: nil, slid: AsksLayout.width / 2, beside: beside
+        )
+
+        asks.stand(besideRowAt: margin + AsksLayout.above, front: margin + AsksLayout.overlap, on: Stage(
+            height: 1000, visibleTop: 0, visibleBottom: 1000, notchY: 500
+        ))
+
+        let panel = AsksPanelLayer(), picture = CALayer()
+
+        picture.frame = CGRect(x: 0, y: 0, width: asks.frame.width + 2 * margin, height: 600)
+        panel.show(asks, mirror: .identity, now: 4 * 60_000)
+        picture.addSublayer(panel.layer)
+        return (try Drawn(picture, over: CGColor(srgbRed: 0.38, green: 0.38, blue: 0.38, alpha: 1)), asks)
+    }
+
+    /// Halfway to the ask beside, the ask's own page has slid half the asks panel's width out on one side, and the
+    /// ask beside half in on the other, cut at the asks panel's edge under its hairline; the top line stays, its two
+    /// dots each half wide and half orange; it is as tall as halfway between the two asks, its foot unmoved across
+    /// at its bottom, over a band of black the taller ask's answers pass under.
+    @Test func halfwayBothAsksShowClippedToItsShape() throws {
+        let (drawn, asks) = try Self.slidHalfway(), half = AsksLayout.width / 2, frame = asks.frame
+        let beside = try #require(asks.beside), risen = frame.height - asks.layout.height
+        let flat = Self.placed(asks.layout.answers[1]), approve = Self.placed(beside.layout.answers[0])
+        let top = Self.placed(asks.layout.top), dots = asks.layout.dots(at: 0.5, of: 2).map(Self.placed)
+        let open = Self.placed(asks.layout.open).offsetBy(dx: 0, dy: risen)
+
+        #expect(abs(frame.height - (asks.layout.height + beside.layout.height) / 2) < 1e-9)
+        #expect(Self.shows(0x1C1C1F, at: CGPoint(x: flat.maxX - 20 - half, y: flat.minY + 8), in: drawn))
+        #expect(Self.shows(0x000000, at: CGPoint(x: flat.maxX - 20 - half, y: flat.midY + 3), in: drawn))
+        #expect(Self.shows(0x2C2C31, at: CGPoint(x: open.midX, y: open.minY + 0.25), in: drawn))
+        #expect(Self.brightest(Self.white, in: open.insetBy(dx: 10, dy: 4), of: drawn))
+        #expect(Self.shows(0x1C1C1F, at: CGPoint(x: approve.minX + 120 + half, y: approve.midY), in: drawn))
+        #expect(Self.shows(
+            Self.over(0xFFFFFF, 0x26, on: 0x1C1C1F), at: CGPoint(x: frame.maxX - 0.25, y: approve.midY), in: drawn
+        ))
+        #expect(!Self.shows(0x1C1C1F, at: CGPoint(x: frame.maxX + 2, y: approve.midY), in: drawn))
+        #expect(Self.brightest(Self.white, in: CGRect(x: top.minX, y: top.minY, width: 60, height: top.height), of: drawn))
+        #expect(dots.map(\.width) == [9.5, 9.5])
+        #expect(dots.allSatisfy { Self.shows(0x924F3F, at: CGPoint(x: $0.midX, y: $0.midY), in: drawn) })
+    }
+
+    /// Where one of the two asks has an answer held, its sending line cross-fades with the other's foot as the slide
+    /// goes: halfway, Open in Claude's outline, where Undo's is not, shows at half.
+    @Test func halfwayASendingLineIsHalfFadedIntoTheOthersFoot() throws {
+        let held = Sending(row: 0, words: "Threaded", heldAt: 4 * 60_000, goesAt: 4 * 60_000 + 2000)
+        let (drawn, asks) = try Self.slidHalfway(sending: held), risen = asks.frame.height - asks.layout.height
+        let open = Self.placed(asks.layout.open).offsetBy(dx: 0, dy: risen)
+
+        #expect(open.minX + 20 < Self.placed(asks.layout.undo).minX)
+        #expect(Self.shows(
+            Self.over(0x2C2C31, 0x80, on: 0), at: CGPoint(x: open.minX + 20, y: open.minY + 0.25), in: drawn
+        ))
     }
 
     /// It shows, moves and closes at once, as a submenu does: nothing it changes asks for an animation, which Core

@@ -31,19 +31,19 @@ struct EdgePaneChangeTests {
         }
 
         /// The cards once changed: the Show row's 86, then the shape's section, its header's 16 and 10 over its card,
-        /// and Motion's, 26 apart: the strip's five rows with their hairlines; at Full, four, Max gone; at Nothing,
+        /// and Motion's, 26 apart: the strip's four rows with their hairlines; at Full, three, Max gone; at Nothing,
         /// the Show row's card alone.
         var cards: [ClosedRange<CGFloat>] {
             switch self {
-            case .notchToStrip: [13 ... 99, 151 ... 399, 451 ... 503]
+            case .notchToStrip: [13 ... 99, 151 ... 346.5, 398.5 ... 450.5]
             case .stripToNothing: [13 ... 99]
-            case .growsToFull: [13 ... 99, 151 ... 346.5, 398.5 ... 450.5]
+            case .growsToFull: [13 ... 99, 151 ... 294, 346 ... 398]
             }
         }
 
         /// Motion's card's foot before the change, past which what the pane held is read for what is left of it.
         var footBefore: CGFloat {
-            self == .notchToStrip ? 450.5 : 503
+            self == .notchToStrip ? 398 : 450.5
         }
     }
 
@@ -86,15 +86,15 @@ struct EdgePaneChangeTests {
         }
     }
 
-    /// At Strip, Max coming or going keeps the section and the rest of its rows: Edge, Length and Material are the
-    /// same controls after as before, so focus and VoiceOver's cursor on one stay where they were. Rebuilt, the
-    /// section would make each afresh.
+    /// At Strip, Max coming or going keeps the section and the rest of its rows: Edge and Length are the same controls
+    /// after as before, so focus and VoiceOver's cursor on one stay where they were. Rebuilt, the section would make
+    /// each afresh.
     @Test(arguments: [StripLength.full, .grows])
     func maxComingOrGoingKeepsTheOtherRows(to length: StripLength) async throws {
         let (settings, hosted) = await Self.hosted { $0.show = .strip; $0.length = length == .full ? .grows : .full }
         let before = hosted.all(NSSegmentedControl.self)
 
-        try #require(before.count == 3)
+        try #require(before.count == 2)
         settings.preferences.edit { $0.length = length }
         hosted.hosting.layoutSubtreeIfNeeded()
 

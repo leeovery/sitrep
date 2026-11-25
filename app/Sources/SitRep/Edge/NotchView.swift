@@ -7,7 +7,7 @@ import SitRepPanel
 /// motion, the shape it cross-fades from. A frame changes the shape's path, the light and the content's clip and
 /// paint; nothing animates implicitly.
 @MainActor
-final class NotchView: StageHost, NotchDrawing {
+final class NotchView: StageHost {
     /// The shape and the light, through the edge's mirror.
     private let stage = CALayer()
     private let shape = CAShapeLayer()
@@ -47,10 +47,12 @@ final class NotchView: StageHost, NotchDrawing {
         rescaleToWindow()
     }
 
+    /// What the panel lists from now on.
     func show(_ list: PanelList) {
         content.show(list)
     }
 
+    /// The shape and the content as the frame has them.
     func show(_ scene: NotchScene) {
         let frame = scene.frame
 
@@ -78,14 +80,20 @@ final class NotchView: StageHost, NotchDrawing {
         shape.shadowPath = lift > 0 ? shape.path : nil
     }
 
+    /// The light as the frame places it, in these colours, round the notch's outline, through the mirror of the last
+    /// scene.
     func showLight(_ placed: Frame.Light, outline: CGPath, colours: LiveLight) {
         light.show(placed, outline: outline, colours: colours)
     }
 
+    /// These rows, by their keys, came new onto the board while the panel is out: each is washed orange from this time
+    /// on the display's clock, ms.
     func wash(_ rows: Set<String>, at time: Double) {
         content.wash(rows, at: time)
     }
 
+    /// Where a box on the stage is drawn in the view, through the stage's layer as the last scene flipped it: what the
+    /// black and the light are drawn in. For the tests.
     func onView(_ box: CGRect) -> CGRect {
         stage.convert(box, to: layer)
     }

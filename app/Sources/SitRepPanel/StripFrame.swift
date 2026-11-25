@@ -34,7 +34,12 @@ public struct StripFrame {
 
     /// Whether a click here lands on the strip, a mark or an open tab, rather than passing through to what is beneath.
     public func hits(_ point: CGPoint) -> Bool {
-        isHeld || inRect(Vec(point.x, point.y), column) || tabs.contains { $0.isLive && $0.contains(point) }
+        isHeld || covers(point)
+    }
+
+    /// Whether a point is on the strip's column or an open tab.
+    public func covers(_ point: CGPoint) -> Bool {
+        inRect(Vec(point.x, point.y), column) || tabs.contains { $0.isLive && $0.contains(point) }
     }
 
     /// Whether a move of the pointer to here should start frames again, once they have stopped with nothing moving: a
@@ -68,6 +73,26 @@ public struct StripFrame {
         /// Whether a point is on the words as shown: inside the clip, and inside the rounding of its front corners.
         public func contains(_ point: CGPoint) -> Bool {
             frontRounded(clip, top: radius, bottom: radius, contains: point)
+        }
+
+        /// One of its words' frames in its box as drawn, against the strip on either edge: `mirrored`, on the right
+        /// edge, the box's far side is the strip's.
+        public func frame(of words: Words, mirrored: Bool) -> CGRect {
+            var frame = words.frame
+
+            if mirrored {
+                frame.origin.x = box.width - frame.maxX
+            }
+            return frame
+        }
+
+        /// A point on the stage in one of its words' own frame, as drawn through the edge's mirror: they read left to
+        /// right on either edge.
+        public func ownPoint(_ point: CGPoint, in words: Words, mirror: CGAffineTransform) -> CGPoint {
+            let drawn = box.applying(mirror), at = point.applying(mirror)
+            let frame = frame(of: words, mirrored: mirror.a < 0)
+
+            return CGPoint(x: at.x - drawn.minX - frame.minX, y: at.y - drawn.minY - frame.minY)
         }
 
         /// A count's tab: the session whose row is under a point, by its mark's key, as its rows lie scrolled, the

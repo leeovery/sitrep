@@ -18,6 +18,8 @@ final class SessionRow {
 
     private var at: SessionRowLayout
     private let wash = CALayer()
+    /// Its mark: a dot, a ring, an arc or the dotted ring, by its kind.
+    private var markLayer = CALayer()
     /// The arc that spins in the time's place while a click is jumping from it.
     private let spinner: Arc
     /// Its time, and what it says, as last set.
@@ -46,7 +48,8 @@ final class SessionRow {
         wash.borderWidth = 1
         wash.opacity = 0
         layer.addSublayer(wash)
-        layer.addSublayer(mark(at: at.mark))
+        markLayer = mark(at: at.mark)
+        layer.addSublayer(markLayer)
         showTitle()
         projectLine = projectInLane()
         layer.addSublayer(projectLine)
@@ -93,100 +96,70 @@ final class SessionRow {
         layer.backgroundColor = isPressed ? EdgeStyle.press : isHighlighted ? EdgeStyle.hover : nil
     }
 
-    /// Its arrow, in its time's place, while it shows (board E2): unlit, its chevron soft with no fill of its own; lit,
-    /// filled, its chevron white; pointing toward where the asks panel opens, away from the screen's edge, and turning
-    /// to point back while its asks panel is open (DESIGN, "The row's arrow").
+    /// Its arrow, while it shows (board E2; `ArrowButton`): on the left edge in its time's place, the time hidden; on
+    /// the right edge in its dot's place, the dot hidden, the time showing; so its words never move (DESIGN, "The row's
+    /// arrow").
     var arrow: Arrow? {
         didSet {
             guard arrow != oldValue else {
                 return
             }
 
-            showArrow(was: oldValue)
+            showArrow()
             showTimeOrSpinner()
         }
     }
 
-    /// How its arrow shows: lit or not, which way it points, whether it is turned, and whether it turns at once, under
-    /// Reduce motion.
-    struct Arrow: Equatable {
-        var isLit: Bool
-        var pointsLeft: Bool
-        var isTurned = false
-        var turnsAtOnce = false
+    typealias Arrow = ArrowButton.Look
 
-        /// How far, radians, its chevron is turned.
-        var turn: Double { isTurned ? .pi : 0 }
+    /// Its arrow's button, kept while the arrow shows, so a turn runs on it.
+    private var button: ArrowButton?
+
+    /// Its arrow's box, and the chevron in it, while it shows. For the tests.
+    var arrowLayer: (box: CALayer, chevron: CAShapeLayer)? {
+        button.map { ($0.box, $0.chevron) }
     }
 
-    /// Its arrow's box, and the chevron in it, kept while the arrow shows, so a turn runs on it. Internal only for the
-    /// tests, which read the turn.
-    private(set) var arrowLayer: (box: CALayer, chevron: CAShapeLayer)?
+    static let turnKey = ArrowButton.turnKey
 
-    /// The arrow as it now shows: made where it came, gone where it went, else lit as it is, its chevron turning where
-    /// it turned, over `RowArrow.turning`, or at once under Reduce motion.
-    private func showArrow(was: Arrow?) {
+    /// The arrow as it now shows: made where it came, at its end of the row, gone where it went, else as it looks.
+    private func showArrow() {
         guard let arrow else {
             return still {
-                arrowLayer?.box.removeFromSuperlayer()
-                arrowLayer = nil
+                button?.box.removeFromSuperlayer()
+                button = nil
             }
         }
 
-        let shown = arrowLayer ?? makeArrow()
+        let shown = button ?? {
+            let made = ArrowButton(in: arrowBox(arrow), scale: layer.contentsScale)
 
-        still {
-            shown.box.backgroundColor = arrow.isLit ? EdgeStyle.arrowLit : nil
-            shown.chevron.path = RowArrow.chevron(pointsLeft: arrow.pointsLeft)
-            shown.chevron.strokeColor = arrow.isLit ? EdgeStyle.ink : EdgeStyle.ink2
-            shown.chevron.setValue(arrow.turn, forKeyPath: Self.turnKey)
-        }
-        if let was, was.isTurned != arrow.isTurned, !arrow.turnsAtOnce {
-            turn(shown.chevron, from: was.turn, to: arrow.turn)
-        }
-        arrowLayer = shown
+            still { layer.addSublayer(made.box) }
+            return made
+        }()
+
+        shown.show(arrow)
+        button = shown
     }
 
-    private func makeArrow() -> (box: CALayer, chevron: CAShapeLayer) {
-        let box = CALayer(), chevron = CAShapeLayer()
-
-        still {
-            box.bounds = CGRect(origin: .zero, size: RowArrow.size)
-            box.cornerRadius = RowArrow.radius
-            chevron.frame = box.bounds
-            chevron.fillColor = nil
-            chevron.lineWidth = AsksPanelParts.strokeWidth
-            chevron.lineCap = .round
-            chevron.lineJoin = .round
-            box.addSublayer(chevron)
-            rescale(box, to: layer.contentsScale)
-            layer.addSublayer(box)
-        }
-        return (box, chevron)
+    private func arrowBox(_ arrow: Arrow) -> CGRect {
+        RowArrow.box(in: layer.bounds.size, pointsLeft: arrow.pointsLeft)
     }
 
-    /// The chevron turning, a rotation in the render server, from where it shows now, mid-turn or not.
-    private func turn(_ chevron: CAShapeLayer, from: Double, to: Double) {
-        let turning = CABasicAnimation(keyPath: Self.turnKey)
-
-        turning.fromValue = chevron.presentation()?.value(forKeyPath: Self.turnKey) ?? from
-        turning.toValue = to
-        turning.duration = RowArrow.turning
-        turning.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        chevron.add(turning, forKey: Self.turnKey)
-    }
-
-    static let turnKey = "transform.rotation.z"
-
-    /// In the time's place, pressed, the spinner; else the arrow, where it shows; else the time.
+    /// Pressed, the spinner in the time's place, the dot showing; else the arrow, where it shows, in the time's place
+    /// or the dot's; the time and the dot where the arrow leaves them.
     private func showTimeOrSpinner() {
         still {
-            age?.isHidden = isPressed || arrow != nil
-            arrowLayer?.box.isHidden = isPressed
-            arrowLayer?.box.frame = RowArrow.box(in: layer.bounds.size)
+            age?.isHidden = hidesTime
+            markLayer.isHidden = !isPressed && arrow?.pointsLeft == true
+            button?.box.isHidden = isPressed
+            arrow.map { button?.place(in: arrowBox($0)) }
             spinner.layer.isHidden = !isPressed
         }
     }
+
+    /// Whether its time is hidden: pressed, for the spinner, or by an arrow in its place, on the left edge.
+    private var hidesTime: Bool { isPressed || arrow?.pointsLeft == false }
 
     /// Its time at this moment on the wall clock, ms, or in Snoozed when it wakes, worded on this calendar, and a
     /// wake's countdown, each drawn again only when it reads differently.
@@ -212,7 +185,7 @@ final class SessionRow {
         let line = TextLine(words, in: at.age, alignment: .right)
 
         line.contentsScale = layer.contentsScale
-        line.isHidden = isPressed || arrow != nil
+        line.isHidden = hidesTime
         if let age {
             layer.replaceSublayer(age, with: line)
         } else {

@@ -1,5 +1,4 @@
 import CoreGraphics
-import SwiftUI
 
 /// A session no terminal on this Mac shows, on every surface alike: one no window holds, or one held where this Mac
 /// doesn't show it (DESIGN, stage 8, "The rows"), whatever its state. An ask of its waiting on Lee is marked as Slack
@@ -21,16 +20,5 @@ enum Away {
     /// A colour of a row's words, dimmed while no window holds it, over the black.
     static func dimmed(_ colour: CGColor, _ isAway: Bool) -> CGColor {
         isAway ? colour.copy(alpha: colour.alpha * dim) ?? colour : colour
-    }
-}
-
-/// An away ask's ring as a view, stroked in a style.
-struct AwayRing<Ink: ShapeStyle>: View {
-    let ink: Ink
-
-    var body: some View {
-        Circle()
-            .strokeBorder(ink, lineWidth: Away.ringLine)
-            .frame(width: Away.ringSide, height: Away.ringSide)
     }
 }

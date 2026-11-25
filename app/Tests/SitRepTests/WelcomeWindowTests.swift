@@ -180,7 +180,7 @@ struct WelcomeWindowTests {
         #expect(made.preferences.edge.edge == .right)
     }
 
-    /// One row for another in its place: Material and Edge stay where they were.
+    /// One row for another in its place: Edge stays where it was.
     @Test func atStripLengthTakesStylesPlaceAtTheSameHeight() async throws {
         let made = Made()
 
@@ -194,7 +194,7 @@ struct WelcomeWindowTests {
 
         #expect(before.keys.contains("Meniscus") && !before.keys.contains("Grows"))
         #expect(after["Grows"] == before["Meniscus"])
-        #expect(after["Black"] == before["Black"] && after["Left"] == before["Left"])
+        #expect(after["Left"] == before["Left"])
     }
 
     // MARK: Its sound, and its start
@@ -463,23 +463,10 @@ struct WelcomeWindowTests {
         let view = await made.settled()
 
         #expect(stage.isDescendant(of: view))
-        #expect((stage.surface as? NotchSurface)?.drawing is NotchView)
+        #expect(stage.surface is NotchSurface)
         made.preferences.edit { $0.show = .strip }
         stage.step(at: made.clock.now)
-        #expect((stage.surface as? StripSurface)?.drawing is StripView)
-    }
-
-    @available(macOS 26, *)
-    @Test func theStagesEdgeTakesTheMaterialLeeChose() throws {
-        let made = Made()
-        let stage = try made.stage
-
-        made.preferences.edit { $0.material = .glass }
-        stage.step(at: made.clock.now)
-        #expect((stage.surface as? NotchSurface)?.drawing is NotchGlassView)
-        made.preferences.edit { $0.show = .strip }
-        stage.step(at: made.clock.now)
-        #expect((stage.surface as? StripSurface)?.drawing is StripGlassView)
+        #expect(stage.surface is StripSurface)
     }
 
     /// The stage's screen: the notch's window against its left, or its right.
@@ -713,11 +700,10 @@ struct WelcomeWindowTests {
         #expect(stage.row == now)
     }
 
-    /// On the notch, neither the material nor the edge moves the ask's row, found in the edge's own points, so neither
-    /// has it found again: late in the glide off the row, the panel folding away shows it no more, and a search there
-    /// would find none and lose the pointer, which glides on from where it was.
-    @Test(arguments: [false, true])
-    func neitherTheMaterialNorTheEdgeHasTheNotchsRowFoundAgain(changesEdge: Bool) throws {
+    /// On the notch, the edge doesn't move the ask's row, found in the edge's own points, so it doesn't have it found
+    /// again: late in the glide off the row, the panel folding away shows it no more, and a search there would find none
+    /// and lose the pointer, which glides on from where it was.
+    @Test func theEdgeDoesNotHaveTheNotchsRowFoundAgain() throws {
         let hello = WelcomeLoop.hello, made = Made()
         let stage = try made.stage
 
@@ -728,13 +714,7 @@ struct WelcomeWindowTests {
         let gliding = try #require(stage.row)
 
         try #require(!stage.isOut)
-        made.preferences.edit { settings in
-            if changesEdge {
-                settings.edge = settings.edge.other
-            } else {
-                settings.material = settings.material == .black ? .glass : .black
-            }
-        }
+        made.preferences.edit { $0.edge = $0.edge.other }
         stage.step(at: made.clock.pass(1000 / 60))
         #expect(stage.row == gliding)
     }

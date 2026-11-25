@@ -14,7 +14,7 @@ extension Strip {
 
         let live = liveTab()
         let onStrip = sp.map(inStrip) ?? false
-        let onTab = sp.map { p in live.map { $0.phase == .open && inTab(p, $0) } ?? false } ?? false
+        let onTab = sp.map { p in live.map { $0.phase == .open && (inTab(p, $0) || isBeside(p)) } ?? false } ?? false
         let isOver = onStrip || onTab
         if isOver != over {
             over = isOver
@@ -120,6 +120,11 @@ extension Strip {
 
     func inStrip(_ p: Vec) -> Bool {
         sw.x > 1 && inRect(p, column)
+    }
+
+    /// Whether a point is on the panel beside the open tab, or on the way to it.
+    private func isBeside(_ p: Vec) -> Bool {
+        beside?.contains(CGPoint(x: p.x, y: p.y)) == true
     }
 
     func inTab(_ p: Vec, _ tab: StripTab) -> Bool {

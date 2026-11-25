@@ -37,14 +37,35 @@ struct NotchAsksWindowTests {
         #expect(!notch.controller.window.takesClicks)
     }
 
+    /// A swipe across the asks panel under way keeps the window taking clicks wherever the pointer goes, as when the
+    /// asks panel shrinks from under a still pointer as it slides to a shorter ask, so the rest of its gesture comes to
+    /// it; once it ends, off both, the window takes none.
+    @Test(arguments: [EdgeSettings.Edge.left, .right])
+    func whileASwipeIsUnderWayTheWindowTakesClicksOffTheAsksPanel(_ side: EdgeSettings.Edge) throws {
+        let notch = try Driven(on: side)
+
+        defer { notch.close() }
+        try notch.openAsks()
+
+        let asks = try #require(notch.run.asksShown), onIt = CGPoint(x: asks.frame.maxX - 40, y: asks.frame.midY)
+        let off = CGPoint(x: asks.frame.maxX + 40, y: asks.frame.midY)
+
+        notch.swipe(.began, at: onIt)
+        for _ in 0 ..< 20 {
+            notch.swipe(.changed, along: 5, at: onIt)
+        }
+        notch.frames(for: Self.frameMS, at: off)
+        #expect(notch.run.isSwiping && notch.controller.window.takesClicks)
+        notch.swipe(.ended, at: off)
+        notch.frames(for: Self.frameMS, at: off)
+        #expect(!notch.controller.window.takesClicks)
+    }
+
     /// The frame the window widens or narrows on is drawn into the window as it now is: the black and the light
-    /// mirrored across its new width, where the rows and the asks panel are, never across the width it had; and in
-    /// glass, its views laid out to the new width before it drew, the glass made thick across it.
-    @Test(arguments: [EdgeSettings.Edge.left, .right], [EdgeSettings.Material.black, .glass])
-    func wideningOrNarrowingTheBlackIsDrawnAcrossTheNewWidth(
-        _ side: EdgeSettings.Edge, material: EdgeSettings.Material
-    ) throws {
-        let notch = try Driven(on: side, material: material)
+    /// mirrored across its new width, where the rows and the asks panel are, never across the width it had.
+    @Test(arguments: [EdgeSettings.Edge.left, .right])
+    func wideningOrNarrowingTheBlackIsDrawnAcrossTheNewWidth(_ side: EdgeSettings.Edge) throws {
+        let notch = try Driven(on: side)
 
         defer { notch.close() }
         try notch.openAsks()
@@ -62,25 +83,25 @@ struct NotchAsksWindowTests {
     /// The middle of Help desk redesign's arrow on the stage.
     static func arrow(_ run: NotchRun, mirror: CGAffineTransform) throws -> CGPoint {
         let panel = try #require(run.frame.panel), index = try #require(run.list.index(of: helpDesk))
-        let row = run.list.content.laidFrame(index), box = RowArrow.box(in: row.size)
+        let row = run.list.content.laidFrame(index), box = RowArrow.box(in: row.size, pointsLeft: mirror.a < 0)
 
         return panel.stagePoint(
             CGPoint(x: row.minX + box.midX, y: row.minY + box.midY), mirror: mirror, scroll: run.scroll
         )
     }
 
-    /// Help desk redesign of Northwind in Needs you, asking a choice.
-    static func board() -> PanelBoard {
+    /// Help desk redesign of Northwind in Needs you, asking a choice, or the session by another `name`.
+    static func board(named name: String = "Help desk redesign") -> PanelBoard {
         let at = Int(Date().timeIntervalSince1970 * 1000)
         let rows = [
             WatchLine.Row(
-                session: "sr-nw0001", name: "Help desk redesign", projectName: "Northwind",
+                session: "sr-nw0001", name: name, projectName: "Northwind",
                 lines: [.init("ask:sr-nw0001:k1", .ask, ask: "k1", first: "Thread replies?", since: at - 240_000)]
             ),
         ]
         let projects = [
             WatchLine.Project(name: "Northwind", sessions: [
-                WatchLine.Session(id: "sr-nw0001", name: "Help desk redesign", state: .needsYou, asks: [
+                WatchLine.Session(id: "sr-nw0001", name: name, state: .needsYou, asks: [
                     WatchLine.Ask(
                         id: "k1", wants: .choice, yes: nil, title: "Thread replies, or keep them flat?",
                         options: ["Threaded", "Flat"], recommended: "Threaded", at: at - 240_000
@@ -108,11 +129,10 @@ private final class Driven {
     var run: NotchRun { controller.run }
 
     /// Shown, over the board, its panel opened by the pointer held on the notch, and at rest.
-    init(on side: EdgeSettings.Edge, material: EdgeSettings.Material = .black) throws {
+    init(on side: EdgeSettings.Edge) throws {
         var settings = EdgeSettings()
 
         settings.edge = side
-        settings.material = material
         controller = NotchController(settings, on: NotchAsksWindowTests.display, folding: Folding()) {
             SnoozeSettings()
         }
@@ -139,6 +159,12 @@ private final class Driven {
         }
     }
 
+    /// A scroll of two fingers at this phase, this far along, with the pointer here, a frame on.
+    func swipe(_ phase: Scroll.Phase, along: Double = 0, at pointer: CGPoint) {
+        time += NotchAsksWindowTests.frameMS
+        controller.scroll(Scroll(down: 0, along: along, phase: phase), at: time, pointer: pointer)
+    }
+
     /// The asks panel opened from Help desk redesign's arrow, and the frame after drawn.
     func openAsks() throws {
         try pressArrow()
@@ -162,18 +188,10 @@ private final class Driven {
         return abs(drawn.minX - wanted.minX) < 0.5 && abs(drawn.maxX - wanted.maxX) < 0.5
     }
 
-    /// Whether the drawing and its views stand as wide as the window, and glass, as it drew, was made thick across
-    /// that width.
+    /// Whether the drawing and its views stand as wide as the window.
     func isLaidOutAcrossTheWindow() -> Bool {
         let drawing = controller.surface.drawing, width = controller.window.frame.width
-        let views = [drawing] + drawing.subviews
 
-        guard views.allSatisfy({ abs($0.frame.width - width) < 0.5 }) else {
-            return false
-        }
-        if #available(macOS 26, *), let glass = drawing as? NotchGlassView {
-            return abs(glass.depth - width) < 0.5
-        }
-        return true
+        return ([drawing] + drawing.subviews).allSatisfy { abs($0.frame.width - width) < 0.5 }
     }
 }

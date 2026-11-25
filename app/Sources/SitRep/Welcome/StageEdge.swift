@@ -8,7 +8,7 @@ import SitRepPanel
 /// the real runs drawing into the real surfaces, fed a made-up board (`WelcomeBoard`), never a picture or a video, so
 /// the stage cannot drift from the app. They run on a screen of the stage's own, its menu bar the stage's, at the
 /// size the step plays them, the notch's home, and the strip's centre, where Paper's boards put the notch, and follow
-/// the real settings: notch, strip or nothing, style, material and edge, each change drawn at once, the window in front
+/// the real settings: notch, strip or nothing, style and edge, each change drawn at once, the window in front
 /// or not.
 /// Frames run while the window is in front and something moves, as the real edge's do: the shape, the light, which
 /// alone redraws on its slow refresh, or the loop's pointer; between them the stage sleeps until the loop's next beat
@@ -457,7 +457,7 @@ final class StageEdge: NSView {
     /// Whether a change moves the ask's row: on the strip, its length, Max or edge, which move its mark. Nothing moves
     /// the notch's row but a restyle, which plays the loop again: its row is found in the edge's own points, so the
     /// edge leaves it where it is, and looking again late in the glide, its panel folding, would lose it. The place
-    /// along the edge, the stage's own, the display, the material and Reduce motion move neither.
+    /// along the edge, the stage's own, the display and Reduce motion move neither.
     private func movesRow(from last: EdgeSettings) -> Bool {
         shape is StageStrip
             && (settings.length != last.length || settings.maxLength != last.maxLength || settings.edge != last.edge)
@@ -610,7 +610,6 @@ final class StageNotch: StageShape {
     func home(of session: String, on edge: ScreenEdge) -> CGPoint? { edge.notchHome }
 
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {
-        notch.material = settings.material
         if run == nil {
             run = NotchRun(at: time, in: Self.setting(edge, settings))
         }
@@ -733,7 +732,6 @@ final class StageStrip: StageShape {
     }
 
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {
-        strip.material = settings.material
         if let run {
             run.place(settings, Self.moment(time, nil, edge, settings))
         } else {

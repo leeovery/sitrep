@@ -94,9 +94,9 @@ public struct Board: Versioned, Sendable, Equatable {
         let sessions: [Session]
     }
 
-    /// An open ask of a session, as the asks panel and a new ask's banner answer it: what it wants back, a yes's one
-    /// button or a choice's options, Claude's pick among them, and where Lee's reply to it stands. Only what they read
-    /// is read, so a field nothing reads, in whatever shape, never drops the ask, its arrow or its buttons.
+    /// An open ask of a session, as the asks panel answers it: what it wants back, a yes's one button or a choice's
+    /// options, Claude's pick among them, and where Lee's reply to it stands. Only what the app reads is read, so a
+    /// field nothing reads, in whatever shape, never drops the ask or its arrow.
     public struct Ask: Decodable, Sendable, Equatable {
         public enum Wants: String, Decodable, Sendable {
             case yes, choice, words
@@ -145,21 +145,6 @@ public struct Board: Versioned, Sendable, Equatable {
             recommended = try given.decodeIfPresent(String.self, forKey: .recommended)
             reply = try given.decodeIfPresent(Reply.self, forKey: .reply)
             state = try given.decode(String.self, forKey: .state)
-        }
-
-        /// Whether it asks what `other` asks, as a new ask's banner shows it: the same title, wanting the same, with
-        /// the same yes and options. The watch line lists Claude's pick first, so a pick gained, moved or cleared
-        /// reorders them without Claude doing so: they are alike as the same options, in the same order once either
-        /// pick is taken out, so a reorder Claude makes of the rest still counts.
-        func asksAlike(_ other: Ask) -> Bool {
-            title == other.title && wants == other.wants && yes == other.yes && optionsAlike(other)
-        }
-
-        private func optionsAlike(_ other: Ask) -> Bool {
-            let picks = Set([recommended, other.recommended].compactMap(\.self))
-            let rest = { (options: [String]) in options.filter { !picks.contains($0) } }
-
-            return Set(options) == Set(other.options) && rest(options) == rest(other.options)
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -500,20 +485,13 @@ public struct Board: Versioned, Sendable, Equatable {
     /// Every open ask on the board waiting on Lee, by its session; nil from a line whose projects do not read, which
     /// says nothing of its asks.
     var waitingOnLee: Set<AskOf>? {
-        asksWaitingOnLee.map { Set($0.keys) }
-    }
-
-    /// Every open ask on the board waiting on Lee, by its session and id; nil from a line whose projects do not read.
-    var asksWaitingOnLee: [AskOf: Ask]? {
         guard readsAsks else {
             return nil
         }
 
-        let waiting = asks.flatMap { session, asks in
-            asks.filter(\.waitsOnLee).map { (AskOf(session: session, ask: $0.id), $0) }
-        }
-
-        return Dictionary(waiting) { first, _ in first }
+        return Set(asks.flatMap { session, asks in
+            asks.filter(\.waitsOnLee).map { AskOf(session: session, ask: $0.id) }
+        })
     }
 
     /// An open ask of the session, by its id; nil for one not on the board, as a closed one is not.

@@ -5,8 +5,8 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
-/// A new row's wash, in black and in glass: it runs from the time it is given, never the last frame's, which after
-/// frames have slept is minutes old; and in black a row made anew mid-wash carries it on.
+/// A new row's wash: it runs from the time it is given, never the last frame's, which after frames have slept is
+/// minutes old; and a row made anew mid-wash carries it on.
 @MainActor
 @Suite(.backstop)
 struct WashTests {
@@ -58,32 +58,5 @@ struct WashTests {
         #expect(content.rows["a"]?.row !== washing)
         #expect(Self.began(content.rows["a"]?.row).map { abs($0 - Self.later) < 1e-3 } == true)
         #expect(content.rows["b"]?.row.washing == nil)
-    }
-
-    @available(macOS 26, *)
-    @Test func aBoardAfterALongIdleWashesInFullInGlass() {
-        let glass = NotchGlassView()
-
-        glass.show(Self.list(Self.row("a")))
-        glass.show(Self.lastFrame())
-        glass.wash(["a"], at: Self.later)
-
-        #expect(glass.washed == ["a": Self.later])
-    }
-
-    @available(macOS 26, *)
-    @Test func aWashOverIsLetGoInGlass() {
-        let glass = NotchGlassView()
-
-        glass.wash(["a"], at: Self.later)
-        glass.wash(["b"], at: Self.later + Wash.length - 1)
-        glass.wash(["c"], at: Self.later + Wash.length + 1)
-
-        #expect(glass.washed == ["b": Self.later + Wash.length - 1, "c": Self.later + Wash.length + 1])
-    }
-
-    @Test(arguments: [(0.0, 1.0), (300, 1), (1150, 0.5), (2000, 0), (5000, 0)])
-    func aWashIsHeld300msThenEasesOutBy2Seconds(since: Double, amount: Double) {
-        #expect(abs(Wash.amount(since: since) - amount) < 1e-12)
     }
 }

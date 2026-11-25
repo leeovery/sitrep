@@ -1,10 +1,9 @@
 import CoreGraphics
 import SitRepPanel
 
-/// Where a session's row on the card lays its parts, the same in black and in glass, every row on one line (board J):
-/// its mark, its words, its project in a lane at the right of them, its own width and 12 after the words, never cut
-/// while the words are, and its time in the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit, each
-/// in a line of 18 on the row's middle.
+/// Where a session's row on the card lays its parts, every row on one line (board J): its mark, its words, its project
+/// in a lane at the right of them, its own width and 12 after the words, never cut while the words are, and its time in
+/// the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit, each in a line of 18 on the row's middle.
 struct SessionRowLayout {
     /// The mark's centre: where a working row's arc turns.
     let mark: CGPoint
@@ -41,9 +40,8 @@ enum HeadLayout {
     static let line = 16.0, inset = (left: 10.0, right: 8.0)
 }
 
-/// A section's eyebrow, as board D lays it out in its 28, the same in black and in glass: its name 10 in, its count 6
-/// after it, on one line of 14 on its middle; its chevron in a box of 15 by 24 7.5 in from the right, so the chevron
-/// ends where a row's time does.
+/// A section's eyebrow, as board D lays it out in its 28: its name 10 in, its count 6 after it, on one line of 14 on
+/// its middle; its chevron in a box of 15 by 24 7.5 in from the right, so the chevron ends where a row's time does.
 enum EyebrowLayout {
     static let gap = 6.0, line = 14.0
 

@@ -3,12 +3,11 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 import SitRepTestSupport
-import SwiftUI
 import Testing
 
 /// The card's sections as drawn, against Paper's boards D and J taken relative to the built rows: the eyebrows, and
-/// every row on one line, 30 tall, Needs you's asks and turns and Working's, in black and in glass, each read from its
-/// pixels at 2×; and the card's content, with no hairline and no "N earlier".
+/// every row on one line, 30 tall, Needs you's asks and turns and Working's, each read from its pixels at 2×; and the
+/// card's content, with no hairline and no "N earlier".
 @MainActor
 @Suite(.backstop)
 struct CardSectionsDrawnTests {
@@ -333,160 +332,5 @@ struct CardSectionsDrawnTests {
         #expect(laid.items.map(\.key) == ["eyebrow:needsYou", "needs:k", "turn:t", "turn:e", "eyebrow:working", "w"])
         #expect(laid.itemFrame(4).minY == laid.itemFrame(3).maxY)
         #expect(laid.itemFrame(4).height == CGFloat(14 + 28))
-    }
-
-    // MARK: Glass
-
-    /// On glass, as the black lays it out: its name from 10, its count orange for Needs you, its chevron ending 10
-    /// in.
-    @available(macOS 26, *)
-    @Test(arguments: [(BoardSection.needsYou, true), (.working, false)])
-    func onGlassAnEyebrowIsLaidOutAsTheBlacks(section: BoardSection, isOrange: Bool) throws {
-        let size = CGSize(width: Self.width, height: Item.eyebrowHeight)
-        let drawn = try Drawn(GlassEyebrow(eyebrow: Self.eyebrow(section), size: size), size: size)
-        let name = try #require(drawn.drawnBox(in: CGRect(x: 0, y: 0, width: 60, height: 28), ground: Self.ground))
-        let named = TextLine.width(TextLine.text(section.title, EdgeStyle.eyebrowTitle, EdgeStyle.eyebrow))
-        let count = Self.colour(drawn, in: CGRect(x: 10 + named + 4, y: 7, width: 20, height: 14))
-        let chevron = try #require(drawn.drawnBox(in: CGRect(x: Self.width - 22.5, y: 2, width: 15, height: 24), ground: Self.ground))
-
-        #expect((10 ... 11).contains(name.minX))
-        #expect(abs(chevron.midX - (Self.width - 15)) <= 0.5 && abs(chevron.midY - 14) <= 0.5)
-        #expect(chevron.width > chevron.height)
-        // the window stores its own colour space, so the orange reads as warm, the rest as grey
-        #expect(count.count == 3 && (count[0] - count[2] > 0.3) == isOrange)
-    }
-
-    /// On glass, Needs you's two counts as the black's: its asks warm, then its stopped blue, 6 apart.
-    @available(macOS 26, *)
-    @Test func onGlassNeedsYousCountsAreItsAsksThenItsStopped() throws {
-        let size = CGSize(width: Self.width, height: Item.eyebrowHeight)
-        let drawn = try Drawn(GlassEyebrow(eyebrow: Self.needsYou(asks: 2, stopped: 8), size: size), size: size)
-        let named = TextLine.width(TextLine.text("Needs you", EdgeStyle.eyebrowTitle, EdgeStyle.eyebrow))
-        let wide = TextLine.width(TextLine.text("2", EdgeStyle.eyebrowFigures, EdgeStyle.orange))
-        let asks = Self.colour(drawn, in: CGRect(x: 10 + named + 6, y: 7, width: wide, height: 14))
-        let stopped = Self.colour(drawn, in: CGRect(x: 10 + named + 6 + wide + 6, y: 7, width: wide, height: 14))
-
-        // the window stores its own colour space, so each reads by its lean, warm or blue
-        #expect(asks.count == 3 && asks[0] - asks[2] > 0.3)
-        #expect(stopped.count == 3 && stopped[2] - stopped[0] > 0.3)
-    }
-
-    @available(macOS 26, *)
-    private static func glass(_ session: Session) throws -> Drawn {
-        let row = GlassSessionRow(session: session, size: Self.size, hovered: false, pressed: false, now: 5 * 60_000, wash: 0)
-
-        return try Drawn(row, size: Self.size)
-    }
-
-    /// On glass, every row on one line as the black's: its mark at 16 by 15, its words from 32, its project never cut,
-    /// ending 10 before the time lane; a Needs you row's name in medium, wider than a your-turn row's regular.
-    @available(macOS 26, *)
-    @Test func onGlassEveryRowIsOneLineAsTheBlacks() throws {
-        let project = "Wide World Importers"
-        let whole = TextLine.width(TextLine.text(project, EdgeStyle.sub, EdgeStyle.ink3))
-        let lane = CGRect(x: 288 - whole - 1, y: 4, width: whole + 2, height: 22)
-
-        for session in [Self.needs(Self.long, project: project), Self.turn(Self.long, project: project), Self.waiting(Self.long, project: project)] {
-            let drawn = try Self.glass(session)
-            let mark = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
-            let drawnProject = try #require(drawn.drawnBox(in: lane, ground: Self.ground))
-            let words = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 4, width: lane.minX - 26, height: 22), ground: Self.ground))
-
-            #expect(abs(mark.midX - 16) <= 0.5 && abs(mark.midY - 15) <= 0.5)
-            #expect((32 ... 33.5).contains(words.minX))
-            #expect(words.maxX <= 288 - whole - 12 + 0.5)
-            #expect(abs(drawnProject.maxX - 288) <= 1 && abs(drawnProject.width - whole) <= 1.5)
-        }
-
-        let name = "Inventory"
-        let line = CGRect(x: 26, y: 4, width: 6 + Self.width(name, EdgeStyle.lineMedium) + 2, height: 22)
-        let medium = try #require(Self.glass(Self.needs(name)).drawnBox(in: line, ground: Self.ground))
-        let regular = try #require(Self.glass(Self.turn(name)).drawnBox(in: line, ground: Self.ground))
-
-        #expect(medium.width - regular.width > 1)
-    }
-
-    /// How wide words are inked on glass in this font and label colour, drawn whole on a line of their own from this
-    /// far in, so their edges fall on the pixels, and as faint, as a row's do.
-    @available(macOS 26, *)
-    private static func inked(
-        _ words: String, _ font: NSFont, _ ink: HierarchicalShapeStyle, from x: Double,
-        sourceLocation: SourceLocation = #_sourceLocation
-    ) throws -> CGFloat {
-        let size = CGSize(width: Self.width, height: Item.lineHeight)
-        let text = Text(words).font(Font(font)).foregroundStyle(ink).fixedSize().offset(x: x)
-        let drawn = try Drawn(text.frame(width: size.width, alignment: .leading), size: size)
-        let box = drawn.drawnBox(in: CGRect(origin: .zero, size: size), ground: Self.ground)
-
-        return try #require(box, sourceLocation: sourceLocation).width
-    }
-
-    /// Words its font's kerning pairs set wider than they set with the pairs off: what a line set unkerned would cut.
-    private static func requireWidenedByPairs(
-        _ words: String, _ font: NSFont, sourceLocation: SourceLocation = #_sourceLocation
-    ) throws -> CGFloat {
-        let paired = TextLine.width(NSAttributedString(string: words, attributes: [.font: font]))
-        let unpaired = TextLine.width(NSAttributedString(string: words, attributes: [.font: font, .kern: 0]))
-
-        try #require(paired > unpaired, sourceLocation: sourceLocation)
-        return paired
-    }
-
-    /// On glass, a project its kerning pairs widen is drawn whole in its lane, ending 10 before the time lane, as the
-    /// black and glass both set it kerned.
-    @available(macOS 26, *)
-    @Test(arguments: ["Lucerne Publishing", "Coho Winery"])
-    func onGlassAProjectItsPairsWidenIsDrawnWhole(project: String) throws {
-        let set = try Self.requireWidenedByPairs(project, EdgeStyle.sub)
-        let drawn = try Self.glass(Self.turn("Inventory settled", project: project))
-        let lane = try #require(drawn.drawnBox(in: CGRect(x: 288 - set - 4, y: 4, width: set + 6, height: 22), ground: Self.ground))
-        let whole = try Self.inked(project, EdgeStyle.sub, .tertiary, from: 288 - set)
-
-        #expect(abs(lane.maxX - 288) <= 1)
-        #expect((whole - 0.5 ... whole + 0.5).contains(lane.width), "inked \(lane.width) of \(whole)")
-    }
-
-    /// On glass, a wake in October, whose month its kerning pairs widen, is drawn whole in its time's place, ending at
-    /// 334.
-    @available(macOS 26, *)
-    @Test func onGlassAnOctoberWakeIsDrawnWhole() throws {
-        var utc = Calendar(identifier: .gregorian)
-
-        utc.timeZone = try #require(TimeZone(identifier: "UTC"))
-
-        let october = Double(273 * 86_400 + 9 * 3_600) * 1000
-        let turn = Session(
-            id: "t", project: "Wingtip", name: "Inventory", kind: .snoozedTurn,
-            lines: [Session.Line(title: "Settled", since: 0)], sub: "Wingtip", wakesAt: october
-        )
-        let words = turn.timeText(at: 0, in: utc)
-
-        try #require(words == "1 Oct 09:00")
-
-        let set = try Self.requireWidenedByPairs(words, EdgeStyle.age)
-        let row = GlassSessionRow(session: turn, size: Self.size, hovered: false, pressed: false, now: 0, wash: 0, calendar: utc)
-        let drawn = try Drawn(row, size: Self.size)
-        let time = try #require(drawn.drawnBox(in: CGRect(x: 330 - set, y: 4, width: set + 14, height: 22), ground: Self.ground))
-        let whole = try Self.inked(words, EdgeStyle.age, .secondary, from: 334 - set)
-
-        #expect(abs(time.maxX - 334) <= 1.5)
-        #expect((whole - 0.5 ... whole + 0.5).contains(time.width), "inked \(time.width) of \(whole)")
-    }
-
-    /// On glass, a turn snoozed is a dot 7 across at 16 by 15, as a snoozed ask's is, its blue dimmed
-    /// (`NeedsYouMarksTests`); "until it moves" in its time's place, ending at 334, as wide as glass sets it. Kerning
-    /// narrows the phrase, so this guards its place, not its kerning (`onGlassAnOctoberWakeIsDrawnWhole` does that).
-    @available(macOS 26, *)
-    @Test func onGlassASnoozedTurnIsADotUntilItMoves() throws {
-        let turn = Session(id: "t", project: "Wingtip", name: "Inventory", kind: .snoozedTurn, title: "Settled", sub: "Wingtip", since: 0)
-        let drawn = try Self.glass(turn)
-        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
-        let wide = TextLine.width(TextLine.text(WakeTime.untilItMoves, EdgeStyle.age, EdgeStyle.ink2))
-        let time = try #require(drawn.drawnBox(in: CGRect(x: 330 - wide, y: 4, width: wide + 14, height: 22), ground: Self.ground))
-        let whole = try Self.inked(WakeTime.untilItMoves, EdgeStyle.age, .secondary, from: 334 - wide)
-
-        #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1)
-        #expect(abs(dot.midX - 16) <= 0.5 && abs(dot.midY - 15) <= 0.5)
-        #expect(abs(time.maxX - 334) <= 1.5 && abs(time.width - whole) <= 1)
     }
 }

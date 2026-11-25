@@ -4,7 +4,7 @@ import SitRepLines
 import SitRepTestSupport
 import Testing
 
-/// The asks a line leaves no longer waiting on Lee, whose banners then go (DESIGN, "Its buttons"): answered, ignored,
+/// The asks a line leaves no longer waiting on Lee, whose banners then go (DESIGN, "The menu bar"): answered, ignored,
 /// resolved, or gone with their session; only as the line comes, against the board kept, the last run's among them;
 /// none where a line's projects do not read.
 @Suite(.backstop)

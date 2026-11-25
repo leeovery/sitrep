@@ -53,7 +53,7 @@ enum WelcomeWorld {
         /// macOS can say of Ghostty only while it runs.
         func services() -> SettingsServices {
             SettingsServices(
-                displays: { [] }, hasGlass: true, jump: { self.jumps.append($0) }, sendTest: { self.tests += 1 },
+                displays: { [] }, jump: { self.jumps.append($0) }, sendTest: { self.tests += 1 },
                 copy: { self.copies.append($0) },
                 sounds: AlertSounds(
                     names: AlertSounds.macOSNames, play: { self.played.append($0) }, stop: { self.stops += 1 }

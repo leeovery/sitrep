@@ -5,9 +5,9 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
-/// The light where the notch is, in black and in glass: drawn in an edge's window offscreen, on either edge, its bar
-/// lies inside the notch's outline in the window, where the black is drawn and the pointer touches it, at rest, as
-/// the notch reaches for the pointer and as the panel pours; and it is hidden once the panel is out.
+/// The light where the notch is: drawn in an edge's window offscreen, on either edge, its bar lies inside the notch's
+/// outline in the window, where the black is drawn and the pointer touches it, at rest, as the notch reaches for the
+/// pointer and as the panel pours; and it is hidden once the panel is out.
 @MainActor
 @Suite(.backstop)
 struct NotchLightTests {
@@ -20,8 +20,8 @@ struct NotchLightTests {
         id: "a", project: "Trey Research", kind: .needs, title: "Approve the plan", sub: "Trey Research · Build", since: 0
     ))])
 
-    @Test(arguments: [EdgeSettings.Material.black, .glass], NotchApproach.Style.allCases)
-    func theLightLiesInsideTheNotchAsItIsDrawn(material: EdgeSettings.Material, style: NotchApproach.Style) throws {
+    @Test(arguments: NotchApproach.Style.allCases)
+    func theLightLiesInsideTheNotchAsItIsDrawn(style: NotchApproach.Style) throws {
         for side in [EdgeSettings.Edge.left, .right] {
             let edge = ScreenEdge(frame: Self.display.frame, visible: Self.display.visible, edge: side)
             let surface = NotchSurface()
@@ -30,7 +30,6 @@ struct NotchLightTests {
 
             defer { window.close() }
 
-            surface.material = material
             window.displayIfNeeded()
             for frame in NotchApproach.frames(style, needsLee: true, on: edge.stage, content: Self.content) {
                 surface.show(NotchScene(frame: frame, hover: nil, scroll: 0, time: 0, now: 0, mirror: edge.mirror))

@@ -7,8 +7,8 @@ import Testing
 
 /// Needs you's marks in one grammar (13 November 2026): colour says what is needed, an ask's orange or Lee's turn's
 /// blue; fill says where the session is, a dot with its glow where this Mac shows it and a hollow ring away; and a row
-/// in Snoozed its dot, its colour dimmed. On the card, black and glass, read from its pixels at 2×; the menu's marks
-/// and glyph; and the strip's rings.
+/// in Snoozed its dot, its colour dimmed. On the card, read from its pixels at 2×; the menu's marks and glyph; and the
+/// strip's rings.
 @MainActor
 @Suite(.backstop)
 struct NeedsYouMarksTests {
@@ -29,14 +29,6 @@ struct NeedsYouMarksTests {
 
         row.showAge(at: 60_000)
         return try Drawn(row.layer)
-    }
-
-    @available(macOS 26, *)
-    private static func glass(_ session: Session) throws -> Drawn {
-        try Drawn(
-            GlassSessionRow(session: session, size: cardSize, hovered: false, pressed: false, now: 60_000, wash: 0),
-            size: cardSize
-        )
     }
 
     /// Blue: blue well over red, as #3F93FB is; orange, red well over blue, as #E9643D is.
@@ -112,20 +104,6 @@ struct NeedsYouMarksTests {
     func onTheBlackCardASnoozedDotIsItsColourDimmed(away: Bool) throws {
         try Self.expectAsleep(Self.black(Self.session(.snoozed, away: away)), as: Self.black(Self.session(.needs)))
         try Self.expectAsleep(Self.black(Self.session(.snoozedTurn, away: away)), as: Self.black(Self.session(.turn)))
-    }
-
-    // MARK: Glass
-
-    @available(macOS 26, *)
-    @Test func onGlassATurnIsABlueDotHereAndABlueRingAway() throws {
-        try Self.expectDot(Self.glass(Self.session(.turn)), Self.isBlue)
-        try Self.expectRing(Self.glass(Self.session(.turn, away: true)), Self.isBlue)
-    }
-
-    @available(macOS 26, *)
-    @Test func onGlassASnoozedDotIsItsColourDimmed() throws {
-        try Self.expectAsleep(Self.glass(Self.session(.snoozed)), as: Self.glass(Self.session(.needs)))
-        try Self.expectAsleep(Self.glass(Self.session(.snoozedTurn)), as: Self.glass(Self.session(.turn)))
     }
 
     // MARK: The menu

@@ -1,98 +1,16 @@
 import Foundation
 
-/// A banner's words, the session clicking it jumps to, if any, and the ask its buttons answer, if any.
+/// A banner's words, the session clicking it jumps to, if any, and the new ask it tells of, if any.
 public struct Banner: Equatable, Sendable {
-    /// An ask a new ask's banner answers with the buttons macOS draws (DESIGN, "The menu bar", "Its buttons"): its id,
-    /// its session, its title and place as the banner shows them, and what it wants back.
-    public struct Ask: Equatable, Sendable {
-        public enum Wants: Equatable, Sendable {
-            /// One button, its yes.
-            case yes(String)
-            /// A button for each option, Claude's pick first, as the board lists them.
-            case choice([String])
-            /// Reply, macOS's text field, with Send.
-            case words
-
-            /// What it wants, as the board and `sitrep answer --wants` say it.
-            public var shape: Board.Ask.Wants {
-                switch self {
-                case .yes: .yes
-                case .choice: .choice
-                case .words: .words
-                }
-            }
-        }
-
-        public let id: String
-        public let session: String
-        /// Its title, as the banner shows it.
-        public let title: String
-        /// Its project and session by name, as the banner shows them under its title.
-        public let place: String
-        public let wants: Wants
-
-        public init(id: String, session: String, title: String, place: String, wants: Wants) {
-            self.id = id
-            self.session = session
-            self.title = title
-            self.place = place
-            self.wants = wants
-        }
-
-        /// The board's ask of the row's session, as its banner answers it; nil for a choice with no options to choose
-        /// from, whose banner has no buttons.
-        public init?(_ ask: Board.Ask, of row: Board.Row) {
-            let wants: Wants? = switch ask.wants {
-            case .yes: ask.yes.map(Wants.yes)
-            case .choice: ask.options.isEmpty ? nil : .choice(ask.options)
-            case .words: .words
-            }
-
-            guard let wants else {
-                return nil
-            }
-
-            self.init(id: ask.id, session: row.session, title: ask.title, place: row.place, wants: wants)
-        }
-
-        /// The ask as its banner showed it, which a refusal names it by where the board holds it no more.
-        public var named: AskNamed {
-            AskNamed(id: id, title: title, place: place, session: session)
-        }
-
-        /// Why `words`, sent from this banner, cannot answer the ask as the board now holds it: Reply sent with none,
-        /// or the ask changed since its banner showed, its title edited, wanting something else, or no longer offering
-        /// the words. Nil where they answer it, or where the board no longer holds it, which the CLI refuses in its own
-        /// words. The CLI sees no title, so this check alone keeps a press on the old title from answering the new.
-        public func refusal(of words: String, live: Board.Ask?) -> String? {
-            guard !words.isEmpty else {
-                return "Reply had no words, so nothing was sent."
-            }
-            guard let live, live.title != title || !takes(words, live) else {
-                return nil
-            }
-
-            return "The ask changed after its banner showed, so nothing was sent."
-        }
-
-        private func takes(_ words: String, _ live: Board.Ask) -> Bool {
-            switch (wants, live.wants) {
-            case (.yes, .yes): live.yes == words
-            case (.choice, .choice): live.options.contains(words)
-            case (.words, .words): true
-            default: false
-            }
-        }
-    }
-
     public let title: String
     public let subtitle: String?
     public let body: String
     public let work: String?
-    /// The ask its buttons answer; nil for every other banner, which has none.
-    public let ask: Ask?
+    /// The new ask it tells of, by which it is taken down once the ask waits on Lee no more; nil for every other
+    /// banner.
+    public let ask: AskOf?
 
-    public init(title: String, subtitle: String?, body: String, work: String?, ask: Ask? = nil) {
+    public init(title: String, subtitle: String?, body: String, work: String?, ask: AskOf? = nil) {
         self.title = title
         self.subtitle = subtitle
         self.body = body
