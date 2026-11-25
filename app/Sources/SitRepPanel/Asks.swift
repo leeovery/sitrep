@@ -6,16 +6,25 @@ import Foundation
 /// with no options, which the asks panel answers in Claude. Its time is its line's on the row: its posting, or its
 /// reopening.
 public struct PanelAsk: Equatable, Sendable {
+    /// What it wants back, as the board says it, which its answer passes on, so one reshaped since is refused.
+    public enum Wants: Sendable {
+        case yes, choice, words
+    }
+
     public let id: String
     public let title: String
+    public let wants: Wants
     public let answers: [String]
     public let recommended: String?
     /// When its line began, ms on the wall clock.
     public let since: Double
 
-    public init(id: String, title: String, answers: [String] = [], recommended: String? = nil, since: Double) {
+    public init(
+        id: String, title: String, wants: Wants, answers: [String] = [], recommended: String? = nil, since: Double
+    ) {
         self.id = id
         self.title = title
+        self.wants = wants
         self.answers = answers
         self.recommended = recommended.flatMap { answers.contains($0) ? $0 : nil }
         self.since = since

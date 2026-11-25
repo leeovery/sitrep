@@ -45,9 +45,10 @@ final class NoticesDelegate: NSObject, NSApplicationDelegate {
         front.activated()
     }
 
-    /// Clicks are listened to before launching ends, so the click that starts the helper is heard.
+    /// Clicks and buttons are listened to before launching ends, so the click or the button that starts the helper is
+    /// heard.
     func applicationWillFinishLaunching(_ notification: Notification) {
-        notifications.listen { [helper] in helper.clicked($0) }
+        notifications.listen(onClick: { [helper] in helper.clicked($0) }, onAnswer: { [helper] in helper.answered($0) })
         relay.listen { [helper] in helper.heard($0) }
     }
 

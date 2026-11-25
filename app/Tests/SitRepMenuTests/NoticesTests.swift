@@ -9,6 +9,21 @@ struct NoticesTests {
     /// A board after the run's first, with the ask new on it.
     private static let asked = heard([.line(Watched.line(rows: [])), .line(newAsk)])
 
+    /// A board after the run's first, Northwind's Ledger export holding these asks, its row's line for the ask with
+    /// this id new on it.
+    private static func asking(_ asks: [WatchLine.Ask], line ask: String? = "k2") -> LastBoard {
+        let row = WatchLine.Row(
+            session: "sr-nw0001", name: "Ledger export", projectName: "Northwind",
+            lines: [.init("ask:sr-nw0001:k2", .ask, ask: ask, first: "Pick the export format")]
+        )
+        let line = WatchLine(
+            rows: [row], projects: [WatchLine.Project(sessions: [WatchLine.Session(asks: asks)])],
+            new: ["ask:sr-nw0001:k2"]
+        )
+
+        return heard([.line(Watched.line(rows: [])), .line(line.text)])
+    }
+
     @Test func aNewAskSendsItsTitleItsProjectAndSessionSilentlyJumpingToIt() {
         #expect(Notices.due(Self.asked, .notifyingAsks) == [
             Banner(title: "Choose how long the archive keeps reports", subtitle: "Woodgrove · Usage", body: "", work: "sr-l5c9tz"),
@@ -66,6 +81,57 @@ struct NoticesTests {
         let stale = heard([.line(Watched.line(rows: [])), .line(Self.newAsk), .exited(.status(1), stderr: "")])
 
         #expect(Notices.due(stale, .notifyingAsks).isEmpty)
+    }
+
+    /// Its buttons answer the board's ask the line is, by what it wants: a yes's words, a choice's options in Claude's
+    /// order, Claude's pick, Right, among them in its place and unmarked, or Reply for words.
+    @Test(arguments: [
+        (WatchLine.Ask(id: "k2", wants: .yes, yes: "Go"), Banner.Ask.Wants.yes("Go")),
+        (WatchLine.Ask(id: "k2", wants: .yes, yes: nil), .yes("yes")),
+        (
+            WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: ["Left", "Right"], recommended: "Right"),
+            .choice(["Left", "Right"])
+        ),
+        (WatchLine.Ask(id: "k2", wants: .words, yes: nil, needs: "the command's output"), .words),
+    ])
+    func aNewAsksBannerAnswersItsAsk(ask: WatchLine.Ask, wants: Banner.Ask.Wants) {
+        #expect(Notices.due(Self.asking([ask]), .notifyingAsks).map(\.ask) == [
+            Banner.Ask(id: "k2", session: "sr-nw0001", wants: wants),
+        ])
+    }
+
+    /// A choice with no options to choose from has no buttons, nor does a line naming no ask the board holds.
+    @Test(arguments: [
+        ("k2", [WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: [])]),
+        ("k2", [WatchLine.Ask(id: "k9")]),
+        (nil, [WatchLine.Ask(id: "k2")]),
+    ])
+    func aNewAsksBannerWithNothingToAnswerWithHasNoButtons(line: String?, asks: [WatchLine.Ask]) {
+        let banners = Notices.due(Self.asking(asks, line: line), .notifyingAsks)
+
+        #expect(banners.map(\.title) == ["Pick the export format"])
+        #expect(banners.map(\.ask) == [nil])
+    }
+
+    /// Lee's turn's banner has no buttons, nor does the test notification.
+    @Test func noOtherBannerHasButtons() {
+        var settings = AppSettings.notifyingAsks
+
+        settings.notifiesTurns = true
+
+        let installer = { (line: WatchLine.Row.Line) in
+            Heard.line(Watched.line(rows: [
+                WatchLine.Row(session: "sr-boot", name: "The installer", projectName: "Litware", lines: [line]),
+            ]))
+        }
+        let turned = Notices.due(heard([
+            installer(.init("work:sr-boot", .working, first: "Writing", since: 1_792_445_000_000)),
+            installer(.init("turn:sr-boot", .yourTurn, first: "Write round 4 into the spec")),
+        ]), settings)
+
+        #expect(turned.map(\.title) == ["Stopped"])
+        #expect(turned.map(\.ask) == [nil])
+        #expect(Notices.test.ask == nil)
     }
 
     @Test func theTestNoticeIsASampleThatJumpsNowhere() {

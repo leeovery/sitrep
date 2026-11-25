@@ -11,7 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences.app.openSettings
     }
     private lazy var snoozes = Snoozes(plugin: plugin, post: banners.post)
-    private lazy var answers = Answers(plugin: plugin, post: banners.post)
+    /// One for the asks panel and the banners alike, so a banner's answer takes back the asks panel's hold on its ask.
+    private lazy var answers = Answers(plugin: plugin, post: banners.post) { [live] in live.last.board }
     /// Quitting, waiting on the answers (`applicationShouldTerminate`).
     private var quitting: Task<Void, Never>?
     private let feed = Feed()
@@ -33,11 +34,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcome: WelcomeWindow?
     private var quitOnSignal: QuitOnSignal?
 
-    /// The notices helper is listened to before launching ends, so a click that starts the app is heard; and a SIGTERM
-    /// quits as Quit SitRep does.
+    /// The notices helper is listened to before launching ends, so a click or a banner's answer that starts the app is
+    /// heard; and a SIGTERM quits as Quit SitRep does.
     func applicationWillFinishLaunching(_ notification: Notification) {
         quitOnSignal = QuitOnSignal()
-        banners.start { [works] work, handBack in works.jump(to: work, handBack: handBack) }
+        banners.start(
+            onClick: { [works] work, handBack in works.jump(to: work, handBack: handBack) },
+            onAnswer: { [answers] in answers.send($0) }
+        )
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -142,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Chime.due(last, preferences.app).map(sounds.play)
         Notices.due(last, preferences.app).forEach(banners.post)
+        last.asksLeft.forEach(banners.clear)
     }
 
     /// ⌘,, through the main menu: the Settings window.

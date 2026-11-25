@@ -16,6 +16,23 @@ struct BannerTests {
         ))
     }
 
+    /// Its ask named: the title in place of its id, which Lee never sees, wherever the words name it, under its project
+    /// and session, a click jumping there; another id kept as it is; named by nothing, as before.
+    @Test func anAnswerRefusedNamesItsAskByItsTitleUnderItsPlace() {
+        let ask = AskNamed(
+            id: "k1", title: "Pick $1 \\ format", place: "Northwind · Ledger export", session: "sr-nw0001"
+        )
+
+        #expect(Banner.unanswered("k1 now wants words, not a yes: look at it again.", of: ask) == Banner(
+            title: "Not answered", subtitle: "Northwind · Ledger export",
+            body: "“Pick $1 \\ format” now wants words, not a yes: look at it again.", work: "sr-nw0001"
+        ))
+        #expect(Banner.unanswered("An answer to k1 is on its way already.", of: ask).body
+            == "An answer to “Pick $1 \\ format” is on its way already.")
+        #expect(Banner.unanswered("k12 is already closed.", of: ask).body == "k12 is already closed.")
+        #expect(Banner.unanswered("k1 is already closed.", of: nil) == .unanswered("k1 is already closed."))
+    }
+
     @Test func aJumpGivenNoAnswerInTimeSaysTheMacIsTooBusy() {
         #expect(Banner.tooBusy == Banner(
             title: "SitRep could not jump", subtitle: nil, body: "The Mac is too busy to jump.", work: nil

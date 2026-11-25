@@ -9,8 +9,10 @@ import Testing
 @Suite(.backstop)
 struct AsksLayoutTests {
     private static let measure = AsksMeasure(titleLines: { _ in 1 }, footWidth: { Double($0.count) * 7 })
-    private static let choice = PanelAsk(id: "k1", title: "Thread replies?", answers: ["Threaded", "Flat"], since: 0)
-    private static let words = PanelAsk(id: "k2", title: "Say what an empty rota should read", since: 0)
+    private static let choice = PanelAsk(
+        id: "k1", title: "Thread replies?", wants: .choice, answers: ["Threaded", "Flat"], since: 0
+    )
+    private static let words = PanelAsk(id: "k2", title: "Say what an empty rota should read", wants: .words, since: 0)
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
 
     @Test func aChoiceOfTwoOnOneLineIs248Tall() {

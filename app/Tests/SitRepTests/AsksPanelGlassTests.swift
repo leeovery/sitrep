@@ -95,10 +95,11 @@ struct AsksPanelGlassTests {
         since: 0
     )
     private static let choice = PanelAsk(
-        id: "k1", title: "Thread replies, or keep them flat?", answers: ["Threaded", "Flat"], recommended: "Threaded",
+        id: "k1", title: "Thread replies, or keep them flat?", wants: .choice, answers: ["Threaded", "Flat"],
+        recommended: "Threaded",
         since: 0
     )
-    private static let words = PanelAsk(id: "k1", title: "Say what an empty rota should read", since: 0)
+    private static let words = PanelAsk(id: "k1", title: "Say what an empty rota should read", wants: .words, since: 0)
     private static let margin = 40.0
 
     /// The asks panel drawn with room round it, in the dark unless told, over black or over `ground`, `heldFor` ms

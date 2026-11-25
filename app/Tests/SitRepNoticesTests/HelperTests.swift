@@ -29,6 +29,14 @@ struct HelperTests {
                 await withCheckedContinuation { held = $0 }
             }
             posted.append(notice)
+            done.append("post \(notice.title)")
+        }
+
+        /// What it posted and cleared, in order.
+        var done: [String] = []
+
+        func clear(ask: String, session: String) async {
+            done.append("clear \(ask) of \(session)")
         }
 
         /// Once `count` banners are posted.
@@ -225,6 +233,45 @@ struct HelperTests {
         #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-a8n2xc")])
     }
 
+    /// A banner's button answers through SitRep. Nothing jumps, so the front is handed back, should macOS have made
+    /// the helper active for the press.
+    @Test func aBannersAnswerIsRelayedToSitRepAndTheFrontHandedBack() async {
+        let helper = helper(SitRep(isRunning: true))
+        let answer = NoticeAnswer(
+            to: NoticeAsk(id: "k2", session: "sr-a8n2xc", wants: .choice(["Right"])), words: "Right"
+        )
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.ready))
+        helper.answered(answer)
+
+        #expect(sent.messages.last == .answered(answer))
+        #expect(sent.pids == [Self.sitRep])
+        #expect(calls.handBacks == 1)
+    }
+
+    /// The button that started the helper, with SitRep not running: SitRep is started, and the answer, with any click
+    /// before it, waits for it, in order.
+    @Test func anAnswerWithNoSitRepStartsItAndIsHandedOverInOrderOnceItListens() async {
+        let sitRep = SitRep(isRunning: false)
+        let helper = helper(sitRep)
+        let answer = NoticeAnswer(
+            to: NoticeAsk(id: "k3", session: "sr-a8n2xc", wants: .words), words: "12 passed, 0 failed"
+        )
+
+        helper.clicked("sr-a8n2xc")
+        helper.answered(answer)
+        await helper.start()
+
+        #expect(sitRep.launches == 1)
+        #expect(sent.messages == [Self.ready])
+
+        helper.heard(Self.fromSitRep(.ready))
+        helper.heard(Self.fromSitRep(.ready))
+
+        #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-a8n2xc"), .answered(answer), Self.ready])
+    }
+
     @Test func withNoSitRepToStartItQuits() async {
         let helper = helper(SitRep(isRunning: false, starts: false))
 
@@ -285,6 +332,24 @@ struct HelperTests {
         mac.release()
 
         #expect(await mac.posts(2) == [first, second])
+    }
+
+    /// An ask's banners are cleared in turn with the posts SitRep sent before, so one posted then cleared goes.
+    @Test func itClearsAnAsksBannersInTheOrderSitRepSent() async {
+        let helper = helper(SitRep(isRunning: true))
+        let first = Notice(title: "First", subtitle: nil, body: "", work: "sr-1")
+
+        mac.holdsFirstPost = true
+        await helper.start()
+        helper.heard(Self.fromSitRep(.post(first)))
+        helper.heard(Self.fromSitRep(.cleared(ask: "k1", session: "sr-1")))
+        await until(turns: 10_000) { mac.isHolding }
+        #expect(mac.done.isEmpty)
+
+        mac.release()
+        await until(turns: 10_000) { mac.done.count == 2 }
+
+        #expect(mac.done == ["post First", "clear k1 of sr-1"])
     }
 
     @Test func itAnswersAStatusWithMacOSsLeaveUnderItsId() async throws {

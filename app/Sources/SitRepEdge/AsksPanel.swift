@@ -14,21 +14,6 @@ struct AsksPanel {
         var page: Int
     }
 
-    /// An ask of a session, by their ids.
-    private struct AskOf: Hashable {
-        let session: String
-        let ask: String
-
-        init(session: String, ask: String) {
-            self.session = session
-            self.ask = ask
-        }
-
-        init(_ answering: Answering) {
-            self.init(session: answering.session, ask: answering.ask)
-        }
-    }
-
     /// What it shows, for a press to tell a change of meaning by: beside which row, which holds its session, where on
     /// the stage and when, on the display's clock, its ask as it reads, and whether an answer to it is held.
     private struct Look {

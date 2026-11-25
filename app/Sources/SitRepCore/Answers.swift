@@ -1,15 +1,33 @@
 import Foundation
 
-/// An answer to an ask of a session, or its ignore, as `sitrep answer` takes it.
+/// An answer to an ask of a session, or its ignore, as `sitrep answer` takes it, with what the ask wanted as Lee saw
+/// it, which the CLI refuses should the ask want something else by the time it writes.
 public struct Answering: Sendable, Hashable {
     public let ask: String
     public let session: String
     public let answer: Answer
+    public let wants: Board.Ask.Wants
 
-    public init(_ answer: Answer, to ask: String, of session: String) {
+    public init(_ answer: Answer, to ask: String, of session: String, wanting wants: Board.Ask.Wants) {
         self.ask = ask
         self.session = session
         self.answer = answer
+        self.wants = wants
+    }
+}
+
+/// An ask of a session, by their ids.
+public struct AskOf: Hashable, Sendable {
+    public let session: String
+    public let ask: String
+
+    public init(session: String, ask: String) {
+        self.session = session
+        self.ask = ask
+    }
+
+    public init(_ answering: Answering) {
+        self.init(session: answering.session, ask: answering.ask)
     }
 }
 
@@ -47,9 +65,12 @@ public final class Answers {
 
     private let answer: @MainActor (Answering) async -> WriteAnswer
     private let post: @MainActor (Banner) -> Void
+    private let board: @MainActor () -> Board?
     private let sleep: @Sendable (Duration) async throws -> Void
     private let now: () -> Date
     private var holding: Task<Void, Never>?
+    /// The ask held, named as the board showed it as it was held.
+    private var heldNamed: AskNamed?
     /// The answers gone to the CLI that it is not yet done with, each by its place in the order they went.
     private var sends: [Int: Task<Void, Never>] = [:]
     private var nextSend = 0
@@ -57,16 +78,19 @@ public final class Answers {
     /// Whether an answer is held, or gone to the CLI and not yet written or refused: quitting waits on it.
     public var isAnswering: Bool { held != nil || !sends.isEmpty }
 
-    /// `answer` runs an answer through the CLI; `post` posts a refusal's banner; `sleep` waits out the hold and `now`
-    /// tells the wall clock: the tests' clocks, in place of the real ones.
+    /// `answer` runs an answer through the CLI; `post` posts a refusal's banner, naming the ask as `board`, the last
+    /// one heard, shows it as the answer is held or sent; `sleep` waits out the hold and `now` tells the wall clock:
+    /// the tests' clocks, in place of the real ones.
     public init(
         answer: @escaping @MainActor (Answering) async -> WriteAnswer,
         post: @escaping @MainActor (Banner) -> Void,
+        board: @escaping @MainActor () -> Board? = { nil },
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         now: @escaping () -> Date = Date.init
     ) {
         self.answer = answer
         self.post = post
+        self.board = board
         self.sleep = sleep
         self.now = now
     }
@@ -84,14 +108,17 @@ public final class Answers {
             answering: answering, heldAt: heldAt, goesAt: heldAt.addingTimeInterval(Self.goesAfter / .seconds(1))
         )
 
+        let named = naming(answering)
+
         self.held = held
+        heldNamed = named
         holding = Task { [sleep] in
             guard (try? await sleep(Self.goesAfter)) != nil, !Task.isCancelled else {
                 return
             }
 
             self.release()
-            self.run(answering)
+            self.run(answering, named: named)
         }
         heard(.held(held))
         return true
@@ -114,7 +141,19 @@ public final class Answers {
         if let held, held.answering.ask == answering.ask, held.answering.session == answering.session {
             undo()
         }
-        run(answering)
+        run(answering, named: naming(answering))
+    }
+
+    /// A banner's answer, sent at once as `send` sends it, unless it cannot answer the ask as the board holds it
+    /// (`Banner.Ask.refusal`): then a banner "Not answered" says why, and nothing is sent.
+    public func send(_ words: String, from banner: Banner.Ask) {
+        let answering = Answering(.words(words), to: banner.id, of: banner.session, wanting: banner.wants.shape)
+
+        if let why = banner.refusal(of: words, live: board()?.ask(banner.id, of: banner.session)) {
+            return post(.unanswered(why, of: naming(answering)))
+        }
+
+        send(answering)
     }
 
     /// Every answer seen through, as quitting does, which cancels none: the one held sent now, its hold cut short;
@@ -122,16 +161,25 @@ public final class Answers {
     /// once with none.
     public func finish() async {
         if let held {
+            let named = heldNamed
+
             holding?.cancel()
             release()
-            run(held.answering)
+            run(held.answering, named: named)
         }
         while let send = sends.values.first {
             await send.value
         }
     }
 
-    private func run(_ answering: Answering) {
+    /// The ask answered, as the board names it now; nil where it holds it no more.
+    private func naming(_ answering: Answering) -> AskNamed? {
+        board()?.naming(answering.ask, of: answering.session)
+    }
+
+    /// Sent, its refusal naming the ask as `named` has it, as the board showed it when it was held or sent; else as
+    /// the board shows it by the time the CLI refuses, as for one held before SitRep had heard a board.
+    private func run(_ answering: Answering, named: AskNamed?) {
         let send = nextSend
 
         nextSend += 1
@@ -140,7 +188,7 @@ public final class Answers {
             let written = await answer(answering)
 
             if case let .refused(why) = written {
-                post(.unanswered(why))
+                post(.unanswered(why, of: named ?? naming(answering)))
             }
             heard(.ended(answering, written))
             sends[send] = nil
@@ -149,6 +197,7 @@ public final class Answers {
 
     private func release() {
         held = nil
+        heldNamed = nil
         holding = nil
     }
 }

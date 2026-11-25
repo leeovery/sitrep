@@ -4221,7 +4221,7 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--recommended <choice>] [--needs <words>] [--where <words>] [--ref <ref>]
   sitrep park <title> [--where <words>] [--ref <ref>]
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
-  sitrep answer <ask> (<answer> | --ignore)
+  sitrep answer <ask> (<answer> | --ignore) [--wants yes|choice|words]
   sitrep snooze <ask>... --until <ms>
   sitrep wake
   sitrep finish
@@ -4449,6 +4449,10 @@ truth. There is still no background service. None of it is built now. Lee:
       that are empty, or only spaces, are refused (`k3 wants words: give
       them after its id.`). Until then a words ask was refused, its words
       needing Claude Code's prompt.
+    - `--wants` (25 November 2026) gives what the ask wanted as Lee saw it, and
+      the asks panel and a banner always pass it: an ask Claude reshaped since
+      is refused at the write (`k1 now wants words, not a yes: look at it
+      again.`), so "Go" is never taken for a words ask's words.
     - It writes a reply, `yes`, `choose` with its option, `answer` with its
       words, or `ignore`, into
       the session's inbox as the CLI's letters, as the pane's replies to
@@ -5406,8 +5410,9 @@ that takes Lee to the window a session is in.
   - **The relay** is a distributed notification each way, named under
     the helper's bundle id, its payload a plist of strings, local to the
     Mac. SitRep to the helper: ready, post, a request for the leave, or
-    to ask for it first, each with an id its answer gives back, and hand
-    back the front. The helper to SitRep: ready, with its own pid,
+    to ask for it first, each with an id its answer gives back, hand
+    back the front, and cleared, an ask's banners taken down (25 November
+    2026). The helper to SitRep: ready, with its own pid,
     clicked (the session's id), answered (24 November 2026; see "Its
     buttons", below), and the leave. Each carries SitRep's pid,
     whichever way it goes, and each side reads only its own SitRep's, so
@@ -5470,6 +5475,24 @@ that takes Lee to the window a session is in.
     snooze posts "Not snoozed". A banner for Lee's turn, the test
     notification, a refusal's banner and the banner of an ask with no
     options to choose from have no buttons.
+
+    Settled in review, 25 November 2026: each button needs the Mac
+    unlocked; a press hands the front back, as nothing jumps; Reply sent
+    empty posts "Not answered", saying it had no words. Every answer, the
+    asks panel's too, passes `--wants`, what the ask wanted as Lee saw
+    it, so the CLI refuses one Claude reshaped since. For a banner's
+    answer SitRep refuses it first where its last board already shows
+    the change; the asks panel's held answer is left to the CLI. A
+    refusal's banner names the ask by its title in place of its id,
+    under its project and session, as its new ask's banner does, from
+    its row in Needs you or in Snoozed, and a click on it jumps there.
+    An ask that waits on Lee no more, answered anywhere, ignored,
+    commented on, resolved or gone with its session, has its banners
+    still in Notification Center taken down, over the relay's `cleared`,
+    so no old button answers it and the helper's categories stay bounded
+    to the banners on screen and the ten last posted. Only while SitRep
+    runs, and from a line whose projects read: an ask that left while it
+    was off keeps its banner, and the CLI refuses a press on it.
 - **Answering from the edge** (24 November 2026; see "Answering from the
   panel"): a yes or a choice from the asks panel, and a yes, a choice or
   words from a new ask's banner (below), each through `sitrep answer`. A
