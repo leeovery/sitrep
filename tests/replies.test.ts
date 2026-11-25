@@ -570,7 +570,7 @@ const RETITLED_TRY: Body = {
   changes: { title: 'Sign in on the iPad, then say' },
 }
 
-/** Every field Claude's edit can reword an ask by, each an edit to k3. */
+/** Fields Claude's edit rewords an ask by, each an edit to k3; its ref, Claude's own record, rewords nothing. */
 const REWORDINGS: Array<[string, Body]> = [
   ['its title', RETITLED_TRY],
   ['where to look', { type: 'edit', item: 'k3', changes: { where: 'On the iPad mini' } }],
@@ -682,23 +682,105 @@ test("Lee's comment still on its way as Claude edits the ask hands nothing back:
   expect(k3Of(marked)).toMatchObject({ state: 'replied', answer: { id: 'r1' } })
 })
 
-test("an ask handed back with Lee's second comment on its way waits on that comment, and stands replied again once it is delivered", () => {
+test("Claude's edit to a replied ask with Lee's second comment on its way hands nothing back: the ask stands replied, the session's snooze standing, and the comment, delivered, is its answer", () => {
   const letters = {
     [SENDER]: file([T0 + 2 * MIN, reply('r2', 'k3', 'comment', { note: 'Never mind' })]),
   }
   const presence = { [W1]: seen(W1, NOW) }
-  const lines: Line[] = [...POSTED, ...COMMENTED_ON, [T0 + 3 * MIN, RETITLED_TRY]]
+  const lines: Line[] = [
+    ...POSTED,
+    ...COMMENTED_ON,
+    [T0 + 2 * MIN, snoozeSession(NOW + 60 * MIN, 'k1', 'k2', 'k4')],
+    [T0 + 3 * MIN, RETITLED_TRY],
+  ]
   const edited = fold({ logs: { [W1]: file(...lines) }, inbox: letters, presence })
   const marked = fold({
     logs: { [W1]: file(...lines, [T0 + 4 * MIN, delivered('r2')]) },
     inbox: letters,
     presence,
   })
-  const onItsWay = k3Of(edited)
 
-  expect(onItsWay).toMatchObject({ state: 'waiting', openedAt: T0 + 3 * MIN })
-  expect(onItsWay && waitsOnLee(onItsWay)).toBe(false)
+  expect(k3Of(edited)).toMatchObject({ state: 'replied', openedAt: T0 })
+  expect(edited.snooze).toBeDefined()
   expect(k3Of(marked)).toMatchObject({ state: 'replied', answer: { id: 'r2', note: 'Never mind' } })
+})
+
+test("Claude's edit to a replied ask with Lee's yes on its way hands nothing back, and the yes, delivered, closes it; an edit the yes no longer fits hands it back, waiting on Lee", () => {
+  const letters = { [SENDER]: file([T0 + 2 * MIN, reply('r2', 'k3', 'yes')]) }
+  const presence = { [W1]: seen(W1, NOW) }
+  const retitled: Line[] = [...POSTED, ...COMMENTED_ON, [T0 + 3 * MIN, RETITLED_TRY]]
+  const worded: Line[] = [
+    ...POSTED,
+    ...COMMENTED_ON,
+    [T0 + 3 * MIN, { type: 'edit', item: 'k3', changes: { wants: 'words' } }],
+  ]
+  const held = fold({ logs: { [W1]: file(...retitled) }, inbox: letters, presence })
+  const marked = fold({
+    logs: { [W1]: file(...retitled, [T0 + 4 * MIN, delivered('r2')]) },
+    inbox: letters,
+    presence,
+  })
+  const unfit = fold({ logs: { [W1]: file(...worded) }, inbox: letters, presence })
+  const handedBack = k3Of(unfit)
+
+  expect(k3Of(held)?.state).toBe('replied')
+  expect(k3Of(marked)?.state).toBe('closed')
+  expect(handedBack).toMatchObject({ state: 'waiting', openedAt: T0 + 3 * MIN })
+  expect(handedBack && waitsOnLee(handedBack)).toBe(true)
+  expect(unfit.replies.find(each => each.id === 'r2')).toMatchObject({ voided: 'changed' })
+})
+
+test("an edit to an ask's ref alone, Claude's own record, rewords nothing: the ask stands replied, and Lee's snooze of the session stands", () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        ...POSTED,
+        ...COMMENTED_ON,
+        [T0 + 2 * MIN, snoozeSession(NOW + 60 * MIN, 'k1', 'k2', 'k4')],
+        [T0 + 3 * MIN, { type: 'edit', item: 'k3', changes: { ref: 'sr-nw0001' } }],
+      ),
+    },
+  })
+
+  expect(k3Of(session)).toMatchObject({ state: 'replied', openedAt: T0, ref: 'sr-nw0001' })
+  expect(session.snooze).toBeDefined()
+})
+
+test("an edit to the option a choice recommends rewords it: commented on, it is handed back", () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        ...POSTED,
+        ...sent(T0 + MIN, 'r1', 'k2', 'comment', { note: 'Which is cheaper?' }),
+        [T0 + 2 * MIN, { type: 'edit', item: 'k2', changes: { recommended: '400 days' } }],
+      ),
+    },
+  })
+
+  expect(session.asks.find(ask => ask.id === 'k2')).toMatchObject({
+    state: 'waiting',
+    recommended: '400 days',
+  })
+})
+
+test('an ask handed back, then resolved by Claude, ends closed by Claude', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        ...POSTED,
+        ...COMMENTED_ON,
+        [T0 + 2 * MIN, RETITLED_TRY],
+        [T0 + 3 * MIN, resolve('k3', 'Settled in the chat')],
+      ),
+    },
+  })
+
+  expect(k3Of(session)).toMatchObject({
+    state: 'closed',
+    closedBy: 'claude',
+    closedAt: T0 + 3 * MIN,
+    reason: 'Settled in the chat',
+  })
 })
 
 test('a reopened parked item is parked again', () => {

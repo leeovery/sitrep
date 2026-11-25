@@ -580,7 +580,7 @@ test("no snooze on an ask waiting on Claude: Lee's comment on its way, or Claude
   expect(await ui.find({ key: `snooze:${item}` }), 'Claude has it').toBeUndefined()
 })
 
-test("Claude's edit rewording an ask Lee commented on hands it back: it offers snooze again, and Lee's comment still shows", async ($, on) => {
+test("Claude's edit rewording an ask Lee commented on hands it back: it offers snooze again, and Lee's comment shows as said earlier", async ($, on) => {
   const w = fridayWorld($, on)
   const { paths, id } = await posted(w)
   const ui = await w.pane()
@@ -590,6 +590,9 @@ test("Claude's edit rewording an ask Lee commented on hands it back: it offers s
   await w.clock.advance(WATCH_MS)
 
   expect(await ui.find({ key: `snooze:${item}` }), 'Claude has it').toBeUndefined()
+  expect(
+    await ui.find({ type: 'Text', text: 'you commented: “Looks off”. Claude has it.' }),
+  ).toBeDefined()
 
   await w.call('edit', { item: id, title: 'Review round 1: the bars are thinner now' })
   await w.clock.advance(WATCH_MS)
@@ -597,9 +600,8 @@ test("Claude's edit rewording an ask Lee commented on hands it back: it offers s
   expect(w.state.board?.asks[0]?.state).toBe('waiting')
   expect(w.state.board?.waiting).toBe(1)
   expect(await ui.find({ key: `snooze:${item}` }), 'handed back').toBeDefined()
-  expect(
-    await ui.find({ type: 'Text', text: 'you commented: “Looks off”. Claude has it.' }),
-  ).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'you commented earlier: “Looks off”' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Claude has it/ })).toBeUndefined()
 })
 
 test('no snooze in a session Claude finished, where nothing waits on Lee; its answers stay', async ($, on) => {

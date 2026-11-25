@@ -28,6 +28,7 @@ import {
   closedReason,
   fits,
   isAnswer,
+  isHandedBack,
   isOpen,
   isPending,
   reaches,
@@ -392,6 +393,14 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
 }
 
 /** An item opening again, afresh, Lee's own snooze of an ask ended: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
+/** An ask waiting on Lee afresh, reopened or handed back: a new need, its time counting from `at`, his own snooze of it ended. */
+const waitAfresh = (fold: Fold, ask: Ask, at: number) => {
+  endAskSnooze(fold.asleep, ask.id, at)
+  newNeed(fold.asleep, at)
+  ask.openedAt = at
+  ask.state = 'waiting'
+}
+
 const reopen = (fold: Fold, item: Item, at: number) => {
   if (item.closedBy !== undefined) {
     for (const reply of item.replies.filter(each => !isPending(each) && isLine(fold, each))) {
@@ -399,36 +408,16 @@ const reopen = (fold: Fold, item: Item, at: number) => {
     }
   }
 
-  endAskSnooze(fold.asleep, item.id, at)
-  item.openedAt = at
   item.closedAt = undefined
   item.closedBy = undefined
+  item.answer = undefined
 
   if (item.type === 'ask') {
-    item.state = 'waiting'
+    waitAfresh(fold, item, at)
   } else {
+    item.openedAt = at
     item.state = 'parked'
   }
-
-  item.answer = undefined
-}
-
-/**
- * An edit to an ask standing replied, Lee's comment Claude's to act on, is
- * Claude rewording it, and hands it back: it waits on Lee again as a
- * reopened ask does, afresh. It never closed, so nothing is history, and the
- * comment stays its answer, what Lee said before. Any other ask's edit
- * leaves it waiting on whom it waited on.
- */
-const handBack = (fold: Fold, ask: Ask, at: number) => {
-  if (ask.state !== 'replied') {
-    return
-  }
-
-  endAskSnooze(fold.asleep, ask.id, at)
-  newNeed(fold.asleep, at)
-  ask.openedAt = at
-  ask.state = 'waiting'
 }
 
 const HANDLERS: { [T in Body['type']]: Handler<T> } = {
@@ -513,10 +502,6 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       reopen(fold, item, at)
       item.reason = reason
     }
-
-    if (item?.type === 'ask') {
-      newNeed(fold.asleep, at)
-    }
   },
 
   edit: (fold, { item: id, changes, reason, at }) => {
@@ -534,7 +519,11 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
     if (item.type === 'ask') {
       reshape(item, changes)
-      handBack(fold, item, at)
+
+      // It never closed, so nothing is history, and the comment stays its answer: what Lee said before.
+      if (isHandedBack(item, changes)) {
+        waitAfresh(fold, item, at)
+      }
     }
 
     item.editedAt = at

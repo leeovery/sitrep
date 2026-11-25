@@ -213,6 +213,12 @@ const drawAsleep = (d: Drawing, { at, key }: Standing, until: number) => {
   )
 }
 
+/** Lee's comment an open ask stands with: Claude's while it stands replied, said earlier once Claude's edit handed the ask back. */
+const commentWords = (ask: Ask, note: string) =>
+  ask.state === 'replied'
+    ? `you commented: “${shownWords(note)}”. Claude has it.`
+    : `you commented earlier: “${shownWords(note)}”`
+
 /**
  * What hangs from an ask's mark: opened, what its words are, where to look,
  * Claude's own record of it in the mark's colour and what Lee commented;
@@ -228,9 +234,7 @@ const branchesOf = (d: Drawing, ask: Ask, color: string, standing: Standing) => 
     isOpen && ask.needs !== undefined && { text: `needs: ${ask.needs}`, color: C.ask },
     isOpen && ask.where,
     isOpen && seeRef(ask.ref, color),
-    isOpen &&
-      commented !== undefined &&
-      `you commented: “${shownWords(commented)}”. Claude has it.`,
+    isOpen && commented !== undefined && commentWords(ask, commented),
     snoozedUntil !== undefined && drawAsleep(d, standing, snoozedUntil),
     replyBranch(d, ask, standing),
     isAnswering && ANSWERING,

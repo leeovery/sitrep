@@ -16,6 +16,7 @@ import {
   type ClosedBy,
   type DeliveredBody,
   type Delivery,
+  type EditBody,
   type Item,
   type Parked,
   type Reply,
@@ -88,6 +89,21 @@ export const yesOf = (ask: Pick<Ask, 'yes'>) => ask.yes ?? 'yes'
 /** Whether a reply is on its way: neither delivered, nor void. */
 export const isPending = (reply: Reply) =>
   reply.delivery === 'waiting' || reply.delivery === 'closed'
+
+/** Whether an edit rewords its ask, changing what Lee reads of it: any field but `ref`, Claude's own record. */
+const isRewording = (changes: EditBody['changes']) =>
+  Object.entries(changes).some(([field, value]) => field !== 'ref' && value !== undefined)
+
+/**
+ * Whether an edit hands its ask back to Lee, read on the ask as the edit
+ * leaves it: one standing replied, his comment Claude's to act on, reworded,
+ * with no reply of his on its way that it still takes, so that once written
+ * it waits on him alone.
+ */
+export const isHandedBack = (edited: Ask, changes: EditBody['changes']) =>
+  edited.state === 'replied' &&
+  isRewording(changes) &&
+  !edited.replies.some(reply => isPending(reply) && fits(edited, reply))
 
 /**
  * Whether a verdict is Lee's answer to an item, which closes it once
