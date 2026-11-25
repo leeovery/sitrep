@@ -7,15 +7,16 @@ import SitRepPanel
 public struct StripNote: Equatable, Sendable {
     public var idle = StripFrame.Words.Content.idleTitle
     public var asOf: String?
-    /// The sessions with an ask the asks panel answers, by their ids (`PanelBoard.asks`).
+    /// The sessions with an ask the asks panel answers, by their ids (`AsksPanel.asked`).
     public var arrows: Set<String> = []
 
     public init() {}
 
-    public init(_ board: PanelBoard) {
+    /// What the tabs say of this board, these sessions' tabs taking the arrow.
+    public init(_ board: PanelBoard, arrows: Set<String> = []) {
         idle = board.unread ?? StripFrame.Words.Content.idleTitle
         asOf = board.asOf
-        arrows = Set(board.asks.filter { !$0.value.isEmpty }.keys)
+        self.arrows = arrows
     }
 
     /// Under the notch at rest's title: where sessions show, or while the board is stale, when it was last current.
@@ -34,8 +35,14 @@ public struct StripNote: Equatable, Sendable {
     }
 
     /// Whether it says what `other` says of every tab's words alike: the notch at rest's lines, and whether the board
-    /// is stale. Which sessions take an arrow is each session's own, said as its row changes.
+    /// is stale. Which sessions take an arrow is each session's own (`saysAlike(_:of:)`).
     public func saysAlike(_ other: StripNote) -> Bool {
         idle == other.idle && asOf == other.asOf
+    }
+
+    /// Whether it says what `other` says of a session's words: of every tab's alike, and whether its tab takes the
+    /// arrow.
+    public func saysAlike(_ other: StripNote, of session: Session) -> Bool {
+        saysAlike(other) && hasArrow(session) == other.hasArrow(session)
     }
 }

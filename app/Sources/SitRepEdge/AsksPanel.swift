@@ -112,6 +112,13 @@ struct AsksPanel {
         return (board.asks[session.id] ?? []).filter { !gone.contains(AskOf(session: session.id, ask: $0.id)) }
     }
 
+    /// The sessions it answers an ask of on this board, by their ids, an ask whose answer went left out.
+    func asked(on board: PanelBoard) -> Set<String> {
+        Set(board.asks.compactMap { session, asks in
+            asks.contains { !gone.contains(AskOf(session: session, ask: $0.id)) } ? session : nil
+        })
+    }
+
     /// Opened beside the row `key`, at its session's first ask, or moved there; open beside it already, closed.
     mutating func toggle(_ key: String, _ session: Session, on board: PanelBoard) {
         guard open?.row != key else {

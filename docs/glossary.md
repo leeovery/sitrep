@@ -80,7 +80,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines until you expand it. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing. In Snoozed, the second line holds the thing that wakes soonest instead, the oldest if several wake together.
 
-**row's arrow**: The button on a row in Needs you that opens the asks panel. It sits at the end of the row nearer the middle of the screen. At the left edge it takes the place of the time, and at the right edge the place of the dot. It shows only if the session has an ask: a yes, a choice or a words ask. It shows while the pointer is on the row, and stays lit while the asks panel for that row is open. A tab on the strip shows it at the far end.
+**row's arrow**: The button on a row in Needs you that opens the asks panel. It sits at the end of the row nearer the middle of the screen. At the left edge it takes the place of the time, and at the right edge the place of the dot. It shows only if the session has an ask: a yes, a choice or a words ask. It shows while the pointer is on the row, and stays lit while the asks panel for that row is open. A tab on the strip shows it at that end too.
 
 **the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
 

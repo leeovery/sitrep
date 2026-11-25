@@ -31,10 +31,22 @@ extension StripRun {
 
     /// An answer's news, as the answers tell it (DESIGN, "Answering, with two seconds to undo"), as the notch's asks
     /// panel hears it (`NotchRun.heard`).
+    /// The last ask's answer of a session gone, its tab's arrow goes, and its words give back the room they made.
     public func heard(_ news: AnswerNews, _ moment: Moment) {
         upToNow(moment)
         asking.heard(news)
+        strip.reword(renote().arrows)
         placeAsks(in: moment.setting)
+    }
+
+    /// The note told again from the board and the asks panel, one source for the tab's arrow and the room its words
+    /// make for it: the sessions whose tab takes it those the asks panel answers an ask of, an ask whose answer went
+    /// left out. The note it was, and the marks, by their keys, whose tab's arrow came or went.
+    func renote() -> (was: StripNote, arrows: Set<String>) {
+        let was = said.note
+
+        said.note = StripNote(board, arrows: asking.asked(on: board))
+        return (was, Set(board.cardSessions.filter { note.hasArrow($0) != was.hasArrow($0) }.map(\.markID)))
     }
 
     /// The asks panel closed, as a snooze from it closes it.
@@ -50,10 +62,12 @@ extension StripRun {
     }
 
     /// The asks panel kept to what shows, closed as the tab draws back or glides to another mark, or its last ask
-    /// goes, and placed beside the tab as the frame has it, kept between the menu bar and the screen's bottom.
+    /// goes, and placed beside the tab as the frame has it, kept inside the screen's visible frame, under the menu bar
+    /// and above the Dock, as the notch's is.
     func placeAsks(in setting: Setting) {
         let ground = AsksGround(
-            rows: tabRows, board: board, visible: setting.stage.menu ... setting.stage.height, mirror: setting.mirror
+            rows: tabRows, board: board, visible: setting.stage.menu ... setting.stage.visibleBottom,
+            mirror: setting.mirror
         )
 
         asking.place(
@@ -98,9 +112,9 @@ extension StripRun {
         return box.contains(own) ? open.session.markID : nil
     }
 
-    /// The open tab where it has an arrow: a session's, whose session the asks panel answers an ask of.
+    /// The open tab where it has an arrow: a session's whose words make room for one (`StripNote.hasArrow`).
     private var arrowRow: TabRows.Open? {
-        tabRows.open.flatMap { asking.asks(of: $0.session, on: board).isEmpty ? nil : $0 }
+        tabRows.open.flatMap { note.hasArrow($0.session) ? $0 : nil }
     }
 }
 

@@ -359,6 +359,10 @@ public struct AsksLayout: Equatable, Sendable {
 public enum RowArrow {
     public static let size = CGSize(width: 40, height: 26)
     public static let radius = 8.0, inset = 3.0
+    /// How far its far side stands in from the front of what its row stands in: 3 in from a notch row's end, which sits
+    /// 14 inside the list's front (`Content.paddingSide`). So the asks panel, overlapping that front by 8
+    /// (`AsksLayout.overlap`), leaves 9 between them, and a strip's tab's arrow stands as far in from the tab's front.
+    public static let fromFront = inset + Content.paddingSide
     /// How far from a row's left its dot's centre stands, where the right edge's arrow stands (`SessionRowLayout`).
     public static let dotSlot = 16.0
     /// How long, in seconds, its chevron takes to turn as its asks panel opens or closes.
@@ -368,7 +372,7 @@ public enum RowArrow {
     /// left, on the right edge, centred on its dot.
     public static func box(in row: CGSize, pointsLeft: Bool = false) -> CGRect {
         guard pointsLeft else {
-            return tabBox(in: row, pointsLeft: false)
+            return box(in: row, pointsLeft: false, in: inset)
         }
 
         let side = size.height
@@ -377,10 +381,15 @@ public enum RowArrow {
     }
 
     /// Its box in a strip's tab's words this big, in their own frame, read left to right: at their end it points
-    /// toward.
+    /// toward, as far in as a notch row's stands from the list's front (`fromFront`), whole beside the asks panel.
     public static func tabBox(in words: CGSize, pointsLeft: Bool) -> CGRect {
+        box(in: words, pointsLeft: pointsLeft, in: fromFront)
+    }
+
+    /// Its box on the middle of what is this big, this far in from the end it points toward.
+    private static func box(in whole: CGSize, pointsLeft: Bool, in inset: Double) -> CGRect {
         CGRect(
-            x: pointsLeft ? inset : words.width - inset - size.width, y: (words.height - size.height) / 2,
+            x: pointsLeft ? inset : whole.width - inset - size.width, y: (whole.height - size.height) / 2,
             width: size.width, height: size.height
         )
     }

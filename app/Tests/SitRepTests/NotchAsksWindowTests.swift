@@ -90,18 +90,18 @@ struct NotchAsksWindowTests {
         )
     }
 
-    /// Help desk redesign of Northwind in Needs you, asking a choice.
-    static func board() -> PanelBoard {
+    /// Help desk redesign of Northwind in Needs you, asking a choice, or the session by another `name`.
+    static func board(named name: String = "Help desk redesign") -> PanelBoard {
         let at = Int(Date().timeIntervalSince1970 * 1000)
         let rows = [
             WatchLine.Row(
-                session: "sr-nw0001", name: "Help desk redesign", projectName: "Northwind",
+                session: "sr-nw0001", name: name, projectName: "Northwind",
                 lines: [.init("ask:sr-nw0001:k1", .ask, ask: "k1", first: "Thread replies?", since: at - 240_000)]
             ),
         ]
         let projects = [
             WatchLine.Project(name: "Northwind", sessions: [
-                WatchLine.Session(id: "sr-nw0001", name: "Help desk redesign", state: .needsYou, asks: [
+                WatchLine.Session(id: "sr-nw0001", name: name, state: .needsYou, asks: [
                     WatchLine.Ask(
                         id: "k1", wants: .choice, yes: nil, title: "Thread replies, or keep them flat?",
                         options: ["Threaded", "Flat"], recommended: "Threaded", at: at - 240_000

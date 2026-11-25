@@ -1,5 +1,6 @@
 import AppKit
 @testable import SitRep
+import SitRepCore
 @testable import SitRepEdge
 @testable import SitRepPanel
 import SitRepTestSupport
@@ -44,9 +45,10 @@ struct StripTabArrowTests {
     @Test func itsTabIsWiderByTheArrowsRoom() {
         let with = StripWordsLayer.measure { Self.note }, without = StripWordsLayer.measure { StripNote() }
 
-        #expect(with.row(Self.helpDesk) - without.row(Self.helpDesk) == StripRowLayout.arrowRoom)
+        #expect(abs(with.row(Self.helpDesk) - without.row(Self.helpDesk) - StripRowLayout.arrowRoom) < 1e-9)
         #expect(with.row(Self.turn) == without.row(Self.turn))
-        #expect(StripRowLayout.arrowRoom == RowArrow.inset + RowArrow.size.width + 8 - StripRowLayout.pad.right)
+        #expect(StripRowLayout.arrowRoom == RowArrow.fromFront + RowArrow.size.width + 8 - StripRowLayout.pad.right)
+        #expect(StripRowLayout.arrowRoom == 51)
     }
 
     /// The arrow at the tab's front end; the words and the time laid out in the room it leaves, as a tab as wide as
@@ -97,6 +99,74 @@ struct StripTabArrowTests {
         #expect(!Self.isClose(try Drawn(layer.layer).stored(at: fill), 0x34343B))
     }
 
+    /// Once shown, it stays with its words as they fade out of a tab drawing back or gliding on, where the scene gives
+    /// them no arrow any more: it never pops off ahead of them.
+    @Test(arguments: [false, true])
+    func onceShownItFadesWithItsWords(right: Bool) throws {
+        let words = Self.words(pressed: false), frame = CGRect(origin: .zero, size: Self.size)
+        let layer = StripWordsLayer(words, in: frame, Self.scene(right: right))
+        let box = RowArrow.tabBox(in: Self.size, pointsLeft: right), fill = CGPoint(x: box.minX + 4, y: box.midY)
+
+        layer.show(words, in: frame, hover: nil, arrow: ArrowButton.Look(isLit: true, pointsLeft: right), now: 0)
+        layer.show(words, in: frame, hover: nil, arrow: nil, now: 0)
+        #expect(Self.isClose(try Drawn(layer.layer).stored(at: fill), 0x34343B))
+        layer.show(Self.words(pressed: false, alpha: 0.5), in: frame, hover: nil, arrow: nil, now: 0)
+        #expect(layer.layer.opacity == 0.5)
+    }
+
+    /// Its words are laid out again as their own session's arrow comes or goes, though nothing else they say changes;
+    /// another session's arrow leaves them as they are.
+    @Test func itsWordsAreLaidOutAgainAsTheirSessionsArrowComesOrGoes() {
+        let layer = StripWordsLayer(Self.words(pressed: false), in: CGRect(origin: .zero, size: Self.size), Self.scene())
+        var other = Self.note, none = Self.note
+
+        other.arrows.remove(Self.turn.id)
+        none.arrows.remove(Self.helpDesk.id)
+        #expect(layer.says(Self.scene(note: other)))
+        #expect(!layer.says(Self.scene(note: none)))
+    }
+
+    /// A run over the board with the drawing's measure: the tab of a session asking is wider by the arrow's room, and
+    /// gives it back once the board leaves its ask out though its row stays, or its last ask's answer goes.
+    @Test(arguments: [false, true])
+    func theTabIsWiderByTheArrowsRoomUntilItsArrowGoes(byAnswer: Bool) throws {
+        let setting = StripRun.Setting(stage: StripStage(width: 1512, height: 982, menu: 37), reducesMotion: false)
+        let run = StripRun(at: 1000, in: setting, EdgeSettings(), measure: StripWordsLayer.measure)
+        let board = NotchAsksWindowTests.board(named: "Help desk redesign, round two")
+        var time = 1000.0
+        let frames = { (ms: Double) in
+            let end = time + ms
+
+            while time < end {
+                let mark = CGPoint(x: 18, y: run.strip.yOf(.session("sr-nw0001")))
+
+                time += 1000.0 / 60
+                run.step(StripRun.Moment(time: time, pointer: mark, setting: setting))
+            }
+        }
+
+        run.show(board, StripRun.Moment(time: time, pointer: nil, setting: setting))
+        frames(3000)
+
+        let wide = try #require(run.frame.tabs.first { $0.isLive }).box.width
+
+        #expect(run.arrow(in: setting) != nil)
+        if byAnswer {
+            let threaded = Answering(.words("Threaded"), to: "k1", of: "sr-nw0001", wanting: .choice)
+
+            run.heard(.went(threaded), StripRun.Moment(time: time, pointer: nil, setting: setting))
+        } else {
+            run.show(PanelBoard(rows: board.sessions), StripRun.Moment(time: time, pointer: nil, setting: setting))
+        }
+        frames(3000)
+
+        let narrow = try #require(run.frame.tabs.first { $0.isLive }).box.width
+
+        #expect(run.arrow(in: setting) == nil)
+        #expect(narrow > StripTuning.tabMin && wide < StripTuning.tabMax)
+        #expect(Double(wide - narrow) == StripRowLayout.arrowRoom)
+    }
+
     /// The scene's arrow on the tab's words: lit as the run says, pointing away from the edge, and turned while the
     /// asks panel is open beside the tab; none on another session's words.
     @Test(arguments: [false, true])
@@ -117,7 +187,7 @@ struct StripTabArrowTests {
         #expect(scene.arrow(on: Self.words(of: Self.turn)) == nil)
     }
 
-    private static func scene(right: Bool) -> StripScene {
+    private static func scene(right: Bool = false, note: StripNote = note) -> StripScene {
         let resting = StripScene.resting()
 
         return StripScene(
@@ -126,10 +196,10 @@ struct StripTabArrowTests {
         )
     }
 
-    private static func words(of session: Session = helpDesk, pressed: Bool) -> StripFrame.Words {
+    private static func words(of session: Session = helpDesk, pressed: Bool, alpha: Double = 1) -> StripFrame.Words {
         StripFrame.Words(
             id: 1, key: .session(session.markID), content: .row(session), frame: CGRect(origin: .zero, size: size),
-            scroll: 0, alpha: 1, dy: 0, isPressed: pressed, pressedRow: nil
+            scroll: 0, alpha: alpha, dy: 0, isPressed: pressed, pressedRow: nil
         )
     }
 

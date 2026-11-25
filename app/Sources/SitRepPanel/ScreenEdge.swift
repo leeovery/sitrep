@@ -94,7 +94,10 @@ public struct ScreenEdge: Equatable, Sendable {
 
     /// The screen as the strip sees it: the menu bar the difference between its top and the visible frame's.
     public var stripStage: StripStage {
-        StripStage(width: frame.width, height: frame.height, menu: frame.maxY - visible.maxY)
+        StripStage(
+            width: frame.width, height: frame.height, menu: frame.maxY - visible.maxY,
+            visibleBottom: frame.maxY - visible.minY
+        )
     }
 
     /// The strip's window: against the edge, from under the menu bar to the screen's bottom, as deep as its tabs reach.

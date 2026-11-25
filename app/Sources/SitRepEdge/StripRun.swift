@@ -63,7 +63,8 @@ public final class StripRun: Framed {
     private(set) var strip: Strip
     public private(set) var board = PanelBoard()
     public private(set) var frame: StripFrame
-    private let said: Said
+    /// What the tabs say of the board, which the asks panel's answers change too (`renote`).
+    let said: Said
     private var book: RunBook
     /// What Lee folded, the card's setting as well.
     private let folding: Folding
@@ -159,14 +160,15 @@ public final class StripRun: Framed {
     /// as the notch's pulse does; while it is stale, the tabs say since when, an open one taking its new words as it
     /// does.
     public func show(_ board: PanelBoard, _ moment: Moment) {
-        let note = StripNote(board), reworded = !note.saysAlike(said.note)
-
         upToNow(moment)
-        said.note = note
         self.board = board
         asking.take(board)
+
+        let (was, arrows) = renote()
+
         strip.show(
-            board.cardSessions, new: board.new, stopped: board.newTurns, pulses: board.pulses, reworded: reworded
+            board.cardSessions, new: board.new, stopped: board.newTurns, pulses: board.pulses,
+            reworded: !note.saysAlike(was), rewording: arrows
         )
         placeAsks(in: moment.setting)
     }
@@ -378,7 +380,7 @@ public final class StripRun: Framed {
 
 /// What the tabs say of the board as last heard: the model's measure reads it as a tab pours, so it is held apart
 /// from the run, which the model is made inside.
-private final class Said {
+final class Said {
     var note = StripNote()
 }
 

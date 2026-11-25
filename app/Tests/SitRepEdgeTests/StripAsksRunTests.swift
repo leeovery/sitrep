@@ -229,6 +229,47 @@ struct StripAsksRunTests {
         #expect(right ? drawn.maxX == drawnTab.minX + CGFloat(AsksLayout.overlap) : drawn.minX == drawnTab.maxX - 8)
     }
 
+    /// The open asks panel leaves the tab's arrow whole: its far side stands as far in from the tab's front as a notch
+    /// row's from the list's, so the asks panel, overlapping the front by 8, leaves 9 beside it, on either edge.
+    @Test(arguments: [false, true])
+    func theAsksPanelLeavesTheTabsArrowWhole(right: Bool) throws {
+        let setting = Self.setting(right: right), run = try Self.asksOpen(Self.helpDesk, setting)
+        let asks = try #require(run.asksShown)
+        let box = RowArrow.tabBox(in: try Self.tab(run).words.frame.size, pointsLeft: right)
+        let farSide = try Self.onTab(CGPoint(x: right ? box.minX : box.maxX, y: box.midY), run, setting)
+
+        #expect(Double(asks.frame.minX - farSide.x) == 9)
+        #expect(RowArrow.fromFront - AsksLayout.overlap == 9)
+    }
+
+    /// Kept inside the screen's visible frame, as the notch's is: above the Dock, though the screen runs on under it.
+    @Test func itKeepsAboveTheDock() throws {
+        let probe = Self.poured(), top = try Self.tab(probe).tab.box.minY
+        let dock = StripStage(
+            width: Self.stage.width, height: Self.stage.height, menu: Self.stage.menu, visibleBottom: Double(top) + 100
+        )
+        let setting = StripRun.Setting(stage: dock, reducesMotion: false)
+        let run = try Self.asksOpen(Self.helpDesk, setting)
+        let asks = try #require(run.asksShown)
+
+        #expect(Double(asks.frame.maxY) <= dock.visibleBottom)
+        #expect(Double(asks.frame.minY) < Double(top) - AsksLayout.above)
+    }
+
+    /// The tab's arrow and the room its words make for it have one source: once the last ask's answer goes, the arrow
+    /// goes, and so does the room, the note no longer giving its session one.
+    @Test func onceTheLastAsksAnswerGoesTheArrowAndItsRoomGo() throws {
+        let setting = Self.setting(), run = Self.poured(AsksBoard.dataImport)
+        let mapping = Answering(.words("Map"), to: "k1", of: AsksBoard.dataImport, wanting: .yes)
+        let session = try #require(run.board.sessions.first { $0.id == AsksBoard.dataImport })
+
+        #expect(run.arrow(in: setting) != nil && run.note.hasArrow(session))
+        run.heard(.went(mapping), Self.at(run, Self.mark(AsksBoard.dataImport, run), setting))
+        #expect(run.arrow(in: setting) == nil && !run.note.hasArrow(session))
+        run.heard(.ended(mapping, .refused("Gone")), Self.at(run, Self.mark(AsksBoard.dataImport, run), setting))
+        #expect(run.arrow(in: setting) != nil && run.note.hasArrow(session))
+    }
+
     /// Over the tab's front, the asks panel is on top: a press there is its own, a right-click offers no menu, and
     /// letting go jumps nowhere.
     @Test func whereItOverlapsTheTabItIsOnTop() throws {

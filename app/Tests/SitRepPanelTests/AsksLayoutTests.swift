@@ -199,16 +199,17 @@ struct AsksLayoutTests {
         #expect(RowArrow.chevron(pointsLeft: true, in: CGSize(width: 26, height: 26)).boundingBox.midX == 13)
     }
 
-    /// A strip's tab's arrow is 40 by 26, 3 in from its words' front end on their middle: their right on the left edge,
-    /// their left on the right.
-    @Test func aTabsArrowIs3InFromItsFrontEnd() {
+    /// A strip's tab's arrow is 40 by 26, 17 in from its words' front end on their middle, as far in as a notch row's
+    /// stands from the list's front: their right on the left edge, their left on the right.
+    @Test func aTabsArrowIs17InFromItsFrontEnd() {
         let words = CGSize(width: 300, height: 52)
 
-        #expect(RowArrow.tabBox(in: words, pointsLeft: false) == CGRect(x: 257, y: 13, width: 40, height: 26))
-        #expect(RowArrow.tabBox(in: words, pointsLeft: true) == CGRect(x: 3, y: 13, width: 40, height: 26))
+        #expect(RowArrow.tabBox(in: words, pointsLeft: false) == CGRect(x: 243, y: 13, width: 40, height: 26))
+        #expect(RowArrow.tabBox(in: words, pointsLeft: true) == CGRect(x: 17, y: 13, width: 40, height: 26))
+        #expect(RowArrow.fromFront == RowArrow.inset + Content.paddingSide)
     }
 
-    /// Beside a strip's tab, kept between the menu bar and the screen's bottom as given.
+    /// Beside a strip's tab, kept within the span given: the screen's visible frame, above the Dock.
     @Test func itKeepsWithinTheSpanItIsGiven() {
         let layout = AsksLayout(Self.choice, measure: Self.measure)
 

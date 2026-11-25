@@ -14,9 +14,10 @@ struct StripRowLayout {
     static let pad = (left: 12.0, right: 14.0), gap = 10.0
     /// The time's lane is as wide as its words, and no narrower than this.
     static let ageMin = 18.0
-    /// How much wider a tab's words are for the row's arrow: the arrow, 3 in from the front, and 8 between it and the
-    /// time on the left edge, or 6 between it and the words on the right, the pad at that end giving way to it.
-    static let arrowRoom = RowArrow.inset + RowArrow.size.width + 8 - pad.right
+    /// How much wider a tab's words are for the row's arrow: the arrow, as far in from the front as a notch row's
+    /// (`RowArrow.fromFront`), and 8 between it and the time on the left edge, or 6 between it and the words on the
+    /// right, the pad at that end giving way to it.
+    static let arrowRoom = RowArrow.fromFront + RowArrow.size.width + 8 - pad.right
     private static let titleLine = 18.0, subLine = 16.0, lines = 3.0, ageTop = 8.0, spinnerSize = 11.0
 
     /// A session's row, its time's lane as wide as its time reads now, with the row's arrow where the note gives its

@@ -6582,22 +6582,33 @@ the pointer a mark pours its panel row out as a tab (see "The strip");
 the tab of a session whose notch row would take the arrow, needing Lee
 with an ask the panel answers, takes it too, and the asks panel opens
 from it beside the tab, as the notch's does beside its row.
-- **The tab's arrow** is 40 by 26, radius 8, 3 in from the tab's front
-  end, on its middle: its right on the left edge and its left on the
-  right, toward where the asks panel opens. A tab is out only under the
-  pointer, so its arrow always shows on it, and the tab makes room for it
-  rather than hiding the time: it is 37 points wider, the arrow and its
-  inset, with 8 between the arrow and the time on the left edge, or 6
-  between the arrow and the words on the right, the pad at that end giving
-  way to it. Its words and its time keep the layout they would have in
-  the rest. It lights, points and turns as the row's arrow does, and
-  hides while a click presses the tab in. A count's tab of rows takes
-  none.
+- **The tab's arrow** is 40 by 26, radius 8, on the tab's middle at its
+  front end, its right on the left edge and its left on the right, toward
+  where the asks panel opens. It stands 17 in from the tab's front, as far
+  as a notch row's arrow stands from the list's front (3 in from the
+  row's end, the row 14 inside the list), so the asks panel, overlapping
+  the front by 8, leaves 9 beside it and never cuts its rounded end (the
+  review, 25 November 2026; it stood 3 in until then, 5 points of it
+  under the asks panel). A tab is out only under the pointer, so its
+  arrow always shows on it, and the tab makes room for it rather than
+  hiding the time: it is 51 points wider, the arrow and its inset, with
+  8 between the arrow and the time on the left edge, or 6 between the
+  arrow and the words on the right, the pad at that end giving way to it.
+  That holds while the tab is between its least width and its most: one
+  held at either grows less.
+  Its words and its time keep the layout they would have in the rest. It
+  lights, points and turns as the row's arrow does, fades with the tab's
+  words as they go, drawing back or gliding on, and hides while a click
+  presses the tab in. A count's tab of rows takes none.
+- **The arrow and its room have one source:** the sessions the asks panel
+  answers an ask of, an ask whose answer went left out. Once the last
+  ask's answer goes, the arrow goes, and the tab's words give back its
+  room, as they do when the board alone changes which sessions take it.
 - **The asks panel** opens beside the tab, level with it, its top 12
   above the tab's words, overlapping the tab's front by 8 and on top of
-  it, kept between the menu bar and the screen's bottom. The strip's
-  window grows into the screen for it while it is open, as the notch's
-  does.
+  it, kept inside the screen's visible frame, under the menu bar and
+  above the Dock, as the notch's is. The strip's window grows into the
+  screen for it while it is open, as the notch's does.
 - **Everything the notch's asks panel does holds here:** its answers and
   the two seconds to undo, the 300ms beat, paging by its dots and the
   swipe, Snooze ▾ for the ask shown, and Open in Claude, which jumps as a

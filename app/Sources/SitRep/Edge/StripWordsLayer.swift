@@ -21,8 +21,9 @@ final class StripWordsLayer {
     private let content = CALayer()
     private let age = CALayer()
     private let spinner: Arc
-    /// The row's arrow, where its session takes one.
+    /// The row's arrow, where its session takes one, and whether it has shown yet.
     private var arrow: ArrowButton?
+    private var arrowShows = false
     /// A count's rows, by their marks' keys (`Session.markID`), scrolled together.
     private let list = CALayer()
     private(set) var rows: [String: CALayer] = [:]
@@ -60,14 +61,17 @@ final class StripWordsLayer {
         }
     }
 
-    /// Whether they were laid out as the scene would lay them: which sessions take an arrow aside, as a session's
-    /// words are laid out again as its row changes.
+    /// Whether they were laid out as the scene would lay them: a session's row with its arrow or without as the note
+    /// now has it.
     func says(_ scene: StripScene) -> Bool {
-        note.saysAlike(scene.note) && reducesMotion == scene.reducesMotion && pointsLeft == (scene.mirror.a < 0)
+        let alike = session.map { note.saysAlike(scene.note, of: $0) } ?? note.saysAlike(scene.note)
+
+        return alike && reducesMotion == scene.reducesMotion && pointsLeft == (scene.mirror.a < 0)
     }
 
-    /// As the frame has them, the count's row `hover` lifted, the row's arrow looking as `arrow` has it, hidden where
-    /// that is nil or a click presses them in, and their times as of `now` on the wall clock.
+    /// As the frame has them, the count's row `hover` lifted, the row's arrow looking as `arrow` has it, or where that
+    /// is nil as it last did, so it fades with the words as they leave a tab drawing back or gliding on; hidden until
+    /// it first shows, and while a click presses them in; and their times as of `now` on the wall clock.
     func show(
         _ words: StripFrame.Words, in frame: CGRect, hover: String?, arrow look: ArrowButton.Look? = nil, now: Double
     ) {
@@ -82,8 +86,11 @@ final class StripWordsLayer {
             pressed = words.isPressed
             press()
         }
-        look.map { arrow?.show($0) }
-        arrow?.box.isHidden = look == nil || pressed
+        if let look {
+            arrow?.show(look)
+            arrowShows = true
+        }
+        arrow?.box.isHidden = !arrowShows || pressed
         showAge(at: now)
         showCountdowns(at: now)
 

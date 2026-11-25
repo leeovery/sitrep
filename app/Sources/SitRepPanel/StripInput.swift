@@ -6,11 +6,15 @@ public struct StripStage: Equatable, Sendable {
     public var height: Double
     /// The menu bar's height: the strip starts under it.
     public var menu: Double
+    /// How far down the screen's visible frame ends, above the Dock where it shows: the lowest the asks panel stands.
+    public var visibleBottom: Double
 
-    public init(width: Double, height: Double, menu: Double) {
+    /// The visible frame running to the screen's bottom where `visibleBottom` is nil.
+    public init(width: Double, height: Double, menu: Double, visibleBottom: Double? = nil) {
         self.width = width
         self.height = height
         self.menu = menu
+        self.visibleBottom = visibleBottom ?? height
     }
 }
 
