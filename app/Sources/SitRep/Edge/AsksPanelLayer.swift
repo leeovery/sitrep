@@ -137,7 +137,7 @@ final class AsksPanelLayer {
     }
 
     /// One line of an answer's words, white, or ink on the held row, and its pick's tag after them in lilac, or in ink
-    /// at half on the held row; a tag on a line of its own on the words' baseline.
+    /// at half on the held row.
     private static func line(_ line: AsksPanelParts.AnswerLine, in box: CGRect, isHeld: Bool) -> TextLine {
         let text = AsksPanelParts.answerText(line.words, colour: isHeld ? EdgeStyle.onWhite : EdgeStyle.ink)
         let tagColour = isHeld ? EdgeStyle.onWhite.copy(alpha: 0.5) ?? EdgeStyle.onWhite : EdgeStyle.pickTag
@@ -147,10 +147,7 @@ final class AsksPanelLayer {
         }
 
         text.append(TextLine.text(tag, EdgeStyle.asksNote, tagColour))
-        let drop = line.words.isEmpty
-            ? TextLine.drop(of: EdgeStyle.asksNote, to: EdgeStyle.asksLabel, lineHeight: box.height) : 0
-
-        return TextLine(text, in: box.offsetBy(dx: 0, dy: drop))
+        return TextLine(text, in: box)
     }
 
     /// The held answer's check, in ink, at its row's trailing end.

@@ -109,7 +109,6 @@ struct RowMenuTests {
         ])
     }
 
-    /// 18:00 on Friday 23 October 2026 in London, and so many seconds after.
     /// One ask's Snooze, as the asks panel's Snooze ▾ offers it: the times alone, each with when it wakes, as the pane
     /// offers one ask's; no Until it moves. Each snoozes until the time it shows.
     @Test func anAsksSnoozeOffersTheTimesAloneNoUntilItMoves() throws {
@@ -125,6 +124,7 @@ struct RowMenuTests {
         #expect(untils == [Self.now.addingTimeInterval(60 * 60), Self.evening()])
     }
 
+    /// 18:00 on Friday 23 October 2026 in London, and so many seconds after.
     private static func evening(_ seconds: TimeInterval = 0) -> Date {
         now.addingTimeInterval(4 * 60 * 60 + seconds)
     }

@@ -208,3 +208,24 @@ public enum WakeTime {
         "December",
     ]
 }
+
+/// Whether one ask's Snooze offers a time (`SnoozeTime.offeredForAsk`), worked out again only as the minute or Lee's
+/// settings change, as it is asked for every frame the notch draws; a time passing for today shows within the minute.
+public struct SnoozeOffer: Sendable {
+    private var known: (minute: Int, settings: SnoozeSettings, offers: Bool)?
+
+    public init() {}
+
+    public mutating func offers(at now: Date, in calendar: Calendar, settings: SnoozeSettings) -> Bool {
+        let minute = Int((now.timeIntervalSince1970 / 60).rounded(.down))
+
+        if let known, known.minute == minute, known.settings == settings {
+            return known.offers
+        }
+
+        let offers = !SnoozeTime.offeredForAsk(at: now, in: calendar, settings: settings).isEmpty
+
+        known = (minute, settings, offers)
+        return offers
+    }
+}

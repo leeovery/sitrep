@@ -61,13 +61,33 @@ struct AsksChangedTests {
     @Test func anAskUnchangedOrChangedOnlyOffItsBannerKeepsIt() {
         let choice = WatchLine.Ask(id: "k1", wants: .choice, yes: nil, options: ["Left", "Right"])
         let picked = WatchLine.Ask(
-            id: "k1", wants: .choice, yes: nil, where: "the guide", options: ["Left", "Right"], recommended: "Right",
+            id: "k1", wants: .choice, yes: nil, where: "the guide", options: ["Right", "Left"], recommended: "Right",
             needs: "a look at both"
         )
         let unchanged = Self.after(Self.holding(Self.deploy), Self.holding(Self.deploy), Self.holding(Self.deploy))
 
         #expect(unchanged.asksChanged.isEmpty)
         #expect(Self.after(Self.holding(choice), Self.holding(picked)).asksChanged.isEmpty)
+    }
+
+    /// The watch line lists Claude's pick first: a pick gained, moved or cleared reorders the options, and keeps the
+    /// banner; Claude's own reorder of the rest takes it down, the pick where it was or not.
+    @Test func aPickGainedMovedOrClearedKeepsItsBannerAReorderOfTheRestTakesItDown() {
+        let ask = { (options: [String], pick: String?) in
+            WatchLine.Ask(id: "k1", wants: .choice, yes: nil, options: options, recommended: pick)
+        }
+        let none = ask(["Left", "Middle", "Right"], nil), right = ask(["Right", "Left", "Middle"], "Right")
+        let left = ask(["Left", "Middle", "Right"], "Left")
+        let changed = { (was: WatchLine.Ask, now: WatchLine.Ask) in
+            Self.after(Self.holding(was), Self.holding(now)).asksChanged
+        }
+
+        #expect(changed(none, right).isEmpty, "gained")
+        #expect(changed(right, left).isEmpty, "moved")
+        #expect(changed(right, none).isEmpty, "cleared")
+        #expect(changed(right, ask(["Right", "Middle", "Left"], "Right")) == [Self.k1], "the rest reordered")
+        #expect(changed(none, ask(["Right", "Middle", "Left"], "Right")) == [Self.k1], "gained, the rest reordered")
+        #expect(changed(right, ask(["Right", "Left", "Down"], "Right")) == [Self.k1], "an option changed")
     }
 
     /// Only as the line comes: the next line, the same, leaves none.

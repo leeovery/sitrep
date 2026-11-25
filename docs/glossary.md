@@ -30,7 +30,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **Snooze menu**: The list of snooze choices, each with the time it wakes, then Until it moves. In the Mac app, it opens from **Snooze** when you right-click a row. In the terminal view, `z` opens it under the chosen row. **Snooze ▾** in the asks panel offers the times only, for one ask.
 
-**snoozed**: A session you put off until a time you pick, or until it moves. Its asks and your turn there stop counting until it wakes. A new ask wakes it at once. Only you can snooze a session: Claude has no way to. From the pane or the asks panel, you snooze only one ask.
+**snoozed**: Put off by you until a time you pick: a whole session, or one ask. In a snoozed session, the asks and your turn there stop counting until it wakes, and a new ask wakes it at once. A session can also snooze until it moves. A snoozed ask stops counting by itself, and nothing new wakes it. Only you can snooze: Claude has no way to.
 
 **status**: Where a session stands: its name, a one-line summary, what is under way now, and what comes next.
 

@@ -91,7 +91,7 @@ enum AsksPanelParts {
 
     /// An answer's lines on its row as they show, each with its box in the row's frame and the slack past it that
     /// words set whole take: across the row; held, before its check, on no more lines than the layout left it, so the
-    /// row keeps its height.
+    /// row keeps its height. A tag on a line of its own is lowered onto the words' baseline, in black and glass alike.
     static func answerLines(_ index: Int, of asks: AsksShown) -> [(line: AnswerLine, box: CGRect)] {
         let row = asks.layout.answers[index].size, shows = answerRow(index, of: asks)
         let check = shows.isHeld ? AsksLayout.checkSide + AsksLayout.checkGap : 0
@@ -99,11 +99,14 @@ enum AsksPanelParts {
             asks.ask.answers[index], isPick: shows.isPick, width: AsksLayout.answerWidth - check,
             most: asks.layout.answerLines[index]
         )
-        let boxes = AsksLayout.answerBoxes(in: row, lines: lines.count).map {
-            CGRect(x: $0.minX, y: $0.minY, width: $0.width + Self.slack, height: $0.height)
-        }
+        let boxes = AsksLayout.answerBoxes(in: row, lines: lines.count)
 
-        return Array(zip(lines, boxes))
+        return zip(lines, boxes).map { line, box in
+            let drop = line.words.isEmpty
+                ? TextLine.drop(of: EdgeStyle.asksNote, to: EdgeStyle.asksLabel, lineHeight: box.height) : 0
+
+            return (line, CGRect(x: box.minX, y: box.minY + drop, width: box.width + Self.slack, height: box.height))
+        }
     }
 
     /// An answer's words wrapped to `width`, on `most` lines at most, the last cut short with "…" where they run past
@@ -127,7 +130,9 @@ enum AsksPanelParts {
             return lines.map { AnswerLine(words: $0, tag: nil) } + [AnswerLine(words: "", tag: pickTagAlone)]
         }
 
-        let kept = lines.prefix(most - 1).map { AnswerLine(words: $0, tag: nil) }
+        // Core Text's breaks and the trimmed lines' re-measure can disagree, as in mixed right-to-left words, so a
+        // last line can land here short of `most`: keeping at most all but the last keeps the index in range.
+        let kept = lines.prefix(min(most, lines.count) - 1).map { AnswerLine(words: $0, tag: nil) }
         let rest = words.substring(from: ranges[kept.count].location)
 
         return kept + [AnswerLine(words: cut(rest, to: width - tagWidth), tag: tag)]

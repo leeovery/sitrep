@@ -1,5 +1,7 @@
 import AppKit
 @testable import SitRep
+@testable import SitRepCore
+@testable import SitRepEdge
 import SitRepPanel
 import SitRepTestSupport
 import Testing
@@ -63,6 +65,31 @@ struct AsksAnswerLinesTests {
         #expect(Self.lines(words, isPick: false) == [.init(words: words, tag: nil)])
     }
 
+    /// The tag alone on its line, as the pick's words fill theirs, is lowered onto the words' baseline, for black and
+    /// glass alike: its box drops by as much as an 11pt line's baseline sits above a 13pt one's.
+    @Test func aTagAloneOnItsLineSitsOnTheWordsBaseline() throws {
+        let words = Self.fillingALine()
+        let ask = PanelAsk(
+            id: "k1", title: "Shadow?", wants: .choice, answers: [words, "Flat"], recommended: words, since: 0
+        )
+        let layout = AsksLayout(ask, measure: .drawn)
+        let session = Session(
+            id: "sr-nw0001", project: "Northwind", name: "Help desk redesign", kind: .needs, title: "",
+            sub: "Northwind", since: 0
+        )
+        let asks = AsksShown(
+            row: "needs:sr-nw0001", session: session, ask: ask, page: 0, pages: 1, layout: layout,
+            frame: CGRect(origin: .zero, size: layout.size), sending: nil, hover: nil
+        )
+        let shown = AsksPanelParts.answerLines(0, of: asks)
+        let boxes = AsksLayout.answerBoxes(in: layout.answers[0].size, lines: 2)
+        let drop = TextLine.drop(of: EdgeStyle.asksNote, to: EdgeStyle.asksLabel, lineHeight: AsksLayout.answerLine)
+
+        try #require(shown.count == 2)
+        #expect(drop > 0)
+        #expect(shown[0].box.minY == boxes[0].minY && shown[1].box.minY == boxes[1].minY + drop)
+    }
+
     /// Past two lines, the second ends in "…" where the words run past it; Claude's pick's cut short before its tag,
     /// which always shows.
     @Test(arguments: [false, true])
@@ -73,6 +100,14 @@ struct AsksAnswerLinesTests {
         #expect(last.words.hasSuffix("…") && last.tag == (isPick ? AsksPanelParts.pickTag : nil))
         #expect(lines.allSatisfy { Self.setWidth($0) <= Self.width })
         #expect(Self.long.hasPrefix(lines[0].words + " " + last.words.dropLast()))
+    }
+
+    /// Lines Core Text broke that still measure past the width, short of the most it may take, as mixed
+    /// right-to-left words can: the last is cut short after those kept, never read past the breaks.
+    @Test func aLastLineWiderThanItsBreakIsCutShortOfTheMost() {
+        let lines = AsksPanelParts.answerLines("ab", isPick: false, width: 1, most: 3)
+
+        #expect(lines.count == 2 && lines.first?.words == "a" && lines.last?.words.hasSuffix("…") == true)
     }
 
     /// The drawn measure leaves room for as many lines as the words are set on, at most two, Claude's pick's tag

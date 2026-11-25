@@ -21,6 +21,8 @@ final class NotchController: NSObject, CalloutShape {
     var onSnoozeAsk: (String, String, Date) -> Void = { _, _, _ in }
     /// Snooze's choices as Lee set them, read as a row's menu opens.
     private let snoozeSettings: () -> SnoozeSettings
+    /// Whether one ask's Snooze offers a time, for the asks panel's Snooze ▾.
+    private var snoozeOffer = SnoozeOffer()
     /// A Snoozed row's menu's Wake now: the session.
     var onWake: (String) -> Void = { _ in }
     /// An answer's row, or Ignore, on the asks panel: the answer to hold; and the sending line's Undo.
@@ -155,8 +157,7 @@ final class NotchController: NSObject, CalloutShape {
     private var setting: NotchRun.Setting {
         var setting = NotchRun.Setting.on(edge, settings)
 
-        setting.offersSnooze = !SnoozeTime.offeredForAsk(at: Date(), in: run.calendar, settings: snoozeSettings())
-            .isEmpty
+        setting.offersSnooze = snoozeOffer.offers(at: Date(), in: run.calendar, settings: snoozeSettings())
         return setting
     }
 

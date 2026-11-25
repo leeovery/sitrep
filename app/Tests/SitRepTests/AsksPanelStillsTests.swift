@@ -10,8 +10,9 @@ import Testing
 /// The row's arrow and the asks panel in black, and in glass dark and light, drawn by the real run into the real
 /// surface at the README desktop's left edge, to read beside Paper's boards E2, F, H3 and A2: the pointer on a Needs
 /// you row's words, then on its arrow; the asks panel on a session's choice, and on a words ask; and an answer sending,
-/// its countdown under way; and a choice whose pick wraps to two lines, the pointer off it and on it. Only when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing: black
-/// in it, glass in its `glass` and `glass-light` folders.
+/// its countdown under way; and a choice whose pick wraps to two lines, the pointer off it and on it. Only when
+/// `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing: black in it, glass in its `glass` and
+/// `glass-light` folders.
 @MainActor
 @Suite(.backstop, .enabled(if: stills != nil))
 struct AsksPanelStillsTests {

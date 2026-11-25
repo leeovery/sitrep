@@ -62,31 +62,33 @@ extension NotchRun {
         point.map { asksShown?.contains($0) == true } ?? false
     }
 
-    /// A press on the asks panel, once what it shows has settled (`AsksPanel.settle`): an answer's row, or Ignore,
-    /// holds that answer, while none is held; Undo takes the held one back; a page dot shows its ask; Snooze ▾ offers
-    /// the snooze of the ask shown; Open in Claude jumps as the row does, closing it. Nowhere on it carries the notch.
+    /// A press on the asks panel: a page dot shows its ask at once, as it pages the same whatever ask shows; the rest
+    /// once what it shows has settled (`AsksPanel.settle`). An answer's row, or Ignore, holds that answer, while none
+    /// is held; Undo takes the held one back; Snooze ▾ offers the snooze of the ask shown; Open in Claude jumps as the
+    /// row does, closing it. Nowhere on it carries the notch.
     func pressAsks(_ asks: AsksShown, at point: CGPoint, in setting: Setting) -> Press? {
-        let ask = asks.ask, session = asks.session.id
+        let ask = asks.ask, session = asks.session.id, part = asking.part(at: point, mirror: setting.mirror)
 
+        if case let .page(page)? = part {
+            asking.page(to: page, list, board)
+            return .asks
+        }
         guard asking.isSettled(at: time) else {
             return nil
         }
 
-        switch asking.part(at: point, mirror: setting.mirror) {
+        switch part {
         case let .answer(row)?:
             return .answer(Answering(.words(ask.answers[row]), to: ask.id, of: session, wanting: ask.wants.shape))
         case .ignore?:
             return .answer(Answering(.ignore, to: ask.id, of: session, wanting: ask.wants.shape))
         case .undo?:
             return .undo
-        case let .page(page)?:
-            asking.page(to: page, list, board)
-            return .asks
         case .snooze?:
             return .snooze(ask: ask.id, of: session, at: point)
         case .open?:
             return list.index(of: asks.row).flatMap { jump($0) }
-        case nil:
+        case .page?, nil:
             return nil
         }
     }

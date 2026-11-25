@@ -923,21 +923,18 @@ struct AsksPanelRunTests {
 
     // MARK: Paging
 
-    /// A click on a dot shows its ask; for a beat after the ask changes, a press on it is let go, as after any change;
-    /// after the beat, it is taken.
-    @Test func aClickOnADotShowsItsAsk() throws {
+    /// A click on a dot shows its ask at once, in the beat after the ask changed as after it: a dot pages the same
+    /// whatever ask shows, so clicks from dot to dot in quick succession each land. An answer pressed in the beat after
+    /// a page is still let go.
+    @Test func aClickOnADotShowsItsAskAtOnce() throws {
         let run = try Self.asksOpen(), setting = Self.setting()
 
         #expect(run.press(Self.at(run, try Self.part(.page(1), run), setting)) == .asks)
         #expect(run.asksShown?.ask.id == "k2" && run.asksShown?.page == 1)
-
-        let first = try Self.part(.page(0), run)
-
-        #expect(run.press(Self.at(run, first, setting)) == nil)
-        #expect(run.asksShown?.ask.id == "k2")
-        Self.frames(run, for: AsksPanel.settle, first, setting)
-        #expect(run.press(Self.at(run, first, setting)) == .asks)
+        #expect(run.press(Self.at(run, try Self.part(.page(0), run), setting)) == .asks)
         #expect(run.asksShown?.ask.id == "k1" && run.asksShown?.page == 0)
+        #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == nil)
+        #expect(run.asksShown?.sending == nil)
     }
 
     /// Where a swipe's scrolls come: on the asks panel, over its title, whatever ask it shows.

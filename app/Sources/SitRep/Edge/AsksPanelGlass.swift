@@ -7,9 +7,9 @@ import SwiftUI
 /// hairline the separator's and its shadows a submenu's, as the black's; its words in the glass's label colours, as
 /// the glass rows' are; its rows and outlines the black's shapes, filled in the glass's tints, Claude's pick in its
 /// lilac (`GlassInk.pick`); its current page dot Claude's orange, and the answer held in the primary made opaque, its
-/// words in the other. Laid out as the
-/// black's, in its own frame, its words over the glass beside it rather than in it, as the panel's rows are, so the
-/// glass never tints them for what is under it. Drawn again only as what it shows changes: never for the clock alone.
+/// words in the other. Laid out as the black's, in its own frame, its words over the glass beside it rather than in
+/// it, as the panel's rows are, so the glass never tints them for what is under it. Drawn again only as what it shows
+/// changes: never for the clock alone.
 @available(macOS 26, *)
 struct GlassAsksPanel: View, Equatable {
     let asks: AsksShown
@@ -112,7 +112,7 @@ struct GlassAsksPanel: View, Equatable {
     }
 
     /// One line of an answer's words, the primary, or the held row's ink, and its pick's tag after them in its lilac,
-    /// or in the ink at half on the held row.
+    /// or in the ink at half on the held row; a tag on a line of its own alone, set as the black sets it.
     private func answerLine(_ line: AsksPanelParts.AnswerLine, isHeld: Bool) -> Text {
         let ink = isHeld ? AnyShapeStyle(GlassInk.onHeld) : AnyShapeStyle(.primary)
         let words = Text.tight(line.words, EdgeStyle.asksLabel).foregroundStyle(ink)
@@ -122,8 +122,9 @@ struct GlassAsksPanel: View, Equatable {
         }
 
         let tagInk = isHeld ? AnyShapeStyle(GlassInk.onHeld.opacity(0.5)) : AnyShapeStyle(GlassInk.pickTag)
+        let tagged = Text(tag).font(Font(EdgeStyle.asksNote)).foregroundStyle(tagInk)
 
-        return Text("\(words)\(Text(tag).font(Font(EdgeStyle.asksNote)).foregroundStyle(tagInk))")
+        return line.words.isEmpty ? tagged : Text("\(words)\(tagged)")
     }
 
     /// The held answer's check, in the held row's ink, at its row's trailing end.

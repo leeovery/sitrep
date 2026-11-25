@@ -6475,13 +6475,17 @@ leaves the asks panel with it, and the asks panel closes once none is left.
   closes its submenu; a sideways swipe's drift leaves it open.
 - **A press lands only on what has stood 300ms** since the part under the
   pointer last changed meaning, so a press meant for the ask, or for the
-  sending line's Undo, never lands on what took its place.
+  sending line's Undo, never lands on what took its place. A page dot
+  takes its press at once (below, "Paging").
 
 **Paging** (Lee, 25 November 2026, after his first live try; until then
 the dots only showed which ask was on screen). Paging is no answer: the
-300ms beat after the ask changes holds as for any change, and an answer
-held stays held, its Undo with its ask.
-- **A click on a dot** shows its ask. Each dot takes the clicks nearest
+300ms beat after the ask changes holds for an answer row, Ignore, Snooze
+▾ and Undo as for any change, and an answer held stays held, its Undo
+with its ask.
+- **A click on a dot** shows its ask, at once, beat or none: a dot pages
+  the same whatever ask shows, so clicks from dot to dot in quick
+  succession each land (the review, 25 November 2026). Each dot takes the clicks nearest
   it across the dots and 6 points past each end, the top line's whole
   height, so a dot 5 wide is no target to aim at.
 - **A horizontal swipe** of two fingers on the asks panel, or a mouse's

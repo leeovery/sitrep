@@ -148,9 +148,18 @@ public struct Board: Versioned, Sendable, Equatable {
         }
 
         /// Whether it asks what `other` asks, as a new ask's banner shows it: the same title, wanting the same, with
-        /// the same yes and options.
+        /// the same yes and options. The watch line lists Claude's pick first, so a pick gained, moved or cleared
+        /// reorders them without Claude doing so: they are alike as the same options, in the same order once either
+        /// pick is taken out, so a reorder Claude makes of the rest still counts.
         func asksAlike(_ other: Ask) -> Bool {
-            title == other.title && wants == other.wants && yes == other.yes && options == other.options
+            title == other.title && wants == other.wants && yes == other.yes && optionsAlike(other)
+        }
+
+        private func optionsAlike(_ other: Ask) -> Bool {
+            let picks = Set([recommended, other.recommended].compactMap(\.self))
+            let rest = { (options: [String]) in options.filter { !picks.contains($0) } }
+
+            return Set(options) == Set(other.options) && rest(options) == rest(other.options)
         }
 
         private enum CodingKeys: String, CodingKey {
