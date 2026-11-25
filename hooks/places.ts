@@ -201,18 +201,20 @@ export const parkedOf = (scene: Scene, session: string, item: string) =>
     .flatMap(project => project.parked ?? [])
     .find(each => each.session === session && each.id === item)
 
-/** Everything parked in a project, oldest first, from every session filed under it, finished and idle ones included, each naming its session by name. */
+/** Parked items as the pane lists them, the newest first: the reverse of the order Claude's board text gives. */
+const newestParked = (key: ProjectKey, parked: readonly ProjectParked[]): ParkedAt[] =>
+  projectParked(parked)
+    .reverse()
+    .map(({ session, name, ...each }) => ({ at: { project: key, session }, name, parked: each }))
+
+/** Everything parked in a project, the newest first, from every session filed under it, finished and idle ones included, each naming its session by name. */
 export const parkedIn = (scene: Scene, key: ProjectKey): ParkedAt[] => {
   const held = key === scene.here ? parkedBy(scene.session) : []
   const around = (projectRead(scene, key)?.parked ?? []).filter(
     each => each.session !== scene.session.id,
   )
 
-  return projectParked([...held, ...around]).map(({ session, name, ...parked }) => ({
-    at: { project: key, session },
-    name,
-    parked,
-  }))
+  return newestParked(key, [...held, ...around])
 }
 
 /** The name of the session a pick-up in a project's list went to, by its id, wherever it is filed: the held session's as it stands, another's as the look read it, among the project's own sessions or the pickers filed elsewhere; none where the look carried no name for it. */
@@ -373,13 +375,9 @@ export const askedIn = (scene: Scene, key: ProjectKey): AskedAt[] =>
       .sort(newestFirst(scene)),
   )
 
-/** A session's Parked: what it parked, oldest first, then what the project's other sessions parked, as the project's view lists it. */
+/** A session's Parked: what it parked, the newest first, then what the project's other sessions parked, as the project's view lists it. */
 export const parkedAt = (scene: Scene, filed: Filed): ParkedAt[] => [
-  ...filed.session.parked.map(parked => ({
-    at: refOf(filed),
-    name: filed.session.status.name,
-    parked,
-  })),
+  ...newestParked(filed.project, parkedBy(filed.session)),
   ...parkedIn(scene, filed.project).filter(({ at }) => at.session !== filed.session.id),
 ]
 

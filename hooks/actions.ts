@@ -38,7 +38,7 @@ import { takeBack } from './deliver'
 import { inFolder } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, writeOwnFile } from './into'
-import { isProjectList } from './lists'
+import { isCarriedAsShown } from './lists'
 import { changeQueue } from './media'
 import { closeBoard } from './pane'
 import { projectPlace } from './places'
@@ -108,7 +108,7 @@ const shownAs = (
   return { shown: { ...pane.shown, [list]: showing }, selected: isHidden ? null : pane.selected }
 }
 
-/** A list of the board's past shown as asked; a project's has the look read again, which carries as much of it as it now shows. */
+/** A list shown as asked; one of a project's the look carries only as shown has the look read again, to carry as much as it now shows. */
 const show = async (
   host: Host,
   list: string,
@@ -117,7 +117,7 @@ const show = async (
 ) => {
   await changePane(host, pane => shownAs(pane, list, showing, hidden))
 
-  if (isProjectList(list)) {
+  if (isCarriedAsShown(list)) {
     await lookAround(host)
   }
 }

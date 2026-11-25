@@ -1,9 +1,10 @@
 /**
  * PARKED: everything parked in a project, finished and idle sessions'
  * included, in its view and in each of its sessions', a session's own
- * first, each to pick up from a window holding a session of its project,
- * and to drop from any; and at its foot, folded away until Lee opens it,
- * what was taken off it, picked up or dropped by Lee or closed by Claude.
+ * first, folded to the first few and what Lee is acting on, each to pick
+ * up from a window holding a session of its project, and to drop from
+ * any; and at its foot, folded away until Lee opens it, what was taken off
+ * it, picked up or dropped by Lee or closed by Claude.
  * Drawn while something is parked or was taken off. A pick-up queues in
  * Ready to send like any reply, to this session whichever session of the
  * project parked the item, a comment written in the prompt box added to it
@@ -13,7 +14,7 @@
  */
 import { replyOnItsWay, shownWords, type Listing, type ProjectKey } from '../../core'
 import type { SitrepItemRef } from '../../types'
-import { pickedUpList, projectScope } from '../lists'
+import { parkedList, pickedUpList, projectScope } from '../lists'
 import { C, GLYPH } from '../look'
 import { itemKey, type ParkedAt, type TakenAt } from '../places'
 import { queuedOn } from '../queue'
@@ -35,6 +36,11 @@ import { drawPast } from './past'
 /** The mark every parked item is drawn with. */
 const MARK = { glyph: GLYPH.parked, color: C.parked }
 
+/** Whether a pick-up of a parked item waits in Ready to send, or is on its way. */
+const hasPickUp = (d: Drawing, { at, parked }: ParkedAt) =>
+  queuedOn(d.scene.queue, at.session, parked.id) !== undefined ||
+  replyOnItsWay(parked) !== undefined
+
 /** Lee's pick-up of a parked item, as the branch it hangs on: waiting to be sent, or on its way. */
 const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
   const queued = queuedOn(d.scene.queue, at.session, parked.id)
@@ -55,6 +61,19 @@ const refOf = ({ at, parked }: ParkedAt): SitrepItemRef<ProjectKey> => ({ ...at,
 
 /** What opens a parked item's question of whether to drop it, in place of its buttons: this, then its address. */
 const dropKey = (key: string) => `drop:${key}`
+
+/** Whether Lee is acting on a parked item: it is open, or asking to drop it, in answering, or a pick-up of it waits or is on its way. */
+const isActedOn = (d: Drawing, entry: ParkedAt) => {
+  const key = keyOf(entry)
+  const { selected } = d.scene.pane
+
+  return (
+    selected === key ||
+    selected === dropKey(key) ||
+    isBeingAnswered(d, refOf(entry)) ||
+    hasPickUp(d, entry)
+  )
+}
 
 /** What dropping a parked item asks in place. */
 const DROP_QUESTION = 'Drop it? It leaves Parked, and Claude no longer sees it.'
@@ -218,19 +237,31 @@ const drawTaken = (d: Drawing, entry: TakenAt, own: string | undefined): Block =
 /** What heads the items other sessions parked, in a session's view. */
 const OTHERS = 'from other sessions'
 
+const itemBlock = (entry: ParkedAt) => `parked:${keyOf(entry)}`
+
 /**
- * Each parked item as a block of its own; in a session's view, `own`
- * naming it, a faint line before the first another session parked, so its
- * own and theirs read apart, even where it has none of its own. A project's
- * view names every row, and needs none.
+ * The parked items PARKED shows, each a block of its own, folded as the
+ * pane's lists fold, but never hiding one Lee is acting on; in a session's
+ * view, `own` naming it, a faint line before the first shown that another
+ * session parked, so its own and theirs read apart, even where it has none
+ * of its own. A project's view names every row, and needs none.
  */
-const drawItems = (d: Drawing, parked: readonly ParkedAt[], own: string | undefined) => {
+const drawItems = (
+  d: Drawing,
+  project: string,
+  parked: readonly ParkedAt[],
+  own: string | undefined,
+) => {
   const { Text } = d.els
-  const blocks = parked.map(each => ({
-    key: `parked:${keyOf(each)}`,
-    element: drawItem(d, each, own),
-  }))
-  const first = own === undefined ? -1 : parked.findIndex(({ at }) => at.session !== own)
+  const blocks = drawPast(d, {
+    list: parkedList(projectScope(project)),
+    listing: { entries: [...parked], count: parked.length },
+    draw: each => ({ key: itemBlock(each), element: drawItem(d, each, own) }),
+    opens: keyOf,
+    keeps: each => isActedOn(d, each),
+  })
+  const others = new Set(parked.filter(({ at }) => at.session !== own).map(itemBlock))
+  const first = own === undefined ? -1 : blocks.findIndex(({ key }) => others.has(key))
   const label = {
     key: 'parked:others',
     element: (
@@ -267,7 +298,7 @@ export const drawParked = (
     ? []
     : [
         { key: 'parked', element: heading(d, 'PARKED', C.parked, parkedWords(parked.length)) },
-        ...drawItems(d, parked, own),
+        ...drawItems(d, project, parked, own),
         ...(taken === undefined
           ? []
           : drawPast(d, {

@@ -327,7 +327,7 @@ test("the project view's ASKS holds every session's asks, the newest first, each
   expect(w.state.pane).toMatchObject({ place: { level: 'project', project: PROJECT.key } })
 })
 
-test("the project view's PARKED holds every session's parked items, the oldest first, each naming its session; there is no RESOLVED", async ($, on) => {
+test("the project view's PARKED holds every session's parked items, the newest first, each naming its session; there is no RESOLVED", async ($, on) => {
   const w = world($, on)
 
   await neighbourhood(w)
@@ -357,8 +357,8 @@ test("the project view's PARKED holds every session's parked items, the oldest f
       .filter(each => each.key?.startsWith('ppick:'))
       .map(each => [each.key, each.text]),
   ).toEqual([
-    [`ppick:${LEDGER.id}:p2`, 'Invoice ledger: Export the ledger as CSV'],
     [`ppick:${w.item(tmux)}`, 'Help desk redesign: A priority badge across all tabs'],
+    [`ppick:${LEDGER.id}:p2`, 'Invoice ledger: Export the ledger as CSV'],
   ])
 
   await ui.press({ key: `ppick:${LEDGER.id}:p2` })
@@ -387,7 +387,7 @@ const longIdle = (w: World, session: SessionMeta, project: string, ...bodies: Bo
   w.put(paths.log(session.by), file(...bodies.map((body): Line => [session.created, body])))
 }
 
-test("the project view's PARKED holds a finished session's items and an idle one's past the views, each by its session's name, and counts them all; a session's view holds them too, its own first, unnamed, and counts them all", async ($, on) => {
+test("the project view's PARKED holds a finished session's items and an idle one's past the views, each by its session's name, and counts them all, the newest first; a session's view holds them too, its own first, unnamed, and counts them all", async ($, on) => {
   const w = world($, on)
   const ledger = w.elsewhere(LEDGER)
 
@@ -409,17 +409,17 @@ test("the project view's PARKED holds a finished session's items and an idle one
   expect(await ui.find({ type: 'Text', text: '3 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
     [`ppick:${w.item(tmux)}`, 'A priority badge across all tabs'],
-    [`ppick:${THEMES.id}:p1`, 'Themes: Theme the lobby too'],
     [`ppick:${LEDGER.id}:p2`, 'Invoice ledger: Export the ledger as CSV'],
+    [`ppick:${THEMES.id}:p1`, 'Themes: Theme the lobby too'],
   ])
 
   await toProject(ui)
   expect(await keysOf(ui, 'go:'), 'neither session is current').toEqual([`go:${id}`])
   expect(await ui.find({ type: 'Text', text: '3 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
-    [`ppick:${THEMES.id}:p1`, 'Themes: Theme the lobby too'],
-    [`ppick:${LEDGER.id}:p2`, 'Invoice ledger: Export the ledger as CSV'],
     [`ppick:${w.item(tmux)}`, 'Help desk redesign: A priority badge across all tabs'],
+    [`ppick:${LEDGER.id}:p2`, 'Invoice ledger: Export the ledger as CSV'],
+    [`ppick:${THEMES.id}:p1`, 'Themes: Theme the lobby too'],
   ])
 
   await ui.press({ key: `ppick:${LEDGER.id}:p2` })
@@ -444,8 +444,8 @@ test("a finished session's files as a build before parked items were the project
   await toProject(ui)
   expect(await ui.find({ type: 'Text', text: '2 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
-    [`ppick:${PARKED_BEFORE.id}:p1`, 'Invoice ledger: Export the ledger as CSV'],
     [`ppick:${PARKED_BEFORE.id}:p2`, 'Invoice ledger: Archive old invoices'],
+    [`ppick:${PARKED_BEFORE.id}:p1`, 'Invoice ledger: Export the ledger as CSV'],
   ])
 
   await w.clock.advance(4 * AROUND_MS)
@@ -490,8 +490,8 @@ test('All projects keeps a project whose sessions are finished or idle past the 
   expect(await ui.find({ type: 'Text', text: /of 0 open/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '2 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
-    ['ppick:sr-5ync00:p1', 'Offline sync: Resume the paused uploads'],
     ['ppick:sr-0ff11e:p1', 'Offline mode: Thumbnails in the picker'],
+    ['ppick:sr-5ync00:p1', 'Offline sync: Resume the paused uploads'],
   ])
 
   await ui.press({ key: 'ppick:sr-0ff11e:p1' })
