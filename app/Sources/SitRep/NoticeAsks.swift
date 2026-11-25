@@ -11,7 +11,7 @@ extension NoticeAsk {
         case .words: .words
         }
 
-        self.init(id: ask.id, session: ask.session, wants: wants)
+        self.init(id: ask.id, session: ask.session, title: ask.title, place: ask.place, wants: wants)
     }
 }
 
@@ -23,6 +23,6 @@ extension Banner.Ask {
         case .words: .words
         }
 
-        self.init(id: ask.id, session: ask.session, wants: wants)
+        self.init(id: ask.id, session: ask.session, title: ask.title, place: ask.place, wants: wants)
     }
 }

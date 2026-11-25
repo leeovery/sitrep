@@ -19,7 +19,6 @@ struct BoardAsksTests {
             "Choose which page the guide opens first", "Paste the load test's output",
             "Look at round 3 of the designs and approve or comment",
         ])
-        #expect(asks.map(\.at) == [1_792_468_421, 1_792_474_421, 1_792_486_181].map(Date.init(timeIntervalSince1970:)))
         expectEvery(asks, "nothing sent to any") { $0.reply == nil && $0.waitsOnLee }
     }
 
@@ -28,7 +27,6 @@ struct BoardAsksTests {
 
         #expect(yes.yes == "Approve")
         #expect(yes.options.isEmpty)
-        #expect(yes.needs == nil)
     }
 
     /// A yes ask whose line gave no yes, null or left out, has core's `yesOf`'s bare `yes`, which the CLI takes.
@@ -50,10 +48,10 @@ struct BoardAsksTests {
         #expect(choice.yes == nil)
     }
 
-    @Test func aWordsAskSaysWhatItNeeds() throws {
+    @Test func aWordsAskGivesNoYesAndNoOptions() throws {
         let words = try #require(try Board.read(Lines.watch[0]).ask("k3", of: "sr-m4h6qe"))
 
-        #expect(words.needs == "the command's output")
+        #expect(words.wants == .words)
         #expect(words.yes == nil)
         #expect(words.options.isEmpty)
     }
@@ -75,9 +73,7 @@ struct BoardAsksTests {
         let board = try Board.read(Lines.watch[1])
         let yes = try #require(board.ask("k1", of: "sr-m4h6qe"))
 
-        #expect(yes.reply == Board.Ask.Reply(
-            kind: .onItsWay, isAnswer: true, words: "→ Approve", since: Date(timeIntervalSince1970: 1_792_486_423.418)
-        ))
+        #expect(yes.reply?.kind == .onItsWay)
         #expect(!yes.waitsOnLee)
         #expect(board.ask("k3", of: "sr-m4h6qe")?.waitsOnLee == false)
         #expect(board.ask("k2", of: "sr-m4h6qe")?.waitsOnLee == true)
@@ -112,6 +108,30 @@ struct BoardAsksTests {
         let board = try Board.read(line.replacingOccurrences(of: #""wants":"words""#, with: #""wants":"a drawing""#))
 
         #expect(board.asks(of: "sr-nw0001").map(\.id) == ["k1"])
+    }
+
+    /// What no surface reads, when it was posted, what a words ask needs, and the reply's words, kind of reply and time,
+    /// leaves the ask reading in any shape, so its arrow and buttons stand and its banner stays up.
+    @Test func anAskReadsWhateverShapeTheFieldsNothingReadsTake() throws {
+        let line = Self.line([
+            WatchLine.Ask(
+                id: "k3", wants: .words, yes: nil, needs: "the test run", at: 1_792_400_000_123,
+                reply: .init(.delivered, words: "12 passed", since: 1_792_400_000_456)
+            ),
+        ])
+        let unread = [
+            (#""at":1792400000123"#, #""at":"this morning""#), (#""needs":"the test run""#, #""needs":7"#),
+            (#""since":1792400000456"#, #""since":"just now""#), (#""words":"12 passed""#, #""words":[]"#),
+            (#""isAnswer":true"#, #""isAnswer":"yes""#),
+        ]
+        let reshaped = unread.reduce(line) { line, field in line.replacingOccurrences(of: field.0, with: field.1) }
+
+        expectEvery(unread, "in the line") { line.contains($0.0) }
+
+        let ask = try #require(try Board.read(reshaped).ask("k3", of: "sr-nw0001"))
+
+        #expect(ask.reply?.kind == .delivered)
+        #expect(ask.waitsOnLee)
     }
 
     /// A session whose line carries no `asks` has none, and is named all the same.

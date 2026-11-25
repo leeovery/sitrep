@@ -95,28 +95,24 @@ public struct Board: Versioned, Sendable, Equatable {
     }
 
     /// An open ask of a session, as the asks panel and a new ask's banner answer it: what it wants back, a yes's one
-    /// button or a choice's options, Claude's pick among them, what a words ask needs, when it was posted, and where
-    /// Lee's reply to it stands.
+    /// button or a choice's options, Claude's pick among them, and where Lee's reply to it stands. Only what they read
+    /// is read, so a field nothing reads, in whatever shape, never drops the ask, its arrow or its buttons.
     public struct Ask: Decodable, Sendable, Equatable {
         public enum Wants: String, Decodable, Sendable {
             case yes, choice, words
         }
 
         /// Where Lee's reply to it stands: on its way to the session, delivered, or not delivered, Claude having
-        /// closed the ask first; whether it is his answer, not a comment; its words as the board shows them on one
-        /// row; and since when.
+        /// closed the ask first.
         public struct Reply: Decodable, Sendable, Equatable {
             public enum Kind: String, Decodable, Sendable {
                 case onItsWay, delivered, notDelivered
             }
 
             public let kind: Kind
-            public let isAnswer: Bool
-            public let words: String?
-            public let since: Date
 
             private enum CodingKeys: String, CodingKey {
-                case kind = "is", isAnswer, words, since
+                case kind = "is"
             }
         }
 
@@ -130,10 +126,6 @@ public struct Board: Versioned, Sendable, Equatable {
         public let options: [String]
         /// The option Claude recommends; none from a CLI from before asks said it.
         public let recommended: String?
-        /// What a words ask needs of Lee.
-        public let needs: String?
-        /// When it was posted.
-        public let at: Date
         /// None where Lee has sent none, and from a CLI from before the watch said it.
         public let reply: Reply?
         private let state: String
@@ -150,14 +142,18 @@ public struct Board: Versioned, Sendable, Equatable {
             title = try given.decode(String.self, forKey: .title)
             options = try given.decodeIfPresent([String].self, forKey: .options) ?? []
             recommended = try given.decodeIfPresent(String.self, forKey: .recommended)
-            needs = try given.decodeIfPresent(String.self, forKey: .needs)
-            at = try given.decode(Date.self, forKey: .at)
             reply = try given.decodeIfPresent(Reply.self, forKey: .reply)
             state = try given.decode(String.self, forKey: .state)
         }
 
+        /// Whether it asks what `other` asks, as a new ask's banner shows it: the same title, wanting the same, with
+        /// the same yes and options.
+        func asksAlike(_ other: Ask) -> Bool {
+            title == other.title && wants == other.wants && yes == other.yes && options == other.options
+        }
+
         private enum CodingKeys: String, CodingKey {
-            case id, wants, yes, title, options, recommended, needs, at, reply, state
+            case id, wants, yes, title, options, recommended, reply, state
         }
     }
 
@@ -494,13 +490,20 @@ public struct Board: Versioned, Sendable, Equatable {
     /// Every open ask on the board waiting on Lee, by its session; nil from a line whose projects do not read, which
     /// says nothing of its asks.
     var waitingOnLee: Set<AskOf>? {
+        asksWaitingOnLee.map { Set($0.keys) }
+    }
+
+    /// Every open ask on the board waiting on Lee, by its session and id; nil from a line whose projects do not read.
+    var asksWaitingOnLee: [AskOf: Ask]? {
         guard readsAsks else {
             return nil
         }
 
-        return Set(asks.flatMap { session, asks in
-            asks.filter(\.waitsOnLee).map { AskOf(session: session, ask: $0.id) }
-        })
+        let waiting = asks.flatMap { session, asks in
+            asks.filter(\.waitsOnLee).map { (AskOf(session: session, ask: $0.id), $0) }
+        }
+
+        return Dictionary(waiting) { first, _ in first }
     }
 
     /// An open ask of the session, by its id; nil for one not on the board, as a closed one is not.

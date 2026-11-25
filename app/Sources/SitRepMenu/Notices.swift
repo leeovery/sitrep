@@ -21,7 +21,7 @@ public enum Notices {
 
     /// Its buttons answer the board's ask the line is, where it has buttons (DESIGN, "Its buttons").
     private static func newAsk(_ line: Board.Row.Line, of row: Board.Row, on board: Board?) -> Banner {
-        let ask = line.ask.flatMap { board?.ask($0, of: row.session) }.flatMap { Banner.Ask($0, of: row.session) }
+        let ask = line.ask.flatMap { board?.ask($0, of: row.session) }.flatMap { Banner.Ask($0, of: row) }
 
         return Banner(title: line.first.lead, subtitle: row.place, body: "", work: row.session, ask: ask)
     }

@@ -96,7 +96,10 @@ struct NoticesTests {
     ])
     func aNewAsksBannerAnswersItsAsk(ask: WatchLine.Ask, wants: Banner.Ask.Wants) {
         #expect(Notices.due(Self.asking([ask]), .notifyingAsks).map(\.ask) == [
-            Banner.Ask(id: "k2", session: "sr-nw0001", wants: wants),
+            Banner.Ask(
+                id: "k2", session: "sr-nw0001", title: "Pick the export format", place: "Northwind · Ledger export",
+                wants: wants
+            ),
         ])
     }
 

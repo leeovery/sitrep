@@ -8,8 +8,19 @@ import Testing
 struct LetterTests {
     private static let notice = Notice(title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc")
 
+    /// The ask's title and place, as a new ask's banner carries them: its title other than the banner's, to tell the
+    /// two apart.
+    private static let named = ["askTitle": "Pick the app's name", "place": "Trey Research · Build the desktop app"]
+
     private static func withAsk(_ ask: NoticeAsk) -> Notice {
         Notice(title: notice.title, subtitle: notice.subtitle, body: notice.body, work: notice.work, ask: ask)
+    }
+
+    private static func ask(_ wants: NoticeAsk.Wants) -> NoticeAsk {
+        NoticeAsk(
+            id: "k2", session: "sr-a8n2xc", title: "Pick the app's name", place: "Trey Research · Build the desktop app",
+            wants: wants
+        )
     }
 
     private static func carried<M: Relayed>(_ letter: Letter<M>) -> Letter<M>? {
@@ -27,26 +38,36 @@ struct LetterTests {
     }
 
     /// A new ask's banner carries its ask whatever it wants: a yes's words, a choice's options in Claude's order, or
-    /// words.
+    /// words; its title and place among it, the title beside the banner's own.
     @Test(arguments: [
         NoticeAsk.Wants.yes("Go"), .choice(["Left, the notch's edge", "Right", "Both"]), .choice(["Only"]), .words,
     ])
-    func aNewAsksBannerArrivesWithItsAsk(wants: NoticeAsk.Wants) {
-        let ask = NoticeAsk(id: "k2", session: "sr-a8n2xc", wants: wants)
+    func aNewAsksBannerArrivesWithItsAsk(wants: NoticeAsk.Wants) throws {
+        let ask = Self.ask(wants)
         let letter = Letter(ToHelper.post(Self.withAsk(ask)), pid: 4012)
+        let carried = try #require(Self.carried(letter))
 
-        #expect(Self.carried(letter) == letter)
+        #expect(carried == letter)
         #expect(PropertyListSerialization.propertyList(letter.userInfo, isValidFor: .binary))
+        guard case let .post(notice) = carried.message else {
+            Issue.record("not a post")
+            return
+        }
+        #expect(notice.title == "Pick a name")
+        #expect(notice.ask?.title == "Pick the app's name")
     }
 
-    /// A post from before banners had buttons, or one whose ask does not read, is a banner with none.
+    /// A post from before banners had buttons, or one whose ask does not read, as one missing its title or place, is a
+    /// banner with none.
     @Test(arguments: [
         [:],
-        ["ask": "k2", "session": "sr-a8n2xc", "wants": "a drawing"],
-        ["ask": "k2", "session": "sr-a8n2xc", "wants": "choice"],
-        ["ask": "k2", "session": "sr-a8n2xc", "wants": "yes"],
-        ["ask": "k2", "wants": "words"],
-        ["session": "sr-a8n2xc", "wants": "words"],
+        ["ask": "k2", "session": "sr-a8n2xc", "wants": "a drawing"].merging(named) { given, _ in given },
+        ["ask": "k2", "session": "sr-a8n2xc", "wants": "choice"].merging(named) { given, _ in given },
+        ["ask": "k2", "session": "sr-a8n2xc", "wants": "yes"].merging(named) { given, _ in given },
+        ["ask": "k2", "wants": "words"].merging(named) { given, _ in given },
+        ["session": "sr-a8n2xc", "wants": "words"].merging(named) { given, _ in given },
+        ["ask": "k2", "session": "sr-a8n2xc", "wants": "words", "place": "Trey Research · Build the desktop app"],
+        ["ask": "k2", "session": "sr-a8n2xc", "wants": "words", "askTitle": "Pick the app's name"],
     ])
     func aPostWhoseAskDoesNotReadIsABannerWithNoButtons(ask: [String: String]) {
         let post = ["kind": "post", "title": "Pick a name", "body": "", "work": "sr-a8n2xc", "pid": "4012"]
@@ -62,7 +83,7 @@ struct LetterTests {
         let fields = [
             "ask": "k2", "session": "sr-a8n2xc", "wants": "choice", "option.0": "Left", "option.1": "Right",
             "option.3": "Lost",
-        ]
+        ].merging(Self.named) { given, _ in given }
 
         #expect(NoticeAsk(fields: fields)?.wants == .choice(["Left", "Right"]))
     }
@@ -80,7 +101,7 @@ struct LetterTests {
         (.words, ""),
     ])
     func anAnswerArrivesAsSentWithItsAsksShape(wants: NoticeAsk.Wants, words: String) {
-        let answer = NoticeAnswer(to: NoticeAsk(id: "k2", session: "sr-a8n2xc", wants: wants), words: words)
+        let answer = NoticeAnswer(to: Self.ask(wants), words: words)
         let letter = Letter(ToSitRep.answered(answer), pid: 4012)
 
         #expect(Self.carried(letter) == letter)
@@ -116,10 +137,15 @@ struct LetterTests {
         ["kind": "status", "leave": "sometimes", "id": "c", "pid": "4012"],
         ["kind": "ready", "pid": "4012"],
         ["kind": "ready", "helper": "not a pid", "pid": "4012"],
-        ["kind": "answered", "ask": "k2", "session": "sr-a8n2xc", "wants": "words", "pid": "4012"],
-        ["kind": "answered", "session": "sr-a8n2xc", "wants": "words", "words": "Right", "pid": "4012"],
-        ["kind": "answered", "ask": "k2", "wants": "words", "words": "Right", "pid": "4012"],
-        ["kind": "answered", "ask": "k2", "session": "sr-a8n2xc", "words": "Right", "pid": "4012"],
+        ["kind": "answered", "ask": "k2", "session": "sr-a8n2xc", "wants": "words", "pid": "4012"]
+            .merging(named) { given, _ in given },
+        ["kind": "answered", "session": "sr-a8n2xc", "wants": "words", "words": "Right", "pid": "4012"]
+            .merging(named) { given, _ in given },
+        ["kind": "answered", "ask": "k2", "wants": "words", "words": "Right", "pid": "4012"]
+            .merging(named) { given, _ in given },
+        ["kind": "answered", "ask": "k2", "session": "sr-a8n2xc", "words": "Right", "pid": "4012"]
+            .merging(named) { given, _ in given },
+        ["kind": "answered", "ask": "k2", "session": "sr-a8n2xc", "wants": "words", "words": "Right", "pid": "4012"],
     ])
     func toSitRepAnythingElseIsNoLetter(userInfo: [String: String]) {
         #expect(Letter<ToSitRep>(userInfo: userInfo) == nil)

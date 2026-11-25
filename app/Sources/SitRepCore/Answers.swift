@@ -138,22 +138,28 @@ public final class Answers {
     /// Sends the answer now, with no hold: a banner's. One held to the same ask of the session is taken back first, as
     /// Undo takes it.
     public func send(_ answering: Answering) {
-        if let held, held.answering.ask == answering.ask, held.answering.session == answering.session {
-            undo()
-        }
-        run(answering, named: naming(answering))
+        send(answering, named: naming(answering))
     }
 
     /// A banner's answer, sent at once as `send` sends it, unless it cannot answer the ask as the board holds it
-    /// (`Banner.Ask.refusal`): then a banner "Not answered" says why, and nothing is sent.
+    /// (`Banner.Ask.refusal`): then a banner "Not answered" says why, and nothing is sent. Its refusal names the ask as
+    /// the board does, else as the banner showed it, as for an ask closed while SitRep was off.
     public func send(_ words: String, from banner: Banner.Ask) {
         let answering = Answering(.words(words), to: banner.id, of: banner.session, wanting: banner.wants.shape)
+        let named = naming(answering) ?? banner.named
 
         if let why = banner.refusal(of: words, live: board()?.ask(banner.id, of: banner.session)) {
-            return post(.unanswered(why, of: naming(answering)))
+            return post(.unanswered(why, of: named))
         }
 
-        send(answering)
+        send(answering, named: named)
+    }
+
+    private func send(_ answering: Answering, named: AskNamed?) {
+        if let held, held.answering.ask == answering.ask, held.answering.session == answering.session {
+            undo()
+        }
+        run(answering, named: named)
     }
 
     /// Every answer seen through, as quitting does, which cancels none: the one held sent now, its hold cut short;
