@@ -6455,7 +6455,11 @@ with its ask.
   dot takes the clicks nearest it across the dots and 6 points past each
   end, the top line's whole height, so a dot 5 wide is no target to aim
   at. Its ask slides in as a completed swipe's does (below), the ask it
-  leaves sliding out on the other side, however many asks lie between.
+  leaves sliding out on the other side, however many asks lie between,
+  from where the two stand, but never from further than one ask away,
+  which would leave the black between them. While the dots follow a
+  slide, each takes the clicks where it is drawn, not where it stands at
+  rest (the review, 25 November 2026).
 - **A horizontal swipe** of two fingers on the asks panel follows the
   fingers, as the Mac's swipe between Spaces does (Lee, 25 November 2026,
   after his second live try; until then a swipe stepped once it had gone
@@ -6490,8 +6494,12 @@ with its ask.
     damping 1, within half a Retina pixel of its place in under half a
     second from a whole ask away: it takes up the fingers' speed, held to
     what it can take without passing its place, and never overshoots, so
-    no third ask shows. A swipe during the settle takes the slide from
-    where it stands.
+    no third ask shows, a lift with the ask beside slid all the way in
+    too. A swipe during the settle takes the slide from where it stands,
+    with the same two asks, a dot's settle across asks too; on its lift a
+    flick the way its fingers went completes that way, so a second flick
+    during the first's settle goes on to the ask after, as the Mac's
+    swipe between Spaces does (the review, 25 November 2026).
   - **Past the first or the last ask** it rubber-bands: it moves a share
     of the fingers' travel, the share shrinking as they go, as a Mac
     scroll view's edge does, and springs back on the lift. Nothing wraps.
@@ -6501,14 +6509,26 @@ with its ask.
     settle (above).
   - A trackpad's gesture runs from its fingers' first touch to their lift
     (the scroll's phases); its momentum after is no gesture, so a flick
-    takes no second step.
+    takes no second step. Every scroll of a swipe under way is the asks
+    panel's, and the window takes clicks until it ends, wherever the
+    pointer goes, as when the asks panel shrinks from under a still
+    pointer as it slides to a shorter ask. A gesture whose lift never
+    came, gone to another window all the same, ends at the next
+    gesture's first scroll, its ask springing back; the asks panel
+    closing ends its swipe (the review, 25 November 2026).
+  - **The slide is its ask's.** An ask before the one shown leaving or
+    coming moves nothing under the fingers: the slide goes on with the
+    same two asks. The ask shown leaving, its answer gone or the board
+    leaving it out, stands the ask that takes its place still, and the
+    rest of the gesture moves nothing until the fingers lift, so no ask
+    is skipped (the review, 25 November 2026).
 - **A mouse's horizontal scroll** has no lift to follow, as its wheel has
   no phases: it steps to the next ask or the previous one once it has gone
   12 points across, more across than down, one ask a gesture, its scrolls
   one gesture until 300ms pass with none. Its step slides as a dot's does.
 - **Under Reduce motion** nothing slides: the ask stays still under the
-  fingers, and a completed swipe, a dot or a wheel's step shows the other
-  ask at once, its dots and height with it.
+  fingers, running no frames, and a completed swipe, a dot or a wheel's
+  step shows the other ask at once, its dots and height with it.
 
 **Answering, with two seconds to undo.** A click on an answer row turns it
 white: a white fill, its words in ink, Claude's pick's tag in ink at half,

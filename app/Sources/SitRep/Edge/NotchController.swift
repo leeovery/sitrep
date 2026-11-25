@@ -219,7 +219,7 @@ final class NotchController: NSObject, CalloutShape {
 
         let isPointedAt = pointer.map { run.hits($0) } ?? false
 
-        window.takesClicks = run.drag != nil || isPointedAt
+        window.takesClicks = run.drag != nil || run.isSwiping || isPointedAt
         onDrawn?(isPointedAt)
         pace(at: time)
     }
@@ -441,8 +441,10 @@ final class NotchController: NSObject, CalloutShape {
         }
     }
 
-    private func scroll(_ scroll: Scroll) {
-        run.scroll(scroll, moment())
+    /// A scroll: a swipe on the asks panel pages it; anywhere else on the panel, the list scrolls. Internal only for the
+    /// tests, which give its time and the pointer on the stage.
+    func scroll(_ scroll: Scroll, at time: Double = Displays.now, pointer: CGPoint? = nil) {
+        run.scroll(scroll, moment(at: time, pointer: pointer))
         took()
     }
 

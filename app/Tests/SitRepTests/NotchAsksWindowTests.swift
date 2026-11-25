@@ -37,6 +37,30 @@ struct NotchAsksWindowTests {
         #expect(!notch.controller.window.takesClicks)
     }
 
+    /// A swipe across the asks panel under way keeps the window taking clicks wherever the pointer goes, as when the
+    /// asks panel shrinks from under a still pointer as it slides to a shorter ask, so the rest of its gesture comes to
+    /// it; once it ends, off both, the window takes none.
+    @Test(arguments: [EdgeSettings.Edge.left, .right])
+    func whileASwipeIsUnderWayTheWindowTakesClicksOffTheAsksPanel(_ side: EdgeSettings.Edge) throws {
+        let notch = try Driven(on: side)
+
+        defer { notch.close() }
+        try notch.openAsks()
+
+        let asks = try #require(notch.run.asksShown), onIt = CGPoint(x: asks.frame.maxX - 40, y: asks.frame.midY)
+        let off = CGPoint(x: asks.frame.maxX + 40, y: asks.frame.midY)
+
+        notch.swipe(.began, at: onIt)
+        for _ in 0 ..< 20 {
+            notch.swipe(.changed, along: 5, at: onIt)
+        }
+        notch.frames(for: Self.frameMS, at: off)
+        #expect(notch.run.isSwiping && notch.controller.window.takesClicks)
+        notch.swipe(.ended, at: off)
+        notch.frames(for: Self.frameMS, at: off)
+        #expect(!notch.controller.window.takesClicks)
+    }
+
     /// The frame the window widens or narrows on is drawn into the window as it now is: the black and the light
     /// mirrored across its new width, where the rows and the asks panel are, never across the width it had.
     @Test(arguments: [EdgeSettings.Edge.left, .right])
@@ -133,6 +157,12 @@ private final class Driven {
             time += NotchAsksWindowTests.frameMS
             controller.step(at: time, pointer: pointer)
         }
+    }
+
+    /// A scroll of two fingers at this phase, this far along, with the pointer here, a frame on.
+    func swipe(_ phase: Scroll.Phase, along: Double = 0, at pointer: CGPoint) {
+        time += NotchAsksWindowTests.frameMS
+        controller.scroll(Scroll(down: 0, along: along, phase: phase), at: time, pointer: pointer)
     }
 
     /// The asks panel opened from Help desk redesign's arrow, and the frame after drawn.

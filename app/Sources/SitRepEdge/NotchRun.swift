@@ -340,9 +340,9 @@ public final class NotchRun: Framed {
     }
 
     /// A scroll: over the asks panel, or in a swipe across it under way, a horizontal swipe pages it
-    /// (`AsksPanel.swiped`); anywhere else, the content scrolled down by it (`scroll(by:)`).
+    /// (`AsksPanel.takes`, `AsksPanel.swiped`); anywhere else, the content scrolled down by it (`scroll(by:)`).
     public func scroll(_ scroll: Scroll, _ moment: Moment) {
-        guard asking.isOn(moment.pointer) || asking.isSwiping else {
+        guard asking.takes(scroll, at: moment.pointer, reducesMotion: moment.setting.reducesMotion) else {
             return self.scroll(by: scroll.down, moment)
         }
 
@@ -379,7 +379,7 @@ public final class NotchRun: Framed {
     /// way to the asks panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`), or its
     /// asks slide, under the fingers or settling (`AsksSlide`).
     public func needsFrames(at time: Double) -> Bool {
-        frame.isMoving || isFolding(at: time) || asking.isFindingWay || asking.isSliding
+        frame.isMoving || isFolding(at: time) || asking.needsFrames
     }
 
     /// When, after this wall time, the first of the shown rows' times, or a wake's countdown, next reads differently,

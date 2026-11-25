@@ -496,4 +496,74 @@ struct StripAsksRunTests {
         run.scroll(Scroll(down: 0, along: -16), Self.at(run, onIt, setting))
         #expect(run.asksShown?.ask.id == "k1")
     }
+
+    /// Two fingers on the asks panel: a scroll of theirs at this phase, this far along and down, with the pointer on the
+    /// asks panel, or at `pointer`.
+    private static func swipe(
+        _ run: StripRun, _ phase: Scroll.Phase, along: Double, down: Double = 0,
+        _ setting: StripRun.Setting = setting(), at pointer: CGPoint? = nil
+    ) throws {
+        run.scroll(Scroll(down: down, along: along, phase: phase), at(run, try pointer ?? onAsks(run), setting))
+    }
+
+    /// Fingers touching the asks panel, then travelling `travel` along, 5 a frame, still on the trackpad.
+    private static func drag(_ run: StripRun, _ travel: Double, _ setting: StripRun.Setting = setting()) throws {
+        try swipe(run, .began, along: 0, setting)
+        for _ in 0 ..< Int(travel / 5) {
+            try swipe(run, .changed, along: 5, setting)
+        }
+    }
+
+    /// A swipe under way is the strip's window's to the end of its gesture, wherever the pointer goes; a swipe whose
+    /// lift never came ends at the next gesture's first scroll, a vertical one too, its ask springing back and the
+    /// frames stopping, and a new swipe follows the fingers from its place.
+    @Test func aSwipeWhoseLiftNeverCameEndsAtTheNextGesture() throws {
+        let run = try Self.asksOpen(), setting = Self.setting()
+
+        try Self.drag(run, 100)
+        #expect(run.isSwiping && run.asksShown?.slid == 100)
+        try Self.swipe(run, .began, along: 0)
+        try Self.swipe(run, .changed, along: 0, down: 20)
+        #expect(!run.isSwiping && !run.asking.isFollowing)
+        Self.frames(run, for: 1000, try Self.onAsks(run), setting) { !run.needsFrames }
+        #expect(run.asksShown?.slid == 0 && !run.needsFrames)
+
+        try Self.swipe(run, .ended, along: 0)
+        try Self.drag(run, 60)
+        #expect(run.asksShown?.slid == 60)
+    }
+
+    /// The asks panel closing mid-drag, its arrow pressed again, ends its swipe: no frames run for it.
+    @Test func theAsksPanelClosingMidDragEndsItsSwipe() throws {
+        let run = try Self.asksOpen(), setting = Self.setting(), arrow = try Self.arrow(run)
+
+        try Self.drag(run, 100)
+        #expect(run.press(Self.at(run, arrow, setting)) == .asks)
+        #expect(run.asksShown == nil && !run.isSwiping && !run.asking.isSliding)
+        Self.frames(run, for: 1000, arrow, setting) { !run.needsFrames }
+        #expect(!run.needsFrames)
+    }
+
+    /// The ask shown leaving mid-drag stands the ask that took its place still under the fingers until they lift,
+    /// skipping none.
+    @Test func theAskShownLeavingMidDragStandsStillUntilTheLift() throws {
+        let run = try Self.asksOpen(board: AsksBoard.board(withNotes: true)), setting = Self.setting()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, nil, setting))
+        try Self.drag(run, 150)
+        run.heard(.went(Self.threaded), Self.at(run, try Self.onAsks(run), setting))
+        try Self.swipe(run, .changed, along: 50)
+        #expect(run.asksShown?.ask.id == "k2" && run.asksShown?.slid == 0)
+        try Self.swipe(run, .ended, along: 0)
+        #expect(run.asksShown?.ask.id == "k2")
+    }
+
+    /// Under Reduce motion, fingers on the asks panel move nothing, so they run no frames.
+    @Test func underReduceMotionADragRunsNoFrames() throws {
+        let setting = Self.setting(reducesMotion: true), run = try Self.asksOpen(Self.helpDesk, setting)
+
+        Self.frames(run, for: 1000, try Self.onAsks(run), setting) { !run.needsFrames }
+        try Self.drag(run, 100, setting)
+        #expect(run.asking.isFollowing && !run.needsFrames)
+    }
 }

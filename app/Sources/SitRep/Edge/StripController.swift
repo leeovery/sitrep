@@ -183,8 +183,10 @@ final class StripController: NSObject, CalloutShape {
         widen(run.asksShown != nil) { mirror in
             surface.draw(run, in: setting, mirror: mirror)
         }
-        window.takesClicks = run.frame.pointer.map(run.hits) ?? false
-        onDrawn?(window.takesClicks)
+        let isPointedAt = run.frame.pointer.map(run.hits) ?? false
+
+        window.takesClicks = run.isSwiping || isPointedAt
+        onDrawn?(isPointedAt)
         pace(at: time)
     }
 
@@ -412,9 +414,10 @@ final class StripController: NSObject, CalloutShape {
         }
     }
 
-    /// A swipe on the asks panel pages it; the wheel over an open count's tab scrolls its rows.
-    private func scroll(_ scroll: Scroll) {
-        run.scroll(scroll, moment())
+    /// A swipe on the asks panel pages it; the wheel over an open count's tab scrolls its rows. Internal only for the
+    /// tests, which give its time and the pointer on the stage.
+    func scroll(_ scroll: Scroll, at time: Double = Displays.now, pointer: CGPoint? = nil) {
+        run.scroll(scroll, moment(at: time, pointer: pointer))
         took()
     }
 

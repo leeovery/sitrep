@@ -25,6 +25,10 @@ extension StripRun {
         frame.hits(point) || asking.isOn(point)
     }
 
+    /// Whether a trackpad's swipe across the asks panel is under way, the window taking clicks until it ends
+    /// (`NotchRun.isSwiping`).
+    public var isSwiping: Bool { asking.isSwiping }
+
     /// An answer's news, as the answers tell it (DESIGN, "Answering, with two seconds to undo"), as the notch's asks
     /// panel hears it (`NotchRun.heard`).
     public func heard(_ news: AnswerNews, _ moment: Moment) {

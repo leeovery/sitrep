@@ -67,6 +67,9 @@ struct AsksPanel {
     /// A horizontal swipe on it, which pages it, and its asks as they slide.
     private var swipe = AsksSwipe()
     private var slide = AsksSlide()
+    /// Whether the rest of a drag is no swipe, until its fingers lift: its ask left under it, and the ask that took its
+    /// place stands still.
+    private var isDragHeld = false
     private var look: Look?
     private var lookedAt = -Double.infinity
     /// The row it opened beside, and how far the list was scrolled then.
@@ -87,7 +90,12 @@ struct AsksPanel {
     var isHolding: Bool { held != nil }
 
     /// Whether its asks slide, under the fingers or settling, when nothing on it takes a press but a dot.
-    var isSliding: Bool { slide.isMoving }
+    var isSliding: Bool { slide.isMoving || slide.isFollowing }
+
+    /// Whether frames must keep coming though the pointer is still: the way to it holds the pointer, which must be
+    /// judged frame by frame until it ends (`SafeTriangle`), or
+    /// its asks move, under the fingers or settling; not under fingers that move nothing, under Reduce motion.
+    var needsFrames: Bool { way.holds || slide.isMoving }
 
     /// Whether fingers on the trackpad carry its asks, when not even a dot takes a press.
     var isFollowing: Bool { slide.isFollowing }
@@ -114,9 +122,12 @@ struct AsksPanel {
         slide.rest()
     }
 
+    /// Closed, any swipe on it ended.
     mutating func close() {
         open = nil
         slide.rest()
+        swipe = AsksSwipe()
+        isDragHeld = false
     }
 
     /// The list scrolled this far: closed once that moves it more than `scrollMost` from where it was as it opened, as
@@ -137,11 +148,10 @@ struct AsksPanel {
     /// brush on a Magic Mouse leave it open; a third of a row's height is a scroll meant.
     static let scrollMost = 10.0
 
-    /// Whether the way to it from the list holds the pointer, which must be judged frame by frame until it ends.
-    var isFindingWay: Bool { way.holds }
-
     /// Kept to what shows: closed while the panel is not open, its row gone or none of its asks left; else at its
-    /// ask, or, where that left, the one that took its page, or the last.
+    /// ask, or, where that left, the one that took its page, or the last. Its slide is its ask's: as asks before it
+    /// leave or come, it slides on, the ask beside moving with them; as its ask leaves, it stands still, under fingers
+    /// still on the trackpad until they lift.
     private mutating func keep(isOpen: Bool, _ rows: some AsksRows, _ board: PanelBoard) {
         guard let open else {
             return
@@ -150,10 +160,13 @@ struct AsksPanel {
             return close()
         }
 
-        let page = asks.firstIndex { $0.id == open.ask } ?? min(open.page, asks.count - 1)
+        let kept = asks.firstIndex { $0.id == open.ask }, page = kept ?? min(open.page, asks.count - 1)
 
-        if page != open.page {
+        if kept == nil {
+            isDragHeld = isDragHeld || slide.isFollowing
             slide.rest()
+        } else if page != open.page {
+            slide.shift(by: page - open.page)
         }
         self.open = Open(row: open.row, ask: asks[page].id, page: page)
     }
@@ -168,9 +181,25 @@ struct AsksPanel {
         self.open = Open(row: open.row, ask: asks[page].id, page: page)
     }
 
-    /// A scroll on it at this time (`AsksSwipe`): a trackpad's swipe across slides its asks with the fingers, and on
-    /// their lift completes to the ask beside, or springs back; a wheel's steps to the next ask or the previous one,
-    /// sliding there.
+    /// Whether a scroll with the pointer here is its: on it, or in a swipe across it under way, which keeps every scroll
+    /// of its gesture. A gesture's first scroll is the asks panel's only on it, and ends a swipe whose lift never came,
+    /// as when the rest of its gesture went to another window: its ask springs back.
+    mutating func takes(_ scroll: Scroll, at pointer: CGPoint?, reducesMotion: Bool) -> Bool {
+        guard scroll.phase == .began else {
+            return isOn(pointer) || isSwiping
+        }
+
+        if slide.isFollowing {
+            slide.cancel(reducesMotion: reducesMotion)
+        }
+        swipe = AsksSwipe()
+        isDragHeld = false
+        return isOn(pointer)
+    }
+
+    /// A scroll on it at this time (`AsksSwipe`), taken (`takes`): a trackpad's swipe across slides its asks with the
+    /// fingers, and on their lift completes to the ask beside, or springs back; a wheel's steps to the next ask or the
+    /// previous one, sliding there. A drag held still (`keep`) waits for its lift.
     mutating func swiped(
         _ scroll: Scroll, at time: Double, _ rows: some AsksRows, _ board: PanelBoard, reducesMotion: Bool
     ) {
@@ -179,13 +208,17 @@ struct AsksPanel {
         else {
             return
         }
+        guard !isDragHeld else {
+            isDragHeld = move != .lift && move != .cancel
+            return
+        }
 
         switch move {
         case let .follow(travel):
             slide.follow(travel, at: time, page: open.page, of: pages, reducesMotion: reducesMotion)
         case .lift:
-            if let step = slide.lift(at: time, page: open.page, of: pages, reducesMotion: reducesMotion) {
-                page(to: open.page + step, rows, board, reducesMotion: reducesMotion)
+            if let to = slide.lift(at: time, page: open.page, of: pages, reducesMotion: reducesMotion) {
+                page(to: to, rows, board, reducesMotion: reducesMotion)
             }
         case .cancel:
             slide.cancel(reducesMotion: reducesMotion)
@@ -293,7 +326,8 @@ struct AsksPanel {
         }
 
         let part = shown.layout.part(
-            at: shown.ownPoint(point, mirror: mirror), sending: shown.sending != nil, page: shown.page, of: shown.pages
+            at: shown.ownPoint(point, mirror: mirror), sending: shown.sending != nil, progress: shown.progress,
+            of: shown.pages
         )
 
         switch part {

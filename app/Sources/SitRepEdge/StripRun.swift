@@ -307,9 +307,9 @@ public final class StripRun: Framed {
     }
 
     /// A scroll: over the asks panel, or in a swipe across it under way, a horizontal swipe pages it
-    /// (`AsksPanel.swiped`); anywhere else, an open count's tab scrolled down by it (`scroll(by:)`).
+    /// (`AsksPanel.takes`, `AsksPanel.swiped`); anywhere else, an open count's tab scrolled down by it (`scroll(by:)`).
     public func scroll(_ scroll: Scroll, _ moment: Moment) {
-        guard asking.isOn(moment.pointer) || asking.isSwiping else {
+        guard asking.takes(scroll, at: moment.pointer, reducesMotion: moment.setting.reducesMotion) else {
             return self.scroll(by: scroll.down, moment)
         }
 
@@ -350,7 +350,7 @@ public final class StripRun: Framed {
     /// panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`), or its asks slide, under
     /// the fingers or settling (`AsksSlide`).
     public var needsFrames: Bool {
-        frame.isMoving || asking.isFindingWay || asking.isSliding
+        frame.isMoving || asking.needsFrames
     }
 
     /// A click on a session: its jump, or an away one carried on.

@@ -30,17 +30,24 @@ enum AsksBoard {
     static let asleep = WatchLine.Ask(
         id: "k3", wants: .yes, yes: "Ship", title: "Ship the help desk", snooze: .until(tomorrow)
     )
+    /// A third ask of Help desk redesign's, on the board `withNotes`.
+    static let notes = WatchLine.Ask(id: "k4", wants: .yes, yes: "Ship", title: "Ship the release notes?")
     static let words = WatchLine.Ask(
         id: "k1", wants: .words, yes: nil, title: "Say what an empty rota should read", needs: "The empty state's words"
     )
 
     /// The rows, those named in `without` left out of Help desk redesign's lines and asks, as an ask leaves the board;
-    /// `alone`, Help desk redesign's row alone, its choice one of three, with nothing snoozed.
-    static func line(without: Set<String> = [], alone: Bool = false) -> WatchLine {
+    /// `alone`, Help desk redesign's row alone, its choice one of three, with nothing snoozed; `withNotes`, a third ask
+    /// of its, after its two.
+    static func line(without: Set<String> = [], alone: Bool = false, withNotes: Bool = false) -> WatchLine {
+        let notesLine = WatchLine.Row.Line(
+            "ask:\(helpDesk):k4", .ask, ask: "k4", first: "Ship the release notes?", since: ago(20)
+        )
         let helpDeskLines: [WatchLine.Row.Line] = [
             .init("ask:\(helpDesk):k1", .ask, ask: "k1", first: "Thread replies, or keep them flat?", since: ago(4)),
             .init("ask:\(helpDesk):k2", .ask, ask: "k2", first: "Review Tickets & Replies, round 1", since: ago(12)),
-        ].filter { !without.contains($0.ask ?? "") }
+            withNotes ? notesLine : nil,
+        ].compactMap { $0 }.filter { !without.contains($0.ask ?? "") }
         let rows = [
             helpDeskLines.isEmpty ? nil : WatchLine.Row(
                 session: helpDesk, name: "Help desk redesign", projectName: "Northwind", lines: helpDeskLines
@@ -82,7 +89,8 @@ enum AsksBoard {
             WatchLine.Project(name: "Northwind", sessions: [
                 WatchLine.Session(
                     id: helpDesk, name: "Help desk redesign", state: .needsYou,
-                    asks: [alone ? choiceOfThree : choice, yes, asleep].filter { !without.contains($0.id) }
+                    asks: [alone ? choiceOfThree : choice, yes, asleep, withNotes ? notes : nil].compactMap { $0 }
+                        .filter { !without.contains($0.id) }
                 ),
             ]),
             WatchLine.Project(name: "Contoso", sessions: [
@@ -104,11 +112,12 @@ enum AsksBoard {
     }
 
     /// The board as the panel has it.
-    static func board(without: Set<String> = [], alone: Bool = false) -> PanelBoard {
+    static func board(without: Set<String> = [], alone: Bool = false, withNotes: Bool = false) -> PanelBoard {
         var last = LastBoard()
 
         _ = last.hear(
-            .line(line(without: without, alone: alone).text), at: Date(timeIntervalSince1970: Double(at) / 1000)
+            .line(line(without: without, alone: alone, withNotes: withNotes).text),
+            at: Date(timeIntervalSince1970: Double(at) / 1000)
         )
         return PanelBoard(last)
     }

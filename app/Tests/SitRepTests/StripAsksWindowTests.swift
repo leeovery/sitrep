@@ -32,6 +32,29 @@ struct StripAsksWindowTests {
         #expect(strip.run.asksShown == nil)
         #expect(strip.controller.window.frame == strip.edge.stripWindow)
     }
+
+    /// A swipe across the asks panel under way keeps the window taking clicks wherever the pointer goes, so the rest of
+    /// its gesture comes to it; once it ends, off the strip, the tab and the asks panel, the window takes none.
+    @Test(arguments: [EdgeSettings.Edge.left, .right])
+    func whileASwipeIsUnderWayTheWindowTakesClicksOffTheAsksPanel(_ side: EdgeSettings.Edge) throws {
+        let strip = try Driven(on: side)
+
+        defer { strip.close() }
+        try strip.pressArrow()
+
+        let asks = try #require(strip.run.asksShown), onIt = CGPoint(x: asks.frame.midX, y: asks.frame.minY + 70)
+        let off = CGPoint(x: asks.frame.midX, y: asks.frame.maxY + 40)
+
+        strip.swipe(.began, at: onIt)
+        for _ in 0 ..< 20 {
+            strip.swipe(.changed, along: 5, at: onIt)
+        }
+        strip.frames(for: Self.frameMS, at: off)
+        #expect(strip.run.isSwiping && strip.controller.window.takesClicks)
+        strip.swipe(.ended, at: off)
+        strip.frames(for: Self.frameMS, at: off)
+        #expect(!strip.controller.window.takesClicks)
+    }
 }
 
 /// A strip on the far-off display over a board of one session asking, driven frame by frame with the pointer given on
@@ -77,6 +100,12 @@ private final class Driven {
             time += 1000.0 / 60
             controller.step(at: time, pointer: pointer)
         }
+    }
+
+    /// A scroll of two fingers at this phase, this far along, with the pointer here, a frame on.
+    func swipe(_ phase: Scroll.Phase, along: Double = 0, at pointer: CGPoint) {
+        time += 1000.0 / 60
+        controller.scroll(Scroll(down: 0, along: along, phase: phase), at: time, pointer: pointer)
     }
 
     /// A press on the tab's arrow, and the frame after drawn.

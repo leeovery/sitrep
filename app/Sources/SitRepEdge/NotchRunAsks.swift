@@ -31,6 +31,11 @@ extension NotchRun {
         frame.hits(point) || asking.isOn(point)
     }
 
+    /// Whether a trackpad's swipe across the asks panel is under way: the window takes clicks wherever the pointer is
+    /// until it ends, so the rest of its gesture comes to the asks panel, though the asks panel shrank from under a
+    /// still pointer as it slid to a shorter ask.
+    public var isSwiping: Bool { asking.isSwiping }
+
     /// An answer's news, as the answers tell it (DESIGN, "Answering, with two seconds to undo"): held, the asks panel
     /// shows it sending; taken back, as it was; gone, the asks panel steps to the session's next ask, closing after its
     /// last; refused by the CLI, the ask is back.

@@ -214,7 +214,13 @@ public struct AsksLayout: Equatable, Sendable {
     /// What a click at a point in its own frame lands on, showing the ask at `page` of `pages`: a page dot, which
     /// pages whatever is held; while an answer of its ask is held, Undo alone.
     public func part(at point: CGPoint, sending: Bool, page: Int, of pages: Int) -> AsksPart? {
-        if let dot = dot(at: point, page: page, of: pages) {
+        part(at: point, sending: sending, progress: Double(page), of: pages)
+    }
+
+    /// What a click lands on (above), its page dots standing as a slide between two asks has come to `progress`
+    /// (`dots(at:of:)`): a click on a dot lands on the dot drawn there.
+    public func part(at point: CGPoint, sending: Bool, progress: Double, of pages: Int) -> AsksPart? {
+        if let dot = dot(at: point, progress: progress, of: pages) {
             return .page(dot)
         }
         if sending {
@@ -264,8 +270,8 @@ public struct AsksLayout: Equatable, Sendable {
 
     /// The dot a click at a point in its own frame is nearest across the dots and `dotReach` past either end, the top
     /// line's whole height: a dot 5 wide is no target to aim at (DESIGN, "Paging").
-    private func dot(at point: CGPoint, page: Int, of pages: Int) -> Int? {
-        let dots = dots(page: page, of: pages)
+    private func dot(at point: CGPoint, progress: Double, of pages: Int) -> Int? {
+        let dots = dots(at: progress, of: pages)
 
         guard let first = dots.first, let last = dots.last else {
             return nil
