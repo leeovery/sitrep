@@ -62,18 +62,19 @@ extension NotchRun {
         point.map { asksShown?.contains($0) == true } ?? false
     }
 
-    /// A press on the asks panel: a page dot shows its ask at once, as it pages the same whatever ask shows; the rest
-    /// once what it shows has settled (`AsksPanel.settle`). An answer's row, or Ignore, holds that answer, while none
-    /// is held; Undo takes the held one back; Snooze ▾ offers the snooze of the ask shown; Open in Claude jumps as the
-    /// row does, closing it. Nowhere on it carries the notch.
+    /// A press on the asks panel: a page dot slides to its ask at once, as it pages the same whatever ask shows,
+    /// though not under the fingers; the rest once its asks have stopped sliding and what it shows has settled
+    /// (`AsksPanel.settle`). An answer's row, or Ignore, holds that answer, while none is held; Undo takes the held one
+    /// back; Snooze ▾ offers the snooze of the ask shown; Open in Claude jumps as the row does, closing it. Nowhere on
+    /// it carries the notch.
     func pressAsks(_ asks: AsksShown, at point: CGPoint, in setting: Setting) -> Press? {
         let ask = asks.ask, session = asks.session.id, part = asking.part(at: point, mirror: setting.mirror)
 
-        if case let .page(page)? = part {
-            asking.page(to: page, list, board)
+        if case let .page(page)? = part, !asking.isFollowing {
+            asking.page(to: page, list, board, reducesMotion: setting.reducesMotion)
             return .asks
         }
-        guard asking.isSettled(at: time) else {
+        guard !asking.isSliding, asking.isSettled(at: time) else {
             return nil
         }
 
@@ -128,16 +129,16 @@ extension NotchRun {
         return entry.item.key
     }
 
-    /// An ask laid out as the drawing sets its words, Snooze ▾ in its foot where Snooze offers a time, the last one
-    /// kept, as a frame lays it out more than once.
+    /// An ask laid out as the drawing sets its words, Snooze ▾ in its foot where Snooze offers a time, the last two
+    /// kept, as a frame lays out the ask shown and the ask beside it as they slide, each more than once.
     func layout(_ ask: PanelAsk, offersSnooze: Bool) -> AsksLayout {
-        if let laidOut, laidOut.ask == ask, laidOut.offersSnooze == offersSnooze {
-            return laidOut.layout
+        if let kept = laidOut.first(where: { $0.ask == ask && $0.offersSnooze == offersSnooze }) {
+            return kept.layout
         }
 
         let layout = AsksLayout(ask, measure: measure, offersSnooze: offersSnooze)
 
-        laidOut = (ask, offersSnooze, layout)
+        laidOut = (laidOut + [(ask, offersSnooze, layout)]).suffix(2)
         return layout
     }
 }

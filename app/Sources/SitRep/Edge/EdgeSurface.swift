@@ -69,8 +69,8 @@ class EdgeSurface: NSView {
 
 extension Scroll {
     /// A scroll event as the edge takes it: its deltas the way the Mac scrolls, a wheel's notch as 16 points; and
-    /// where it falls in its gesture, its momentum after the fingers lift, else its own phase, none for a mouse's
-    /// wheel.
+    /// where it falls in its gesture, its momentum after the fingers lift, else its own phase, a cancel apart from a
+    /// lift, none for a mouse's wheel.
     init(_ event: NSEvent) {
         let scale = event.hasPreciseScrollingDeltas ? 1 : Self.lineHeight
 
@@ -89,7 +89,10 @@ extension Scroll {
         if !event.phase.isDisjoint(with: [.mayBegin, .began]) {
             return .began
         }
-        if !event.phase.isDisjoint(with: [.ended, .cancelled]) {
+        if event.phase.contains(.cancelled) {
+            return .cancelled
+        }
+        if event.phase.contains(.ended) {
             return .ended
         }
         return event.phase.isEmpty ? .wheel : .changed

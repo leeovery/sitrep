@@ -6,7 +6,8 @@ import Testing
 
 /// A scroll event as the edge takes it (DESIGN, "Paging"): its deltas the way the Mac scrolls, a wheel's notch as 16
 /// points; and where it falls in its gesture, a trackpad's momentum apart from the gesture before it, so a flick takes
-/// no second step, and a mouse's wheel, which has no phases.
+/// no second step, its cancel apart from its lift, so a cancelled swipe springs back, and a mouse's wheel, which has no
+/// phases.
 @MainActor
 @Suite(.backstop)
 struct ScrollEventTests {
@@ -34,11 +35,12 @@ struct ScrollEventTests {
         #expect(!notch.hasPreciseScrollingDeltas && Scroll(notch).along == -notch.scrollingDeltaX * 16)
     }
 
-    /// The fingers' touch and their scroll beginning begin it; their lift, or a cancel, ends it; between, it changes;
-    /// whatever runs on after the lift is momentum; and with no phase at all, a mouse's wheel.
+    /// The fingers' touch and their scroll beginning begin it; their lift ends it, and the Mac's cancel cancels it,
+    /// which springs a slide back however far it went; between, it changes; whatever runs on after the lift is
+    /// momentum; and with no phase at all, a mouse's wheel.
     @Test(arguments: [
         (128, 0, Scroll.Phase.began), (1, 0, .began), (2, 0, .changed), (4, 0, .ended),
-        (8, 0, .ended), (0, 1, .momentum), (0, 2, .momentum), (0, 3, .momentum), (0, 0, .wheel),
+        (8, 0, .cancelled), (0, 1, .momentum), (0, 2, .momentum), (0, 3, .momentum), (0, 0, .wheel),
     ] as [(Int64, Int64, Scroll.Phase)])
     func itTellsWhereItFallsInItsGesture(phase: Int64, momentum: Int64, falls: Scroll.Phase) throws {
         #expect(Scroll(try Self.event(across: -4, phase: phase, momentum: momentum)).phase == falls)

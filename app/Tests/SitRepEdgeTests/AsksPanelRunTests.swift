@@ -12,7 +12,8 @@ import Testing
 /// click elsewhere on the list closing it and doing nothing else; the asks panel level with its row past the list's
 /// front, read left to right on either edge, holding the panel open while the pointer is on it; its answers held,
 /// taken back and gone, stepping to the session's next ask and closing after the last; its dots and a horizontal swipe
-/// paging it; its Snooze ▾ snoozing the ask it shows; and an ask leaving the board leaving it.
+/// paging it, its asks sliding with the fingers and the spring; its Snooze ▾ snoozing the ask it shows; and an ask
+/// leaving the board leaving it.
 @Suite(.backstop)
 struct AsksPanelRunTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
@@ -313,6 +314,7 @@ struct AsksPanelRunTests {
 
         #expect(run.press(Self.at(run, try Self.part(.page(1), run), setting)) == .asks)
         Self.frames(run, for: AsksPanel.settle, try Self.onAsks(run, down: 70), setting)
+        _ = try Self.settling(run)
 
         let there = try Self.part(.snooze, run)
 
@@ -923,9 +925,9 @@ struct AsksPanelRunTests {
 
     // MARK: Paging
 
-    /// A click on a dot shows its ask at once, in the beat after the ask changed as after it: a dot pages the same
-    /// whatever ask shows, so clicks from dot to dot in quick succession each land. An answer pressed in the beat after
-    /// a page is still let go.
+    /// A click on a dot shows its ask at once, sliding there, during the slide as after it: a dot pages the same
+    /// whatever ask shows, so clicks from dot to dot in quick succession each land. An answer pressed as it slides is
+    /// let go.
     @Test func aClickOnADotShowsItsAskAtOnce() throws {
         let run = try Self.asksOpen(), setting = Self.setting()
 
@@ -937,11 +939,12 @@ struct AsksPanelRunTests {
         #expect(run.asksShown?.sending == nil)
     }
 
-    /// Where a swipe's scrolls come: on the asks panel, over its title, whatever ask it shows.
+    /// Where a swipe's scrolls come: on the asks panel, over its title, whatever ask it shows, or at `pointer`.
     private static func swipe(
-        _ run: NotchRun, _ phase: Scroll.Phase, along: Double, down: Double = 0, after ms: Double = frameMS
+        _ run: NotchRun, _ phase: Scroll.Phase, along: Double, down: Double = 0, after ms: Double = frameMS,
+        _ setting: NotchRun.Setting = setting(), at pointer: CGPoint? = nil
     ) throws {
-        let onIt = try onAsks(run, down: 70), setting = setting()
+        let onIt = try pointer ?? onAsks(run, down: 70)
 
         run.scroll(
             Scroll(down: down, along: along, phase: phase),
@@ -949,39 +952,283 @@ struct AsksPanelRunTests {
         )
     }
 
-    /// A trackpad's swipe steps one ask a gesture, once it has gone 12 points along: the next as it goes along, the
-    /// previous as it comes back; the rest of the gesture, and the momentum after the fingers lift, take no second
-    /// step; nothing wraps past the first.
-    @Test func aSwipeStepsOneAskAGesture() throws {
-        let run = try Self.asksOpen()
-        let shows = { run.asksShown?.ask.id }
-
-        try Self.swipe(run, .began, along: 0)
-        try Self.swipe(run, .changed, along: 8)
-        #expect(shows() == "k1")
-        try Self.swipe(run, .changed, along: 5)
-        #expect(shows() == "k2")
-        try Self.swipe(run, .changed, along: -40)
-        try Self.swipe(run, .ended, along: 0)
-        try Self.swipe(run, .momentum, along: -60)
-        #expect(shows() == "k2")
-
-        try Self.swipe(run, .began, along: -4)
-        try Self.swipe(run, .changed, along: -10)
-        #expect(shows() == "k1")
-        try Self.swipe(run, .ended, along: 0)
-        try Self.swipe(run, .began, along: -30)
-        #expect(shows() == "k1")
+    /// A trackpad's fingers touching the asks panel, then travelling `travel` along, `each` a frame: at 5, 0.3 points a
+    /// millisecond, slower than a flick. Still on the trackpad.
+    private static func drag(
+        _ run: NotchRun, _ travel: Double, each: Double = 5, _ setting: NotchRun.Setting = setting()
+    ) throws {
+        try swipe(run, .began, along: 0, setting)
+        for _ in 0 ..< Int((abs(travel) / each).rounded()) {
+            try swipe(run, .changed, along: travel < 0 ? -each : each, setting)
+        }
     }
 
-    /// A swipe more down than along is no swipe, whatever it comes to along.
-    @Test func aSwipeMoreDownThanAlongDoesNotPage() throws {
+    /// How far the asks panel's ask has slid, frame by frame, the pointer on it, until its asks stop sliding.
+    private static func settling(_ run: NotchRun, _ setting: NotchRun.Setting = setting()) throws -> [Double] {
+        let onIt = try onAsks(run, down: 70)
+        var slid: [Double] = []
+
+        while run.asking.isSliding, slid.count < 120 {
+            run.step(at(run, onIt, setting))
+            slid.append(try #require(run.asksShown).slid)
+        }
+        return slid
+    }
+
+    /// The ask slides with the fingers, a point for a point, once the gesture has gone 6 points more across than
+    /// down, the ask beside it on that side sliding in and the dots following; it stays the ask shown, the frame where
+    /// it stood, until the fingers lift. Frames run meanwhile.
+    @Test func theAskFollowsTheFingers() throws {
+        let run = try Self.asksOpen(), stood = try #require(run.asksShown?.frame.origin)
+
+        try Self.drag(run, 60)
+
+        let asks = try #require(run.asksShown)
+
+        #expect(asks.slid == 60 && asks.ask.id == "k1" && asks.frame.origin == stood)
+        #expect(asks.beside?.ask.id == "k2" && asks.beside?.page == 1)
+        #expect(asks.progress == 60 / AsksLayout.width)
+        #expect(run.needsFrames(at: run.time))
+        try Self.swipe(run, .changed, along: -20)
+        #expect(run.asksShown?.slid == 40)
+
+        try Self.swipe(run, .cancelled, along: 0)
+        _ = try Self.settling(run)
+        #expect(run.press(Self.at(run, try Self.part(.page(1), run), Self.setting())) == .asks)
+        _ = try Self.settling(run)
+        try Self.drag(run, -60)
+        #expect(run.asksShown?.slid == -60 && run.asksShown?.beside?.ask.id == "k1")
+    }
+
+    /// Lifted past a third of the asks panel's width, the ask beside completes its slide, the ask it leaves sliding
+    /// out on the other side, and settles without passing its place in under half a second; short of the third, it
+    /// springs back as fast.
+    @Test func pastAThirdTheLiftCompletesAndShortOfItSpringsBack() throws {
+        let run = try Self.asksOpen()
+
+        try Self.drag(run, 120)
+        try Self.swipe(run, .ended, along: 0)
+        #expect(run.asksShown?.ask.id == "k1")
+
+        let back = try Self.settling(run)
+
+        #expect(back.allSatisfy { $0 >= 0 } && Double(back.count) * Self.frameMS < 500)
+        #expect(run.asksShown?.slid == 0 && run.asksShown?.beside == nil && !run.needsFrames(at: run.time))
+
+        try Self.drag(run, 130)
+        try Self.swipe(run, .ended, along: 0)
+
+        let asks = try #require(run.asksShown)
+
+        #expect(asks.ask.id == "k2" && asks.slid == 130 - AsksLayout.width && asks.beside?.page == 0)
+
+        let on = try Self.settling(run)
+
+        #expect(on.allSatisfy { $0 <= 0 } && zip(on, on.dropFirst()).allSatisfy { $0 <= $1 })
+        #expect(Double(on.count) * Self.frameMS < 500 && run.asksShown?.slid == 0)
+    }
+
+    /// A flick toward the ask beside completes its slide however short; a flick back springs back however far the
+    /// slide went.
+    @Test func aFlickCompletesAndAFlickBackSpringsBack() throws {
+        let run = try Self.asksOpen()
+
+        try Self.drag(run, 60, each: 20)
+        try Self.swipe(run, .ended, along: 0)
+        #expect(run.asksShown?.ask.id == "k2")
+        _ = try Self.settling(run)
+
+        try Self.drag(run, -250, each: 10)
+        for _ in 0 ..< 4 {
+            try Self.swipe(run, .changed, along: 25)
+        }
+        #expect(run.asksShown?.slid == -150)
+        try Self.swipe(run, .ended, along: 0)
+        #expect(run.asksShown?.ask.id == "k2")
+    }
+
+    /// The momentum that runs on after the fingers lift is no gesture: a flick takes no second step.
+    @Test func itsMomentumAfterTheLiftIsNoGesture() throws {
+        let run = try Self.asksOpen(Self.helpDesk, board: AsksBoard.board(alone: true))
+
+        try Self.drag(run, 200)
+        try Self.swipe(run, .ended, along: 0)
+        try Self.swipe(run, .momentum, along: 300)
+        try Self.swipe(run, .momentum, along: 300)
+        _ = try Self.settling(run)
+        #expect(run.asksShown?.page == 1 && run.asksShown?.slid == 0)
+    }
+
+    /// Past the first ask or the last it moves a share of the fingers' travel, the share shrinking as they go, nothing
+    /// beside it, and springs back on the lift: nothing wraps.
+    @Test func pastTheFirstOrTheLastAskItRubberBandsAndSpringsBack() throws {
+        let run = try Self.asksOpen()
+
+        try Self.drag(run, -100)
+
+        let near = try #require(run.asksShown?.slid)
+
+        for _ in 0 ..< 20 {
+            try Self.swipe(run, .changed, along: -5)
+        }
+
+        let far = try #require(run.asksShown?.slid)
+
+        #expect(near < 0 && near > -100 && run.asksShown?.beside == nil)
+        #expect(far < near && abs(far - near) < abs(near))
+        try Self.swipe(run, .ended, along: 0)
+        _ = try Self.settling(run)
+        #expect(run.asksShown?.ask.id == "k1" && run.asksShown?.slid == 0)
+
+        #expect(run.press(Self.at(run, try Self.part(.page(1), run), Self.setting())) == .asks)
+        _ = try Self.settling(run)
+        try Self.drag(run, 300, each: 20)
+        #expect((0 ..< 300).contains(try #require(run.asksShown?.slid)) && run.asksShown?.beside == nil)
+        try Self.swipe(run, .ended, along: 0)
+        _ = try Self.settling(run)
+        #expect(run.asksShown?.ask.id == "k2" && run.asksShown?.slid == 0)
+    }
+
+    /// A gesture the Mac cancels springs back however far it went.
+    @Test func aCancelledGestureSpringsBack() throws {
+        let run = try Self.asksOpen()
+
+        try Self.drag(run, 250)
+        try Self.swipe(run, .cancelled, along: 0)
+        #expect(run.asksShown?.ask.id == "k1" && run.asking.isSliding)
+        _ = try Self.settling(run)
+        #expect(run.asksShown?.slid == 0)
+    }
+
+    /// A dot's click and a wheel's step slide as a completed swipe does: the ask it leaves out on one side, its own in
+    /// from the other, settling with the spring, the dots following.
+    @Test func aDotsClickAndAWheelsStepSlide() throws {
+        let run = try Self.asksOpen()
+
+        #expect(run.press(Self.at(run, try Self.part(.page(1), run), Self.setting())) == .asks)
+
+        let asks = try #require(run.asksShown)
+
+        #expect(asks.ask.id == "k2" && asks.slid == -AsksLayout.width && asks.beside?.page == 0)
+        #expect(asks.progress == 0 && run.needsFrames(at: run.time))
+        #expect(Double(try Self.settling(run).count) * Self.frameMS < 500)
+        #expect(run.asksShown?.progress == 1)
+
+        try Self.swipe(run, .wheel, along: -16, after: AsksSwipe.wheelGap + 1)
+        #expect(run.asksShown?.ask.id == "k1" && run.asksShown?.slid == AsksLayout.width)
+        #expect(run.asksShown?.beside?.page == 1)
+    }
+
+    /// The asks panel is as tall as the slide has come between its ask's height and the one beside it's, and settles
+    /// at the other's.
+    @Test func itsHeightFollowsTheSlide() throws {
+        let run = try Self.asksOpen(), tall = try #require(run.asksShown?.layout.height)
+
+        try Self.drag(run, AsksLayout.width / 2, each: 6)
+
+        let asks = try #require(run.asksShown), short = try #require(asks.beside?.layout.height)
+
+        #expect(short < tall)
+        #expect(abs(asks.frame.height - (tall + short) / 2) < 1e-9)
+        try Self.swipe(run, .ended, along: 0)
+        _ = try Self.settling(run)
+        #expect(run.asksShown.map { Double($0.frame.height) } == short)
+    }
+
+    /// Under Reduce motion nothing slides: the ask stays still under the fingers, and a completed swipe or a dot shows
+    /// the other ask at once, its height with it; the beat starts as the page completes.
+    @Test func underReduceMotionNothingSlides() throws {
+        let setting = Self.setting(reducesMotion: true), run = try Self.asksOpen(Self.helpDesk, setting)
+
+        try Self.drag(run, 200, setting)
+        #expect(run.asksShown?.slid == 0 && run.asksShown?.beside == nil && run.asksShown?.ask.id == "k1")
+        try Self.swipe(run, .ended, along: 0, setting)
+
+        let asks = try #require(run.asksShown)
+
+        #expect(asks.ask.id == "k2" && asks.slid == 0 && asks.frame.height == asks.layout.height)
+        #expect(!run.asking.isSliding)
+
+        let approve = try Self.part(.answer(0), run, setting)
+
+        #expect(run.press(Self.at(run, approve, setting)) == nil)
+        Self.frames(run, for: AsksPanel.settle, approve, setting)
+        #expect(run.press(Self.at(run, approve, setting)) == .answer(Self.approve))
+
+        #expect(run.press(Self.at(run, try Self.part(.page(0), run, setting), setting)) == .asks)
+        #expect(run.asksShown?.ask.id == "k1" && run.asksShown?.slid == 0 && !run.asking.isSliding)
+    }
+
+    /// Nothing on it lights while it slides, and a press then lands on nothing, but for a dot in the settle; once it
+    /// stops, a press lands.
+    @Test func aPressDuringADragOrTheSettleLandsOnNothingButADotInTheSettle() throws {
+        let run = try Self.asksOpen(), setting = Self.setting(), threaded = try Self.part(.answer(0), run)
+
+        try Self.drag(run, 60)
+        #expect(run.press(Self.at(run, threaded, setting)) == nil)
+        #expect(run.press(Self.at(run, try Self.part(.page(1), run), setting)) == nil)
+        #expect(run.asksShown?.ask.id == "k1" && run.asksShown?.hover == nil)
+
+        try Self.swipe(run, .ended, along: 0)
+        #expect(run.press(Self.at(run, threaded, setting)) == nil)
+        _ = try Self.settling(run)
+        #expect(run.press(Self.at(run, threaded, setting)) == .answer(Self.threaded))
+
+        try Self.drag(run, 200)
+        try Self.swipe(run, .ended, along: 0)
+        #expect(run.asksShown?.ask.id == "k2")
+        #expect(run.press(Self.at(run, try Self.part(.page(0), run), setting)) == .asks)
+        #expect(run.asksShown?.ask.id == "k1")
+    }
+
+    /// Paging is no answer: an answer held stays held as the asks slide away and back, the ask beside sending as it
+    /// slides in, its Undo with its ask; the other ask takes none meanwhile.
+    @Test func anAnswerHeldKeepsItsHoldThroughASlide() throws {
+        let run = try Self.asksOpen(), setting = Self.setting()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, nil, setting))
+        try Self.drag(run, 200)
+        #expect(run.asksShown?.sending?.words == "Threaded" && run.asksShown?.beside?.sending == nil)
+        try Self.swipe(run, .ended, along: 0)
+        _ = try Self.settling(run)
+        Self.frames(run, for: AsksPanel.settle, try Self.onAsks(run, down: 70), setting)
+        #expect(run.asksShown?.ask.id == "k2" && run.asksShown?.sending == nil && run.asking.isHolding)
+        #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == nil)
+
+        try Self.drag(run, -100)
+        #expect(run.asksShown?.beside?.ask.id == "k1" && run.asksShown?.beside?.sending?.words == "Threaded")
+        for _ in 0 ..< 10 {
+            try Self.swipe(run, .changed, along: -5)
+        }
+        try Self.swipe(run, .ended, along: 0)
+        _ = try Self.settling(run)
+        Self.frames(run, for: AsksPanel.settle, try Self.onAsks(run, down: 70), setting)
+        #expect(run.asksShown?.sending?.words == "Threaded")
+        #expect(run.press(Self.at(run, try Self.part(.undo, run), setting)) == .undo)
+    }
+
+    /// A scroll more down than along, once it has gone 6 points, is no swipe for the rest of its gesture, whatever it
+    /// comes to along: nothing slides or pages.
+    @Test func aVerticalScrollOnItNeverPages() throws {
         let run = try Self.asksOpen()
 
         try Self.swipe(run, .began, along: 0)
-        try Self.swipe(run, .changed, along: 14, down: 20)
+        try Self.swipe(run, .changed, along: 4, down: 20)
+        try Self.swipe(run, .changed, along: 140)
+        #expect(run.asksShown?.slid == 0 && !run.asking.isSliding)
         try Self.swipe(run, .ended, along: 0)
-        #expect(run.asksShown?.ask.id == "k1")
+        #expect(run.asksShown?.ask.id == "k1" && !run.asking.isSliding)
+    }
+
+    /// A swipe across under way keeps every scroll of its gesture, the pointer drifting off the asks panel onto the
+    /// list: the list never scrolls under it, and its lift still completes.
+    @Test func aSwipeUnderWayKeepsItsScrollsOffTheAsksPanel() throws {
+        let run = try Self.asksOpen(), setting = Self.setting(), list = try Self.words(Self.dataImport, run)
+
+        try Self.drag(run, 100)
+        try Self.swipe(run, .changed, along: 60, setting, at: list)
+        try Self.swipe(run, .ended, along: 0, setting, at: list)
+        #expect(run.asksShown?.ask.id == "k2" && run.scroll == 0)
     }
 
     /// A mouse's wheel, with no phases, scrolls one gesture until 300ms pass with none: a scroll back straight after a
@@ -995,27 +1242,6 @@ struct AsksPanelRunTests {
         #expect(run.asksShown?.ask.id == "k2")
         try Self.swipe(run, .wheel, along: -16, after: AsksSwipe.wheelGap + 1)
         #expect(run.asksShown?.ask.id == "k1")
-    }
-
-    /// Paging is no answer: an answer held stays held as the asks panel pages away and back, its Undo with its ask;
-    /// the other ask takes none meanwhile; and for a beat after a swipe, a press is let go.
-    @Test func pagingKeepsAnAnswerHeldAndAPressWaitsItsBeat() throws {
-        let run = try Self.asksOpen(), setting = Self.setting()
-
-        run.heard(Self.held(Self.threaded), Self.at(run, nil, setting))
-        try Self.swipe(run, .wheel, along: 16)
-        #expect(run.asksShown?.ask.id == "k2" && run.asksShown?.sending == nil && run.asking.isHolding)
-        Self.frames(run, for: AsksPanel.settle, try Self.onAsks(run, down: 70), setting)
-        #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == nil)
-
-        try Self.swipe(run, .wheel, along: -16, after: AsksSwipe.wheelGap + 1)
-
-        let undo = try Self.part(.undo, run)
-
-        #expect(run.asksShown?.sending?.words == "Threaded")
-        #expect(run.press(Self.at(run, undo, setting)) == nil)
-        Self.frames(run, for: AsksPanel.settle, undo, setting)
-        #expect(run.press(Self.at(run, undo, setting)) == .undo)
     }
 
     // MARK: The right edge

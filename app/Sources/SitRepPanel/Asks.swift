@@ -91,7 +91,9 @@ public struct AsksLayout: Equatable, Sendable {
     public static let overlap = 8.0, above = 12.0
     /// How far inside the screen's visible frame it keeps.
     public static let spare = 8.0
-    static let padTop = 12.0, padSide = 12.0, padBottom = 14.0, between = 14.0
+    static let padTop = 12.0, padSide = 12.0, padBottom = 14.0
+    /// Between its parts: the top line, the ask, its answers and its foot.
+    public static let between = 14.0
     /// Its rows' width, inside its sides.
     public static let inner = width - 2 * padSide
     static let topHeight = 28.0, topPadTop = 4.0
@@ -233,6 +235,13 @@ public struct AsksLayout: Equatable, Sendable {
     /// The page dots at the top line's right, showing the ask at `page` of `pages`, the current one wide; none for one
     /// ask.
     public func dots(page: Int, of pages: Int) -> [CGRect] {
+        dots(at: Double(page), of: pages)
+    }
+
+    /// The page dots as a slide between two asks has come to `progress`, a page and a share of the way to the next
+    /// (DESIGN, "Paging"): each as wide as it is near it, the wide one passing from dot to dot, their run as long
+    /// throughout.
+    public func dots(at progress: Double, of pages: Int) -> [CGRect] {
         guard pages > 1 else {
             return []
         }
@@ -240,12 +249,17 @@ public struct AsksLayout: Equatable, Sendable {
         var x = top.maxX - Self.dotsWidth(pages)
 
         return (0 ..< pages).map { index in
-            let width = index == page ? Self.currentDot : Self.dotSide
+            let width = Self.dotSide + (Self.currentDot - Self.dotSide) * Self.nearness(of: index, to: progress)
             let dot = CGRect(x: x, y: top.midY - Self.dotSide / 2, width: width, height: Self.dotSide)
 
             x += width + Self.dotGap
             return dot
         }
+    }
+
+    /// How near a dot is to a slide's progress, 1 on it, 0 a page or more from it: how much of the current dot it is.
+    public static func nearness(of dot: Int, to progress: Double) -> Double {
+        max(0, 1 - abs(progress - Double(dot)))
     }
 
     /// The dot a click at a point in its own frame is nearest across the dots and `dotReach` past either end, the top
@@ -279,9 +293,11 @@ public struct AsksLayout: Equatable, Sendable {
     }
 
     /// Where it stands on the stage beside a row whose top is this far down it, in a list whose front is this far from
-    /// the edge: past the front, overlapping it, its top line level with the row's, and moved just enough to keep
-    /// inside the screen's visible frame, as a Mac submenu is.
-    public func frame(besideRowAt rowTop: Double, front: Double, on stage: Stage) -> CGRect {
+    /// the edge, as tall as this ask, or as `height` while a slide takes it between two asks': past the front,
+    /// overlapping it, its top line level with the row's, and moved just enough to keep inside the screen's visible
+    /// frame, as a Mac submenu is.
+    public func frame(besideRowAt rowTop: Double, front: Double, on stage: Stage, height: Double? = nil) -> CGRect {
+        let height = height ?? self.height
         let highest = stage.visibleTop + Self.spare
         let lowest = max(highest, stage.visibleBottom - Self.spare - height)
 

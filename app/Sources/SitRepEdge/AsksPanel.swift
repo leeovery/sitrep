@@ -63,8 +63,9 @@ struct AsksPanel {
     private var told: (room: CGRect, pointer: CGPoint?)?
     /// The way to it from the list.
     private var way = SafeTriangle()
-    /// A horizontal swipe on it, which pages it.
+    /// A horizontal swipe on it, which pages it, and its asks as they slide.
     private var swipe = AsksSwipe()
+    private var slide = AsksSlide()
     private var look: Look?
     private var lookedAt = -Double.infinity
     /// The row it opened beside, and how far the list was scrolled then.
@@ -75,6 +76,15 @@ struct AsksPanel {
 
     /// Whether an answer is held, when it takes no other.
     var isHolding: Bool { held != nil }
+
+    /// Whether its asks slide, under the fingers or settling, when nothing on it takes a press but a dot.
+    var isSliding: Bool { slide.isMoving }
+
+    /// Whether fingers on the trackpad carry its asks, when not even a dot takes a press.
+    var isFollowing: Bool { slide.isFollowing }
+
+    /// Whether a trackpad's swipe across it is under way, whose every scroll is its until it ends.
+    var isSwiping: Bool { swipe.isAcross }
 
     /// A row's session's asks the asks panel answers, those whose answers went aside: none but a Needs you row's.
     func asks(of session: Session, on board: PanelBoard) -> [PanelAsk] {
@@ -92,10 +102,12 @@ struct AsksPanel {
         }
 
         open = asks(of: session, on: board).first.map { Open(row: key, ask: $0.id, page: 0) }
+        slide.rest()
     }
 
     mutating func close() {
         open = nil
+        slide.rest()
     }
 
     /// The list scrolled this far: closed once that moves it more than `scrollMost` from where it was as it opened, as
@@ -131,22 +143,45 @@ struct AsksPanel {
 
         let page = asks.firstIndex { $0.id == open.ask } ?? min(open.page, asks.count - 1)
 
+        if page != open.page {
+            slide.rest()
+        }
         self.open = Open(row: open.row, ask: asks[page].id, page: page)
     }
 
-    /// At the ask on this page of its row's session's, where it has one (DESIGN, "Paging").
-    mutating func page(to page: Int, _ list: PanelList, _ board: PanelBoard) {
+    /// At the ask on this page of its row's session's, where it has one, sliding there (DESIGN, "Paging").
+    mutating func page(to page: Int, _ list: PanelList, _ board: PanelBoard, reducesMotion: Bool) {
         guard let open, let asks = asks(of: open.row, in: list, board), asks.indices.contains(page) else {
             return
         }
 
+        slide.slide(from: open.page, to: page, reducesMotion: reducesMotion)
         self.open = Open(row: open.row, ask: asks[page].id, page: page)
     }
 
-    /// A scroll on it: a horizontal swipe's gesture steps to the next ask or the previous one, once (`AsksSwipe`).
-    mutating func swiped(_ scroll: Scroll, at time: Double, _ list: PanelList, _ board: PanelBoard) {
-        if let step = swipe.step(scroll, at: time), let open {
-            page(to: open.page + step, list, board)
+    /// A scroll on it at this time (`AsksSwipe`): a trackpad's swipe across slides its asks with the fingers, and on
+    /// their lift completes to the ask beside, or springs back; a wheel's steps to the next ask or the previous one,
+    /// sliding there.
+    mutating func swiped(
+        _ scroll: Scroll, at time: Double, _ list: PanelList, _ board: PanelBoard, reducesMotion: Bool
+    ) {
+        guard let move = swipe.move(scroll, at: time), let open,
+              let pages = asks(of: open.row, in: list, board)?.count
+        else {
+            return
+        }
+
+        switch move {
+        case let .follow(travel):
+            slide.follow(travel, at: time, page: open.page, of: pages, reducesMotion: reducesMotion)
+        case .lift:
+            if let step = slide.lift(at: time, page: open.page, of: pages, reducesMotion: reducesMotion) {
+                page(to: open.page + step, list, board, reducesMotion: reducesMotion)
+            }
+        case .cancel:
+            slide.cancel(reducesMotion: reducesMotion)
+        case let .step(step):
+            page(to: open.page + step, list, board, reducesMotion: reducesMotion)
         }
     }
 
@@ -184,6 +219,7 @@ struct AsksPanel {
     mutating func place(
         on ground: AsksGround, pointer: CGPoint?, at time: Double, layout: (PanelAsk) -> AsksLayout
     ) {
+        slide.run(to: time)
         shown = placed(on: ground, pointer: pointer, layout: layout)
         if opened?.row != shown?.row {
             opened = shown.map { ($0.row, ground.scroll) }
@@ -268,16 +304,25 @@ struct AsksPanel {
             return nil
         }
 
-        let ask = page.asks[open.page], laid = layout(ask)
+        let ask = page.asks[open.page], session = page.session.id
         let rowTop = panel.frame.minY + ground.list.content.laidFrame(page.index).minY - ground.scroll
-        let frame = laid.frame(besideRowAt: rowTop, front: panel.frame.maxX, on: ground.stage)
-        let sending = held.flatMap { Sending($0, to: ask, of: page.session.id) }
         var shown = AsksShown(
-            row: open.row, session: page.session, ask: ask, page: open.page, pages: page.asks.count, layout: laid,
-            frame: frame, sending: sending, hover: nil
+            row: open.row, session: page.session, ask: ask, page: open.page, pages: page.asks.count,
+            layout: layout(ask), frame: .zero, sending: held.flatMap { Sending($0, to: ask, of: session) }, hover: nil,
+            slid: slide.offset
         )
 
-        shown.hover = pointer.flatMap { Self.part(of: shown, at: $0, mirror: ground.mirror, holding: isHolding) }
+        if let beside = slide.beside, page.asks.indices.contains(beside) {
+            let ask = page.asks[beside]
+
+            shown.beside = AsksShown.Beside(
+                page: beside, ask: ask, layout: layout(ask), sending: held.flatMap { Sending($0, to: ask, of: session) }
+            )
+        }
+        shown.stand(besideRowAt: rowTop, front: panel.frame.maxX, on: ground.stage)
+        if !isSliding {
+            shown.hover = pointer.flatMap { Self.part(of: shown, at: $0, mirror: ground.mirror, holding: isHolding) }
+        }
         return shown
     }
 

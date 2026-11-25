@@ -7,7 +7,10 @@ import SitRepPanel
 /// and project and its page dots; the ask's title and its age; its answers' rows, Claude's pick first in lilac, none
 /// for an ask Lee answers in Claude; and its foot, Ignore, Snooze ▾ and Open in Claude, or, while an answer of its ask
 /// is held, the sending line, its ring counting down the two seconds and Undo. It appears at once, as a Mac submenu
-/// does, and is drawn again only as what it shows changes; a frame moves it with its row.
+/// does, and is drawn again only as what it shows changes; a frame moves it with its row. As its asks slide (DESIGN,
+/// "Paging"), the ask's own page, its title, age and answers, slides across with the ask beside it, clipped to its
+/// shape; its frame, its top line and its foot stay, its dots and its height following the slide, its foot at its
+/// bottom.
 @MainActor
 final class AsksPanelLayer {
     let layer = CALayer()
@@ -16,6 +19,24 @@ final class AsksPanelLayer {
     /// What it was last drawn from beyond `shown`: the edge it opens from, and its ask's age as worded.
     private var drawnFor: (pointsLeft: Bool, asked: String)?
     private var scale: CGFloat = 1
+    /// What of the parts last drawn moves as its asks slide.
+    private var sliding: Sliding?
+
+    /// What moves as its asks slide: its shadows, its black and its hairline, as tall as it is; its page dots; its
+    /// asks' pages across, clipped to its shape, the ask shown's and the one beside it; and its foot at its bottom,
+    /// over a band of its black the pages pass under, the foot of the ask beside cross-fading with it where the two
+    /// differ, as a sending line does from a foot.
+    private struct Sliding {
+        let shadows: [CALayer]
+        let grounds: [CALayer]
+        let dots: CALayer
+        let clip: CALayer
+        let page: CALayer
+        let beside: CALayer?
+        let band: CALayer
+        let foot: CALayer
+        let besideFoot: CALayer?
+    }
 
     init() {
         layer.isHidden = true
@@ -39,11 +60,37 @@ final class AsksPanelLayer {
         layer.isHidden = false
         layer.frame = asks.frame.applying(mirror)
         if asks.unplaced != shown?.unplaced || drawnFor?.pointsLeft != pointsLeft || drawnFor?.asked != asked {
-            layer.sublayers = Self.parts(of: asks, pointsLeft: pointsLeft, now: now)
+            let parts = Self.parts(of: asks, pointsLeft: pointsLeft, now: now)
+
+            layer.sublayers = parts.layers
+            sliding = parts.sliding
             rescale(layer, to: scale)
         }
+        sliding.map { Self.slide($0, as: asks) }
         shown = asks
         drawnFor = (pointsLeft, asked)
+    }
+
+    /// What moves as its asks slide, moved as far as they have: its ground as tall as it is, its ask's page and the
+    /// one beside it across, its foot at its bottom, faded as far as a foot beside it has come in, and its dots.
+    private static func slide(_ sliding: Sliding, as asks: AsksShown) {
+        let bounds = CGRect(origin: .zero, size: asks.frame.size), height = bounds.height
+        let band = asks.layout.height - asks.layout.foot.minY + AsksLayout.between
+
+        for ground in sliding.grounds + [sliding.clip] {
+            ground.frame = bounds
+        }
+        for shadow in sliding.shadows {
+            shadow.shadowPath = outline(bounds)
+        }
+        sliding.page.frame.origin.x = -asks.slid
+        sliding.beside?.frame.origin.x = (asks.slid < 0 ? -1 : 1) * AsksLayout.width - asks.slid
+        sliding.band.frame = CGRect(x: 0, y: height - band, width: bounds.width, height: band)
+        sliding.foot.frame.origin.y = height - asks.layout.height
+        sliding.foot.opacity = sliding.besideFoot == nil ? 1 : Float(1 - asks.share)
+        sliding.besideFoot?.frame.origin.y = height - (asks.beside?.layout.height ?? 0)
+        sliding.besideFoot?.opacity = Float(asks.share)
+        sliding.dots.sublayers = dots(asks)
     }
 
     func rescaled(to scale: CGFloat) {
@@ -51,23 +98,56 @@ final class AsksPanelLayer {
         rescale(layer, to: scale)
     }
 
-    /// Everything it draws, from the back: its shadows, its black, and over it its words and rows.
-    private static func parts(of asks: AsksShown, pointsLeft: Bool, now: Double) -> [CALayer] {
-        let size = asks.layout.size
+    /// Everything it draws, from the back: its shadows, its black, its top line and its dots, its asks' pages and its
+    /// foot over them, and its hairline over all, so a page sliding past its edge never covers it; and what of them
+    /// moves as its asks slide. The ask beside has a foot of its own only where it differs, one of the two sending.
+    private static func parts(
+        of asks: AsksShown, pointsLeft: Bool, now: Double
+    ) -> (layers: [CALayer], sliding: Sliding) {
+        let shadows = Self.shadows(pointsLeft: pointsLeft), body = Self.body(), rim = Self.rim()
+        let dots = CALayer(), clip = CALayer()
+        let beside = asks.shownBeside, band = rounded(.zero, 0, fill: EdgeStyle.black)
+        let differs = asks.sending != nil || beside?.sending != nil
+        let sliding = Sliding(
+            shadows: shadows, grounds: shadows + [body, rim], dots: dots, clip: clip, page: page(asks, at: now),
+            beside: beside.map { page($0, at: now) }, band: band, foot: footLayer(asks, at: now),
+            besideFoot: differs ? beside.map { footLayer($0, at: now) } : nil
+        )
 
-        return Self.shadows(size, pointsLeft: pointsLeft) + [body(size)] + top(asks) + ask(asks, at: now)
-            + asks.layout.answers.indices.map { answer($0, of: asks) } + foot(asks, at: now)
+        clip.cornerRadius = AsksLayout.radius
+        clip.masksToBounds = true
+        clip.sublayers = [sliding.page] + [sliding.beside, band, sliding.besideFoot, sliding.foot].compactMap { $0 }
+        return (shadows + [body] + top(asks) + [dots, clip, rim], sliding)
+    }
+
+    /// An ask's page, as wide as it and as tall as its ask: its title and age, and its answers' rows.
+    private static func page(_ asks: AsksShown, at now: Double) -> CALayer {
+        let page = CALayer()
+
+        page.frame = CGRect(origin: .zero, size: asks.layout.size)
+        page.sublayers = ask(asks, at: now) + asks.layout.answers.indices.map { answer($0, of: asks) }
+        return page
+    }
+
+    /// An ask's foot, in a layer as big as its ask, for its foot to stand at its bottom however tall it is.
+    private static func footLayer(_ asks: AsksShown, at now: Double) -> CALayer {
+        let foot = CALayer()
+
+        foot.frame = CGRect(origin: .zero, size: asks.layout.size)
+        foot.sublayers = Self.foot(asks, at: now)
+        return foot
+    }
+
+    /// Its outline in its own frame, its corners rounded.
+    private static func outline(_ bounds: CGRect) -> CGPath {
+        CGPath(roundedRect: bounds, cornerWidth: AsksLayout.radius, cornerHeight: AsksLayout.radius, transform: nil)
     }
 
     /// Its two shadows (`AsksShadow`), each a black of its shape casting it, under the body.
-    private static func shadows(_ size: CGSize, pointsLeft: Bool) -> [CALayer] {
+    private static func shadows(pointsLeft: Bool) -> [CALayer] {
         AsksShadow.casts(pointsLeft: pointsLeft).map { cast in
-            let shadow = rounded(CGRect(origin: .zero, size: size), AsksLayout.radius, fill: EdgeStyle.black)
+            let shadow = rounded(.zero, AsksLayout.radius, fill: EdgeStyle.black)
 
-            shadow.shadowPath = CGPath(
-                roundedRect: shadow.bounds, cornerWidth: AsksLayout.radius, cornerHeight: AsksLayout.radius,
-                transform: nil
-            )
             shadow.shadowColor = EdgeStyle.black
             shadow.shadowOpacity = Float(cast.opacity)
             shadow.shadowRadius = cast.radius
@@ -76,25 +156,46 @@ final class AsksPanelLayer {
         }
     }
 
-    private static func body(_ size: CGSize) -> CALayer {
-        let body = rounded(CGRect(origin: .zero, size: size), AsksLayout.radius, fill: EdgeStyle.black)
-
-        body.borderWidth = 1
-        body.borderColor = EdgeStyle.asksBorder
-        return body
+    private static func body() -> CALayer {
+        rounded(.zero, AsksLayout.radius, fill: EdgeStyle.black)
     }
 
-    /// The top line: the session's name and its project faint; and its page dots, the current one orange.
+    /// Its hairline, white at 15%.
+    private static func rim() -> CALayer {
+        let rim = rounded(.zero, AsksLayout.radius, fill: nil)
+
+        rim.borderWidth = 1
+        rim.borderColor = EdgeStyle.asksBorder
+        return rim
+    }
+
+    /// The top line's words: the session's name and its project faint.
     private static func top(_ asks: AsksShown) -> [CALayer] {
         let top = AsksPanelParts.top(asks)
-        let dots = top.dots.map { dot in
-            rounded(dot.box, AsksPanelParts.dotRadius, fill: dot.isCurrent ? EdgeStyle.orange : EdgeStyle.dot)
-        }
 
         return [
             TextLine(TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink), in: top.name),
             TextLine(TextLine.text(asks.session.project, EdgeStyle.sub, EdgeStyle.ink3), in: top.project),
-        ] + dots
+        ]
+    }
+
+    /// Its page dots as far as its asks have slid, the current one orange, and as the wide one passes to the next,
+    /// each as orange as it is current.
+    private static func dots(_ asks: AsksShown) -> [CALayer] {
+        AsksPanelParts.dots(asks).map { dot in
+            rounded(dot.box, AsksPanelParts.dotRadius, fill: blend(EdgeStyle.dot, EdgeStyle.orange, dot.current))
+        }
+    }
+
+    /// A colour this share of the way to another, in the first's colour space.
+    private static func blend(_ from: CGColor, _ to: CGColor, _ share: Double) -> CGColor {
+        guard let space = from.colorSpace, let ends = from.components, let others = to.converted(
+            to: space, intent: .defaultIntent, options: nil
+        )?.components, ends.count == others.count else {
+            return share < 0.5 ? from : to
+        }
+
+        return CGColor(colorSpace: space, components: zip(ends, others).map { $0 + ($1 - $0) * share }) ?? to
     }
 
     /// The ask's title, wrapped to its lines, and under it how long ago it was asked.

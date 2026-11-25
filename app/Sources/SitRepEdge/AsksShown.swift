@@ -18,8 +18,47 @@ public struct AsksShown: Equatable, Sendable {
     public private(set) var frame: CGRect
     /// The answer held for its ask, counting down; nil while none is.
     public let sending: Sending?
-    /// What the pointer is on, where it takes a click.
+    /// What the pointer is on, where it takes a click: nothing while it slides.
     public internal(set) var hover: AsksPart?
+    /// How far, pt, its ask stands slid from its place as the asks page (`AsksSlide`): toward the next ask as it
+    /// grows, the ask beside sliding in on that side.
+    public internal(set) var slid = 0.0
+    /// The ask beside its own as it slides, sliding in or out on the side it is slid toward; nil at rest, or past the
+    /// first or the last ask.
+    public internal(set) var beside: Beside?
+
+    /// An ask beside the one shown as the asks slide: its page among the session's, laid out, the answer held for it.
+    public struct Beside: Equatable, Sendable {
+        public let page: Int
+        public let ask: PanelAsk
+        public let layout: AsksLayout
+        public let sending: Sending?
+    }
+
+    /// How far its ask has slid of the way to the ask beside, from 0 at rest to 1 as the ask beside takes its place.
+    public var share: Double { beside == nil ? 0 : min(1, abs(slid) / AsksLayout.width) }
+
+    /// Where its page dots stand as it slides: its page, a share of the way to the page beside.
+    public var progress: Double { Double(page) + Double((beside?.page ?? page) - page) * share }
+
+    /// How tall it is as it slides, from its ask's height toward the ask beside's.
+    var height: Double { layout.height + ((beside?.layout.height ?? layout.height) - layout.height) * share }
+
+    /// The ask beside as a showing of its own at rest, nothing under the pointer, for a drawing to draw its page as it
+    /// draws the ask shown.
+    public var shownBeside: AsksShown? {
+        beside.map { beside in
+            AsksShown(
+                row: row, session: session, ask: beside.ask, page: beside.page, pages: pages, layout: beside.layout,
+                frame: CGRect(origin: .zero, size: beside.layout.size), sending: beside.sending, hover: nil
+            )
+        }
+    }
+
+    /// Stood beside its row, as tall as it is as it slides (`AsksLayout.frame`).
+    mutating func stand(besideRowAt rowTop: Double, front: Double, on stage: Stage) {
+        frame = layout.frame(besideRowAt: rowTop, front: front, on: stage, height: height)
+    }
 
     /// Whether a point on the stage is on it, its corners rounded.
     public func contains(_ point: CGPoint) -> Bool {
@@ -34,12 +73,13 @@ public struct AsksShown: Equatable, Sendable {
         return CGPoint(x: at.x - drawn.minX, y: at.y - drawn.minY)
     }
 
-    /// The same showing at the stage's corner: what it draws, wherever it stands, for a drawing to tell whether it
-    /// draws alike.
+    /// The same showing at the stage's corner at rest: what its parts draw, wherever it stands and however far it has
+    /// slid, for a drawing to tell whether they draw alike.
     public var unplaced: AsksShown {
         var unplaced = self
 
-        unplaced.frame.origin = .zero
+        unplaced.frame = .zero
+        unplaced.slid = 0
         return unplaced
     }
 }

@@ -7,33 +7,39 @@ import SitRepPanel
 /// answer's check, and the pills' words.
 @MainActor
 enum AsksPanelParts {
-    /// The top line: the session's name, kept whole first, 8 before its project; and its page dots at its right where
-    /// the session has more than one ask, the current one wide.
+    /// The top line's words: the session's name, kept whole first, 8 before its project, which ends before its page
+    /// dots (`dots`).
     struct Top {
         let name: CGRect
         let project: CGRect
-        let dots: [Dot]
     }
 
+    /// A page dot, and how much of the current one it is, 1 for the ask shown at rest, passing to the next as its
+    /// asks slide.
     struct Dot {
         let box: CGRect
-        let isCurrent: Bool
+        let current: Double
     }
 
     static func top(_ asks: AsksShown) -> Top {
         let box = asks.layout.top, line = AsksLayout.textLine, gap = 8.0, y = box.midY - line / 2
-        let dots = asks.layout.dots(page: asks.page, of: asks.pages).enumerated().map { index, box in
-            Dot(box: box, isCurrent: index == asks.page)
-        }
-        let room = (dots.first.map { $0.box.minX - gap } ?? box.maxX) - box.minX
+        let firstDot = asks.layout.dots(page: asks.page, of: asks.pages).first
+        let room = (firstDot.map { $0.minX - gap } ?? box.maxX) - box.minX
         let whole = TextLine.width(TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink))
         let projectX = box.minX + min(whole, room) + gap
 
         return Top(
             name: CGRect(x: box.minX, y: y, width: min(whole + Self.slack, room), height: line),
-            project: CGRect(x: projectX, y: y, width: max(0, box.minX + room - projectX), height: line),
-            dots: dots
+            project: CGRect(x: projectX, y: y, width: max(0, box.minX + room - projectX), height: line)
         )
+    }
+
+    /// The page dots at the top line's right where the session has more than one ask, the current one wide, as far as
+    /// its asks have slid: their run as long throughout, so the words before them never move.
+    static func dots(_ asks: AsksShown) -> [Dot] {
+        asks.layout.dots(at: asks.progress, of: asks.pages).enumerated().map { index, box in
+            Dot(box: box, current: AsksLayout.nearness(of: index, to: asks.progress))
+        }
     }
 
     /// Room past words set whole in a box as wide as Core Text sets them, which SwiftUI may set a hair wider and cut.

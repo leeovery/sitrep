@@ -5,11 +5,11 @@ import SitRepPanel
 
 /// The notch on its display: it runs the notch (`NotchRun`), in the style Lee chose, a frame per display refresh with
 /// the pointer, the time and the board's rows, and draws what each gives back. Frames run only while something moves:
-/// the model, a row folding, the ghost. A pointer resting anywhere moves nothing; the mouse monitors wake the frames as
-/// it moves near the notch, or anywhere while the panel is out (`Frame.wakes`). While idle it costs nothing, but for
-/// the light, which breathes on a slow refresh of its own while something needs Lee (under reduced motion it holds
-/// still, and the refresh runs only while a new ask brightens it), and the open panel's times, drawn again as they
-/// change. Whatever comes between frames, a board or Lee's hand, goes to the run,
+/// the model, a row folding, the ghost, the asks panel's asks sliding. A pointer resting anywhere moves nothing; the
+/// mouse monitors wake the frames as it moves near the notch, or anywhere while the panel is out (`Frame.wakes`).
+/// While idle it costs nothing, but for the light, which breathes on a slow refresh of its own while something needs
+/// Lee (under reduced motion it holds still, and the refresh runs only while a new ask brightens it), and the open
+/// panel's times, drawn again as they change. Whatever comes between frames, a board or Lee's hand, goes to the run,
 /// which brings the notch up to now first; each is drawn, and frames show what it did.
 @MainActor
 final class NotchController: NSObject, CalloutShape {

@@ -9,9 +9,9 @@ import Testing
 
 /// The row's arrow and the asks panel, drawn by the real run into the real surface at the README desktop's left edge,
 /// to read beside Paper's boards E2, F, H3 and A2: the pointer on a Needs you row's words, then on its arrow; the asks
-/// panel on a session's choice, and on a words ask; and an answer sending, its countdown under way; and a choice whose
-/// pick wraps to two lines, the pointer off it and on it. Only when `SITREP_STILLS` names a folder for them, so a run
-/// of the tests writes nothing.
+/// panel on a session's choice, and on a words ask; and an answer sending, its countdown under way; a choice whose
+/// pick wraps to two lines, the pointer off it and on it; and a choice mid-swipe, the yes beside it sliding in. Only
+/// when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing.
 @MainActor
 @Suite(.backstop, .enabled(if: stills != nil))
 struct AsksPanelStillsTests {
@@ -93,6 +93,24 @@ struct AsksPanelStillsTests {
 
         try Self.open(Self.onboarding, run)
         try Self.shoot(run, pointer: try Self.onAnswer(0, run), as: "7-asks-pick-hover")
+    }
+
+    /// Help desk redesign's choice slid 150 points toward its yes under two fingers still on the trackpad, both asks
+    /// showing.
+    @Test
+    func theAsksPanelMidSwipe() throws {
+        let run = try Self.opened()
+
+        try Self.open(Self.helpDesk, run)
+
+        let title = try Self.onTitle(run)
+        let scrolls = [Scroll(down: 0, phase: .began)]
+            + Array(repeating: Scroll(down: 0, along: 5, phase: .changed), count: 30)
+
+        for scroll in scrolls {
+            run.scroll(scroll, NotchRun.Moment(time: run.time + Self.frameMS, pointer: title, setting: Self.setting))
+        }
+        try Self.shoot(run, pointer: title, as: "8-asks-mid-swipe")
     }
 
     // MARK: The run

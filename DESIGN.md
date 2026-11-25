@@ -6430,23 +6430,66 @@ the dots only showed which ask was on screen). Paging is no answer: the
 300ms beat after the ask changes holds for an answer row, Ignore, Snooze
 ▾ and Undo as for any change, and an answer held stays held, its Undo
 with its ask.
-- **A click on a dot** shows its ask, at once, beat or none: a dot pages
-  the same whatever ask shows, so clicks from dot to dot in quick
-  succession each land (the review, 25 November 2026). Each dot takes the clicks nearest
-  it across the dots and 6 points past each end, the top line's whole
-  height, so a dot 5 wide is no target to aim at.
-- **A horizontal swipe** of two fingers on the asks panel, or a mouse's
-  horizontal scroll, steps to the next ask or the previous one, one ask a
-  gesture, once it has gone 12 points across, more across than down. The
-  asks lie left to right, as their dots do, and the scroll goes the way
-  the Mac scrolls anything sideways: with natural scrolling, fingers moving
-  left show the next, as swiping between pages in Safari does. Nothing
-  wraps: past the last ask, or before the first, a swipe does nothing.
+- **A click on a dot** shows its ask, beat or none: a dot pages the same
+  whatever ask shows, so clicks from dot to dot in quick succession each
+  land (the review, 25 November 2026), during a slide's settle too. Each
+  dot takes the clicks nearest it across the dots and 6 points past each
+  end, the top line's whole height, so a dot 5 wide is no target to aim
+  at. Its ask slides in as a completed swipe's does (below), the ask it
+  leaves sliding out on the other side, however many asks lie between.
+- **A horizontal swipe** of two fingers on the asks panel follows the
+  fingers, as the Mac's swipe between Spaces does (Lee, 25 November 2026,
+  after his second live try; until then a swipe stepped once it had gone
+  12 points across, and the ask changed at once). The asks lie left to
+  right, as their dots do, and the scroll goes the way the Mac scrolls
+  anything sideways: with natural scrolling, fingers moving left bring in
+  the next, as swiping between pages in Safari does. A gesture takes hold
+  once it has gone 6 points, more across than down; more down than
+  across, it is no swipe.
+  - **As the fingers move,** the ask slides with them, a point for a
+    point, and the ask beside it slides in from that side, both clipped
+    to the asks panel's shape; never further than one ask a gesture. What
+    slides is what differs from ask to ask: the title and age, and the
+    answers. The frame, the top line and the foot stay. The top line is
+    the session's, the same for every ask, and its dots follow the slide,
+    the wide orange one passing to the next as it goes. The asks panel's
+    height follows the slide from one ask's height to the other's, and
+    the foot stays at its bottom, over a band of the black as tall as the
+    foot and the gap above it, which the taller ask's answers pass under.
+    The foot stays because its Ignore, Snooze ▾ and Open in Claude are the
+    same for every ask: slid with its ask, the taller ask's foot was cut
+    off at the bottom as the height closed in, the shorter's left black
+    under it (the first build's still, 25 November 2026). Only a sending
+    line differs, an answer held for one of the two asks: it cross-fades
+    with the other ask's foot as the slide goes.
+  - **On the lift,** the ask beside completes its slide past a third of
+    the asks panel's width, 124 points, or on a flick toward it faster
+    than 0.5 points a millisecond, the fingers' speed over their last
+    100ms; else the ask springs back, as it does on a flick the other way
+    however far it went, and on a cancelled gesture. The settle is
+    critically damped, as SwiftUI's spring of response 0.3 seconds and
+    damping 1, within half a Retina pixel of its place in under half a
+    second from a whole ask away: it takes up the fingers' speed, held to
+    what it can take without passing its place, and never overshoots, so
+    no third ask shows. A swipe during the settle takes the slide from
+    where it stands.
+  - **Past the first or the last ask** it rubber-bands: it moves a share
+    of the fingers' travel, the share shrinking as they go, as a Mac
+    scroll view's edge does, and springs back on the lift. Nothing wraps.
+  - The ask changes at the lift that completes it, and the 300ms beat
+    starts there. During a drag or the settle nothing on it lights under
+    the pointer, and a press lands on nothing, but for a dot during the
+    settle (above).
   - A trackpad's gesture runs from its fingers' first touch to their lift
     (the scroll's phases); its momentum after is no gesture, so a flick
     takes no second step.
-  - A mouse's wheel has no phases: its scrolls are one gesture until 300ms
-    pass with none.
+- **A mouse's horizontal scroll** has no lift to follow, as its wheel has
+  no phases: it steps to the next ask or the previous one once it has gone
+  12 points across, more across than down, one ask a gesture, its scrolls
+  one gesture until 300ms pass with none. Its step slides as a dot's does.
+- **Under Reduce motion** nothing slides: the ask stays still under the
+  fingers, and a completed swipe, a dot or a wheel's step shows the other
+  ask at once, its dots and height with it.
 
 **Answering, with two seconds to undo.** A click on an answer row turns it
 white: a white fill, its words in ink, Claude's pick's tag in ink at half,

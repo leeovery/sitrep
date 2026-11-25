@@ -123,9 +123,9 @@ public final class NotchRun: Framed {
     private var laid: Laid
     /// The asks panel: where it is open, the answer held, and the asks answered.
     var asking = AsksPanel()
-    /// How the drawing sets the asks panel's words, and the ask it last laid out.
+    /// How the drawing sets the asks panel's words, and the asks it last laid out.
     let measure: AsksMeasure
-    var laidOut: (ask: PanelAsk, offersSnooze: Bool, layout: AsksLayout)?
+    var laidOut: [(ask: PanelAsk, offersSnooze: Bool, layout: AsksLayout)] = []
 
     /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
     /// time zone, followed as it changes (`WakeTime.calendar`), and the asks panel's words as `measure` sets them.
@@ -342,15 +342,15 @@ public final class NotchRun: Framed {
         notch.jumpAnswered()
     }
 
-    /// A scroll: over the asks panel, a horizontal swipe pages it (`AsksPanel.swiped`); anywhere else, the content
-    /// scrolled down by it (`scroll(by:)`).
+    /// A scroll: over the asks panel, or in a swipe across it under way, a horizontal swipe pages it
+    /// (`AsksPanel.swiped`); anywhere else, the content scrolled down by it (`scroll(by:)`).
     public func scroll(_ scroll: Scroll, _ moment: Moment) {
-        guard isOnAsks(moment.pointer) else {
+        guard isOnAsks(moment.pointer) || asking.isSwiping else {
             return self.scroll(by: scroll.down, moment)
         }
 
         upToNow(moment)
-        asking.swiped(scroll, at: time, list, board)
+        asking.swiped(scroll, at: time, list, board, reducesMotion: moment.setting.reducesMotion)
         placeAsks(in: moment.setting)
     }
 
@@ -378,10 +378,11 @@ public final class NotchRun: Framed {
         folds.isMoving(at: time)
     }
 
-    /// Whether frames must keep coming at this time, though the pointer is still: the notch moves, a row folds, or the
-    /// way to the asks panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`).
+    /// Whether frames must keep coming at this time, though the pointer is still: the notch moves, a row folds, the
+    /// way to the asks panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`), or its
+    /// asks slide, under the fingers or settling (`AsksSlide`).
     public func needsFrames(at time: Double) -> Bool {
-        frame.isMoving || isFolding(at: time) || asking.isFindingWay
+        frame.isMoving || isFolding(at: time) || asking.isFindingWay || asking.isSliding
     }
 
     /// When, after this wall time, the first of the shown rows' times, or a wake's countdown, next reads differently,

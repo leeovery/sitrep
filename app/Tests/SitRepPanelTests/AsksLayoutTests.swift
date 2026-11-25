@@ -6,8 +6,9 @@ import Testing
 /// Where the asks panel lays out an ask, as Paper's boards F and H3 have it: 12 over its top line of 28, 14 between
 /// its parts, the title's lines of 22 and the age's 16 under it, answers' rows six apart, each 38 or as tall as its
 /// two lines of 18 with 9 above and below, the foot's 28 and 14 under it; a words ask's foot straight under its age;
-/// Snooze ▾ only while Snooze offers a time; the page dots and the clicks each takes; what else takes a click; where it
-/// stands beside its row, kept on the screen; and the row's arrow.
+/// Snooze ▾ only while Snooze offers a time; the page dots, following a slide, and the clicks each takes; what else
+/// takes a click; where it stands beside its row, kept on the screen, at the height a slide gives it; and the row's
+/// arrow.
 @Suite(.backstop)
 struct AsksLayoutTests {
     private static let measure = AsksMeasure(titleLines: { _ in 1 }, footWidth: { Double($0.count) * 7 })
@@ -127,6 +128,20 @@ struct AsksLayoutTests {
         #expect(layout.dots(page: 1, of: 3).allSatisfy { $0.midY == top.midY && $0.height == 5 })
     }
 
+    /// As the asks slide, the dots follow: each as wide as it is near the slide's progress, the wide one passing to
+    /// the next, their run as long throughout, so the words before it never move.
+    @Test func theDotsFollowASlide() {
+        let layout = AsksLayout(Self.choice, measure: Self.measure), top = layout.top
+        let quarter = layout.dots(at: 1.25, of: 3)
+
+        // 5 and 9 of the 14's extra for three quarters of it, and for a quarter
+        #expect(quarter.map(\.width) == [5, 11.75, 7.25])
+        #expect(quarter.first?.minX == top.maxX - 32)
+        #expect(quarter.last?.maxX == top.maxX)
+        #expect(layout.dots(at: 2, of: 3) == layout.dots(page: 2, of: 3))
+        #expect(AsksLayout.nearness(of: 0, to: 1.25) == 0 && AsksLayout.nearness(of: 2, to: 1.75) == 0.75)
+    }
+
     /// Each dot takes the clicks nearest it, across the dots and 6 past either end, down the top line's whole 28: a
     /// click between two goes to the nearer, and one past the reach, or on the name, to none. Held or not.
     @Test(arguments: [false, true])
@@ -158,6 +173,18 @@ struct AsksLayoutTests {
 
         #expect(layout.frame(besideRowAt: 900, front: 372, on: Self.stage).maxY == lowest)
         #expect(layout.frame(besideRowAt: 20, front: 372, on: Self.stage).minY == highest)
+    }
+
+    /// As tall as a slide between two asks has come, it stands where it would, kept on the screen at that height.
+    @Test func slidingItStandsAtTheHeightTheSlideGivesIt() {
+        let layout = AsksLayout(Self.choice, measure: Self.measure)
+        let lowest = CGFloat(Self.stage.visibleBottom - AsksLayout.spare)
+
+        #expect(
+            layout.frame(besideRowAt: 300, front: 400, on: Self.stage, height: 200)
+                == CGRect(x: 392, y: 288, width: 372, height: 200)
+        )
+        #expect(layout.frame(besideRowAt: 900, front: 372, on: Self.stage, height: 200).maxY == lowest)
     }
 
     @Test func theRowsArrowEnds3InFromItsRowOnItsMiddle() {
