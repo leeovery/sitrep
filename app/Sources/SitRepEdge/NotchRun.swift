@@ -190,7 +190,10 @@ public final class NotchRun: Framed {
             relist(at: time, in: setting)
         }
         restyle(input, to: setting.style)
+        let was = scroll
+
         scroll = frame.panel.map { list.content.scrolled(scroll, by: 0, showing: $0.frame.height) } ?? 0
+        asking.listShifted(by: scroll - was)
         asks.take(lastAsk: frame.light.lastAsk, simTime: frame.time, at: time)
         placeAsks(in: setting)
     }

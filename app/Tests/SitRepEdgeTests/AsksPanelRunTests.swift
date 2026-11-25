@@ -587,6 +587,31 @@ struct AsksPanelRunTests {
         }
     }
 
+    /// A pointer resting on the list, near its bottom edge, longer than the way's time, with no frames meanwhile,
+    /// then going slowly on its way to the last answer: the way's time counts from the move off the list, not from
+    /// the rest, so it keeps the panel open, on either notch and edge.
+    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
+    func aRestOnTheListBeforeTheWayLeavesItAllItsTime(_ style: NotchStyle, right: Bool) throws {
+        let setting = Self.setting(right: right, style: style)
+        let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
+        let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
+        let off = try Self.offBoth(run, from: from, to: to), panel = try #require(run.frame.panel)
+        let way = Self.way(from: from, to: to, at: off.length / (SafeTriangle.lasts - 60))
+        let edge = try #require(way.lastIndex { panel.contains($0) })
+
+        for point in way[...edge] {
+            run.step(Self.at(run, point, setting))
+        }
+        Self.asTheAppSteps(run, until: run.time + 2000, pointer: way[edge], setting)
+        #expect(!run.needsFrames(at: run.time))
+        run.step(NotchRun.Moment(time: run.time + 2 * SafeTriangle.lasts, pointer: way[edge + 1], setting: setting))
+        for point in way[(edge + 2)...] {
+            run.step(Self.at(run, point, setting))
+        }
+        Self.frames(run, for: 2000, to, setting)
+        #expect(run.phase == .open && run.asksShown?.hover == .answer(2))
+    }
+
     /// A pointer on the way that rests there, turns back the way it came, still in the triangle, or creeps on past
     /// the triangle's time is off the panel, and the panel closes as a leave closes it: a rest or a turn within the
     /// window it is judged over and a slow leave's grace, a creep within the triangle's time and that grace of leaving
@@ -744,23 +769,79 @@ struct AsksPanelRunTests {
         #expect(run.press(Self.at(run, resting, setting)) != nil)
     }
 
-    /// A scroll that moves the list more than a few points closes it, as a Mac menu's scroll closes its submenu; a few
-    /// points, as a sideways swipe's drift, leave it open, as does a scroll over it, which moves nothing.
+    /// The panel's spring snapping to rest, by a thousandth of a point, as a second placing at a frame's own time
+    /// steps it, is no move: a press then, at that time, is taken once the slide has long since settled.
+    @Test func aSpringsRestSnapIsNoMoveThoughTwoPlacingsShareATime() throws {
+        let setting = Self.setting()
+        let run = try Self.asksOpen(Self.shifts, setting, board: AsksBoard.board(without: ["k1", "k2"]))
+        let resting = try Self.part(.inClaude, run)
+        let now = { NotchRun.Moment(time: run.time, pointer: resting, setting: setting) }
+
+        Self.frames(run, for: AsksPanel.settle, resting, setting)
+        _ = run.show(AsksBoard.board(), Self.at(run, resting, setting))
+        for _ in 0 ..< 120 {
+            run.step(Self.at(run, resting, setting))
+
+            let was = try #require(run.asksShown).frame.minY
+
+            run.step(now())
+
+            let snap = abs(try #require(run.asksShown).frame.minY - was)
+
+            if snap > 0 {
+                #expect(snap < 0.01)
+                #expect(run.press(now()) != nil)
+                return
+            }
+        }
+        Issue.record("no spring snapped to rest at a frame's own time")
+    }
+
+    /// Scrolls that move the list more than a few points from where it was as it opened close it, as a Mac menu's
+    /// scroll closes its submenu, however many it takes; a few points, as a sideways swipe's drift, leave it open, as
+    /// does a scroll over it, which moves nothing.
     @Test func aScrollOfTheListClosesIt() throws {
-        let setting = Self.setting(stage: Stage(height: 360, visibleTop: 24, visibleBottom: 360, notchY: 180))
+        let setting = Self.setting(stage: Self.short)
         let run = try Self.asksOpen(Self.helpDesk, setting)
         let onIt = try Self.onAsks(run), onTheList = try Self.words(Self.helpDesk, run, setting)
 
         run.scroll(by: 40, Self.at(run, onIt, setting))
         #expect(run.scroll == 0 && run.asksShown != nil)
 
-        run.scroll(by: AsksPanel.scrollMost - 2, Self.at(run, onTheList, setting))
-        #expect(run.scroll == AsksPanel.scrollMost - 2 && run.asksShown != nil)
+        run.scroll(by: 6, Self.at(run, onTheList, setting))
+        #expect(run.scroll == 6 && run.asksShown != nil)
 
-        run.scroll(by: 40, Self.at(run, onTheList, setting))
-        #expect(run.scroll > AsksPanel.scrollMost)
+        run.scroll(by: 6, Self.at(run, onTheList, setting))
+        #expect(run.scroll == 12)
         #expect(run.asksShown == nil)
     }
+
+    /// The list shrinking under it, scrolled to its foot, moves the list with no scroll: a brush of a point after
+    /// leaves it open, as the list has moved only that point by a scroll since it opened.
+    @Test func theListKeptInViewAsItShrinksIsNoScrollOfIt() throws {
+        let setting = Self.setting(stage: Self.short), dataImport = "needs:\(AsksBoard.dataImport)"
+        let run = Self.opened(setting)
+
+        run.scroll(by: 1000, Self.at(run, try Self.words(Self.helpDesk, run, setting), setting))
+        Self.frames(run, for: 300, try Self.words(dataImport, run, setting), setting)
+        #expect(run.press(Self.at(run, try Self.arrow(dataImport, run, setting), setting)) == .asks)
+
+        let scrolled = run.scroll, onIt = try Self.onAsks(run)
+
+        _ = run.show(AsksBoard.board(without: ["k1", "k2"]), Self.at(run, onIt, setting))
+        Self.frames(run, for: 1000, onIt, setting)
+        #expect(run.scroll < scrolled - AsksPanel.scrollMost, "the list was never kept in view")
+        try #require(run.asksShown != nil)
+
+        let kept = run.scroll
+
+        run.scroll(by: -1, Self.at(run, try Self.words(dataImport, run, setting), setting))
+        #expect(run.scroll == kept - 1)
+        #expect(run.asksShown != nil)
+    }
+
+    /// A stage short enough that the list scrolls.
+    private static let short = Stage(height: 360, visibleTop: 24, visibleBottom: 360, notchY: 180)
 
     /// While one session's answer is held, another session's asks panel takes none and lights none: the answers
     /// take one at a time.

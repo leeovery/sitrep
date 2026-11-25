@@ -46,6 +46,29 @@ struct SafeTriangleTests {
         #expect(Self.way([(200, start), (199.6, start + 40), (200 - SafeTriangle.jitter * 1.5, later)]) == nil)
     }
 
+    /// Its time counts from the pointer moving off the list, however long it rested there first with no steps.
+    @Test func itsTimeCountsFromTheMoveOffTheList() {
+        var way = SafeTriangle()
+        var held: CGPath?
+
+        _ = way.holding(Self.onList, onList: true, toward: Self.asks, at: 0)
+        for at in stride(from: 1000.0, through: 1000 + SafeTriangle.lasts, by: 10) {
+            held = way.holding(CGPoint(x: 100 + (at - 990) / 3, y: 200), onList: false, toward: Self.asks, at: at)
+        }
+        #expect(held != nil)
+    }
+
+    /// The asks panel moving away from under the triangle while the pointer rests ends it, as a step out of it does.
+    @Test func aRestTheTriangleMovesFromUnderEndsIt() {
+        var way = SafeTriangle()
+        let resting = CGPoint(x: 150, y: 200), lower = Self.asks.offsetBy(dx: 0, dy: 300)
+
+        _ = way.holding(Self.onList, onList: true, toward: Self.asks, at: 0)
+        #expect(way.holding(resting, onList: false, toward: Self.asks, at: 10) != nil)
+        #expect(way.holding(resting, onList: false, toward: lower, at: 20) == nil)
+        #expect(!way.holds)
+    }
+
     @Test func aStepOutOfTheTriangleEndsIt() {
         var way = SafeTriangle()
 

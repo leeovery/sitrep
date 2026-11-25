@@ -10,14 +10,16 @@ import CoreGraphics
 struct SafeTriangle {
     /// Where the pointer last was on the list, and when.
     private var from: (point: CGPoint, time: Double)?
+    /// When the pointer moved off the list, which its time counts from.
+    private var left = 0.0
     /// The pointer's samples on the way, each with how far it was from the asks panel: the last one at or before
     /// `window` ago, and every one since; none while nothing holds it.
     private var samples: [(time: Double, point: CGPoint, distance: Double)] = []
 
-    /// How long, ms, the way holds after the pointer leaves the list. The longest way off both, from the right edge's
-    /// arrow at the row's far end to the last answer below a one-row list, is about 300pt: crossed at a deliberate
-    /// 0.75pt/ms, it takes 400ms. Longer adds nothing for a pointer on its way, since one resting or turning away is
-    /// off at once.
+    /// How long, ms, the way holds after the pointer moves off the list. The longest way off both, from the right
+    /// edge's arrow at the row's far end to the last answer below a one-row list, is about 300pt: crossed at a
+    /// deliberate 0.75pt/ms, it takes 400ms. Longer adds nothing for a pointer on its way, since one resting or
+    /// turning away is off at once.
     static let lasts = 400.0
     /// How long, ms, closing in is judged over, and a pointer rests before it is resting. A mouse reports at 125Hz or
     /// more and a trackpad at about 90Hz, so a pointer on its way gives several samples in it at any display's rate,
@@ -40,18 +42,20 @@ struct SafeTriangle {
             samples = []
             return nil
         }
-        guard let from, !samples.isEmpty || pointer != from.point, time - from.time <= Self.lasts else {
+        guard let from, !samples.isEmpty || pointer != from.point else {
             return forget()
         }
-
-        let triangle = Self.triangle(from.point, to: target)
-
+        // a rest on the list, with no steps, leaves `from` older than the move off it
         if samples.isEmpty {
-            samples = [(from.time, from.point, Self.distance(from.point, to: target))]
+            left = time
+            samples = [(max(from.time, time - Self.window), from.point, Self.distance(from.point, to: target))]
         }
 
-        let last = samples[samples.count - 1]
+        let triangle = Self.triangle(from.point, to: target), last = samples[samples.count - 1]
 
+        guard time - left <= Self.lasts, triangle.contains(pointer) else {
+            return forget()
+        }
         guard pointer != last.point else {
             return time - last.time <= Self.window ? triangle : forget()
         }
@@ -59,7 +63,7 @@ struct SafeTriangle {
         let distance = Self.distance(pointer, to: target)
         let then = samples.lastIndex { $0.time <= time - Self.window } ?? 0
 
-        guard triangle.contains(pointer), distance < samples[then].distance + Self.jitter else {
+        guard distance < samples[then].distance + Self.jitter else {
             return forget()
         }
 

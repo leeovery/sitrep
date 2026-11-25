@@ -56,7 +56,8 @@ struct AsksPanel {
                 return false
             }
 
-            let moved = hypot(place.x - was.place.x, place.y - was.place.y) > Self.settling * (time - was.time) / 1000
+            let moved = hypot(place.x - was.place.x, place.y - was.place.y)
+                > max(Self.snap, Self.settling * (time - was.time) / 1000)
 
             return was.ask != ask || (was.isSending && !isSending) || (pointerOn && moved)
         }
@@ -64,6 +65,8 @@ struct AsksPanel {
         /// How fast, pt/s, it moves as the panel's springs settle, which is no move: half a point a frame at 60Hz,
         /// where a row landing above slides it at up to 300.
         private static let settling = 30.0
+        /// How far, pt, a spring snaps as it comes to rest, which is no move, though two placings share a time.
+        private static let snap = 0.01
     }
 
     private var open: Open?
@@ -114,6 +117,12 @@ struct AsksPanel {
         if let opened, abs(scroll - opened.scroll) > Self.scrollMost {
             close()
         }
+    }
+
+    /// The list's scroll moved by this much with no scroll, kept within the list as it shrank: how far a scroll has
+    /// moved it since it opened stays as it was.
+    mutating func listShifted(by shift: Double) {
+        opened?.scroll += shift
     }
 
     /// How far, pt, the list scrolls under it before it closes: the few points of a sideways swipe's drift or a
