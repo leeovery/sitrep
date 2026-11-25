@@ -239,6 +239,12 @@ const answer: SessionCommand = {
         form: 'switch',
         about: `in place of an answer: ${USER.name} has seen it and won't act on it`,
       },
+      wants: {
+        field: 'wants',
+        form: 'one',
+        value: WANTS.join('|'),
+        about: `what the ask wanted as ${USER.name} saw it: refused if it now wants something else`,
+      },
       ...SESSION,
     },
   },

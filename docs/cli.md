@@ -112,7 +112,7 @@ Every word that isn't a flag goes into the title. Quote the title if it holds a 
 ## Other flags
 
 - **`status`** takes `--name`, `--summary`, `--now` and `--next`. Give `--now` once for each line under way: together they replace the whole list. `--now ""` empties it, and `--next ""` clears it.
-- **`answer`** takes the ask id, then the answer. For a yes, that is the word on its button, such as `Approve`. For a choice, it is one of the options. For a words ask, it is your words, on one line. Give `--ignore` in place of an answer to ignore any ask. A comment needs the Claude Code prompt. The answer goes into the session's inbox. The Claude Code window running that session sends it to Claude as your own message, now or once a window takes the session up.
+- **`answer`** takes the ask id, then the answer. For a yes, that is the word on its button, such as `Approve`. For a choice, it is one of the options. For a words ask, it is your words, on one line. `--ignore`, in place of an answer, ignores any ask. `--wants yes`, `choice` or `words` refuses an ask changed since you saw it. A comment needs the Claude Code prompt. The answer goes into the session's inbox. The session's Claude Code window sends it to Claude as your own message, now or once a window takes the session up.
 - **`snooze`** names every ask waiting on you in the session, so none is snoozed unseen. A session at your turn with no asks takes no ids. `--until <ms>` sets the wake time, in milliseconds since the epoch. Without it, the session sleeps until it moves. In the terminal view, `z` writes the same line, and its menu works out the time.
 - **`list`** shows the current sessions. Projects whose directory holds your current folder come first. `--project <name>` lists only that project.
 

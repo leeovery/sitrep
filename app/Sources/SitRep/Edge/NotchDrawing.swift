@@ -15,6 +15,9 @@ protocol NotchDrawing: NSView {
     /// These rows, by their keys, came new onto the board while the panel is out: each is washed orange from this
     /// time on the display's clock, ms.
     func wash(_ rows: Set<String>, at time: Double)
+    /// Where a box on the stage is drawn in the view, through the stage's layer as the last scene flipped it: what the
+    /// black and the light are drawn in. For the tests.
+    func onView(_ box: CGRect) -> CGRect
 }
 
 /// One frame as a drawing draws it.
@@ -32,6 +35,10 @@ struct NotchScene {
     let mirror: CGAffineTransform
     /// The calendar the rows' wake times are worded on, the run's.
     var calendar = WakeTime.calendar
+    /// The rows' arrows that show, by their rows' keys, each lit or not (`NotchRun.arrows`).
+    var arrows: [String: Bool] = [:]
+    /// The asks panel, while it is open.
+    var asks: AsksShown?
 }
 
 extension Frame.Panel {

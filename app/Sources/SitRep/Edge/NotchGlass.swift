@@ -6,7 +6,8 @@ import SwiftUI
 /// The notch in Liquid Glass, from macOS 26, Meniscus or Card alike: the notch and the panel in the very outline the
 /// black is drawn in, rebuilt from the model each frame, as thick glass from the notch at rest to the panel out, so
 /// the pour and the drain never change it at once; the panel's rows over it in the glass's label colours, needs you
-/// Claude's orange; and the Live light in the notch as on the black, over the glass. Takes no clicks itself.
+/// Claude's orange, with their arrows; the asks panel beside the list, in glass of its own; and the Live light in the
+/// notch as on the black, over the glass. Takes no clicks itself.
 @available(macOS 26, *)
 @MainActor
 final class NotchGlassView: NSView, NotchDrawing {
@@ -55,6 +56,7 @@ final class NotchGlassView: NSView, NotchDrawing {
     func show(_ scene: NotchScene) {
         self.scene.now = scene.now
         self.scene.calendar = scene.calendar
+        self.scene.depth = bounds.width
         self.scene.frame = scene
         still {
             // a layer turns about its centre, so the window's mirror is its flip alone
@@ -77,6 +79,13 @@ final class NotchGlassView: NSView, NotchDrawing {
     /// When each row's wash began, by its key.
     var washed: [String: Double] { scene.washed }
 
+    /// How deep the glass was made thick across at the last frame, as the view stood: internal only for the tests.
+    var depth: Double { scene.depth }
+
+    func onView(_ box: CGRect) -> CGRect {
+        stage.convert(box, to: stage.superlayer)
+    }
+
     private func rescaleToWindow() {
         if let scale = window?.backingScaleFactor {
             rescale(stage, to: scale)
@@ -96,6 +105,9 @@ final class NotchGlassScene {
     var calendar = WakeTime.calendar
     /// When each new row's wash began, on the display's clock, by the row's key.
     var washed: [String: Double] = [:]
+    /// How deep the window is at the last frame, wide while the asks panel is open: what the glass is made thick
+    /// across.
+    var depth = ScreenEdge.depth
 }
 
 /// The glass and the panel's content on it, in the window's own coordinates.
@@ -120,6 +132,16 @@ private struct NotchGlass: View {
                 if let panel = frame.panel {
                     GlassPanel(panel: panel, scene: shown, list: scene.list, washed: scene.washed)
                 }
+                if let asks = shown.asks {
+                    let box = asks.frame.applying(shown.mirror)
+
+                    GlassAsksPanel(
+                        asks: asks, pointsLeft: shown.mirror.a < 0, asked: asks.ask.askedText(at: shown.now),
+                        now: shown.now
+                    )
+                    .equatable()
+                    .offset(x: box.minX, y: box.minY)
+                }
             }
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
             .ignoresSafeArea()
@@ -135,7 +157,7 @@ private struct NotchGlass: View {
         let glass = Glass.regular.tint(mark.tint > 0 ? .black.opacity(mark.tint) : nil)
 
         return Color.clear
-            .glassEffect(glass, in: Outline(path: GlassThickness.thick(drawn.cgPath, width: ScreenEdge.depth)))
+            .glassEffect(glass, in: Outline(path: GlassThickness.thick(drawn.cgPath, width: scene.depth)))
             .overlay(alignment: .topLeading) {
                 if mark.rim > 0 {
                     Outline(path: drawn)
@@ -187,7 +209,10 @@ private struct GlassPanel: View {
             }
             ForEach(placed(content)) { placed in
                 let i = placed.index, itemBox = content.itemFrame(i), shows = content.entries[i].item
-                item(shows, lit: scene.hover == i, pressed: shows.key == panel.pressed, width: itemBox.width)
+                item(
+                    shows, lit: scene.hover == i || shows.key == scene.asks?.row, pressed: shows.key == panel.pressed,
+                    width: itemBox.width
+                )
                     .frame(width: itemBox.width, height: itemBox.height, alignment: .topLeading)
                     .clipped()
                     .painted(placed.paint, at: itemBox.origin)
@@ -214,7 +239,8 @@ private struct GlassPanel: View {
         case let .session(session), let .line(session):
             GlassSessionRow(
                 session: session, size: box.size, hovered: lit, pressed: pressed, now: scene.now, wash: wash(item.key),
-                calendar: scene.calendar
+                calendar: scene.calendar,
+                arrow: scene.arrows[item.key].map { SessionRow.Arrow(isLit: $0, pointsLeft: scene.mirror.a < 0) }
             )
             .offset(y: box.minY)
         case let .eyebrow(eyebrow):
@@ -255,7 +281,8 @@ private struct GlassHead: View {
 }
 
 /// A session's row on glass, on one line, laid out as the black's (board J): its mark, its title (`Session.headline`),
-/// a session's count after its name, its project in the tertiary at the right of its words, never cut, and its time.
+/// a session's count after its name, its project in the tertiary at the right of its words, never cut, and its time,
+/// or its arrow in the time's place while it shows.
 /// Under the pointer, a row that jumps lifts, and a click jumping from it presses it in with an arc spinning in its
 /// time's place. A row needing Lee is its name, in medium, an away one's dimmed; a your-turn row its ring and its
 /// words, in regular; a Working row its verb, then what follows it 6 on, shimmering while it works and still on its own
@@ -274,13 +301,16 @@ struct GlassSessionRow: View {
     let wash: Double
     /// The calendar its wake time is worded on.
     var calendar = WakeTime.calendar
+    /// Its arrow, in its time's place, while it shows.
+    var arrow: SessionRow.Arrow?
 
     var body: some View {
         let at = layout, radius = SessionRowLayout.radius
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: radius)
-                .fill(.primary.opacity(pressed ? 0.12 : hovered ? 0.08 : 0))
+                .fill(.primary.opacity(pressed ? GlassTint.press : hovered ? GlassTint.hover : 0))
                 .animation(.easeOut(duration: 0.11), value: pressed)
+                .animation(.easeOut(duration: 0.11), value: hovered)
             RoundedRectangle(cornerRadius: radius)
                 .fill(GlassInk.orange.opacity(0.12))
                 .strokeBorder(GlassInk.orange.opacity(0.26), lineWidth: 1)
@@ -291,6 +321,10 @@ struct GlassSessionRow: View {
                 .placed(in: at.project.offsetBy(dx: 0, dy: TextLine.drop(of: EdgeStyle.sub, to: EdgeStyle.line, lineHeight: at.project.height)))
             if pressed {
                 spinner.placed(in: at.age, alignment: .trailing)
+            } else if let arrow {
+                let box = RowArrow.box(in: size)
+
+                GlassRowArrow(arrow: arrow).offset(x: box.minX, y: box.minY)
             } else {
                 Text(time)
                     .font(Font(EdgeStyle.age))
@@ -299,7 +333,6 @@ struct GlassSessionRow: View {
             }
         }
         .frame(width: size.width, height: size.height, alignment: .topLeading)
-        .animation(.easeOut(duration: 0.11), value: hovered)
         .scaleEffect(pressed ? 0.985 : 1)
         .animation(.easeOut(duration: 0.14), value: pressed)
     }
@@ -398,6 +431,23 @@ struct GlassSessionRow: View {
         } else if let subject = line.subject(at: now) {
             Text.tight(subject, line.until == nil ? EdgeStyle.line : EdgeStyle.lineCountdown)
         }
+    }
+}
+
+/// A Needs you row's arrow on glass (DESIGN, "The row's arrow"): unlit, its chevron in the secondary on the row's lift;
+/// lit, a step stronger than the lift, its chevron in the primary; pointing away from the screen's edge.
+@available(macOS 26, *)
+struct GlassRowArrow: View {
+    let arrow: SessionRow.Arrow
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: RowArrow.radius, style: .circular)
+                .fill(.primary.opacity(arrow.isLit ? GlassTint.press : 0))
+            Outline(path: Path(RowArrow.chevron(pointsLeft: arrow.pointsLeft)))
+                .stroke(arrow.isLit ? .primary : .secondary, style: .rounded(AsksPanelParts.strokeWidth))
+        }
+        .frame(width: RowArrow.size.width, height: RowArrow.size.height)
     }
 }
 

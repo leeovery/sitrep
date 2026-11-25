@@ -59,6 +59,7 @@ public final class Meniscus: Notch {
     /// The notch's hit area and the panel's content as last drawn, which the pointer's moves are hit-tested against.
     var lastHit: CGRect?
     var lastPanel: Frame.Panel?
+    var beside: CGPath?
     /// Under reduced motion, the outline cross-fading out, and since when.
     var fade: (outline: CGPath, t0: Double)?
     var lastOutline: CGPath?
@@ -144,9 +145,12 @@ public final class Meniscus: Notch {
     }
 
     /// What happened since the last frame, before the sim clock moves on: the screen, the content, what needs Lee,
-    /// whether to reduce motion, and the pointer.
+    /// whether to reduce motion, a panel beside the open one, and the pointer.
     private func take(_ input: Input) {
+        let besideChanged = input.beside != beside, wasBeside = isBeside(sp)
+
         reducesMotion = input.reducesMotion
+        beside = input.beside
         if input.stage != stage {
             stage = input.stage
             measure()
@@ -159,7 +163,13 @@ public final class Meniscus: Notch {
                 answerAll()
             }
         }
-        pointerMoved(input.pointer.map { Vec(max(0, $0.x), $0.y) }, at: input.pointerTime)
+        let pointer = input.pointer.map { Vec(max(0, $0.x), $0.y) }
+
+        // a still pointer gets no leave as the shape pours under it, only as the room beside comes or goes under it
+        if besideChanged, pointer == sp, wasBeside || isBeside(sp) {
+            rehover()
+        }
+        pointerMoved(pointer, at: input.pointerTime)
     }
 
     /// The screen changed: the notch's home moves with it, unless a drag has already taken it there.

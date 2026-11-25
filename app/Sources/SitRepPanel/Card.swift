@@ -41,6 +41,7 @@ public final class Card: Notch {
     var lastOutline: CGPath?
     var lastHit: CGRect?
     var lastPanel: Frame.Panel?
+    var beside: CGPath?
 
     let rowsAt = 0.0
 
@@ -99,8 +100,8 @@ public final class Card: Notch {
         return render(geometry())
     }
 
-    /// What happened since the last frame, before the sim clock moves on: the screen, the content, reduced motion,
-    /// what needs Lee, and the pointer.
+    /// What happened since the last frame, before the sim clock moves on: the screen, the content, reduced motion, a
+    /// panel beside the open one, what needs Lee, and the pointer.
     private func take(_ input: Input) {
         if input.stage != stage {
             stage = input.stage
@@ -108,6 +109,7 @@ public final class Card: Notch {
         }
         content = input.content
         reducesMotion = input.reducesMotion
+        beside = input.beside
         if input.needsLee != needs {
             if input.needsLee {
                 newAsk()

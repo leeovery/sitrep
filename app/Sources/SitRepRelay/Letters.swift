@@ -48,24 +48,111 @@ public struct Notice: Equatable, Sendable {
     public let subtitle: String?
     public let body: String
     public let work: String?
+    /// The ask its buttons answer; nil for a banner with none.
+    public let ask: NoticeAsk?
 
-    public init(title: String, subtitle: String?, body: String, work: String?) {
+    public init(title: String, subtitle: String?, body: String, work: String?, ask: NoticeAsk? = nil) {
         self.title = title
         self.subtitle = subtitle
         self.body = body
         self.work = work
+        self.ask = ask
     }
 
     var fields: [String: String] {
         ["title": title, "subtitle": subtitle, "body": body, "work": work].compactMapValues { $0 }
+            .merging(ask?.fields ?? [:]) { notice, _ in notice }
     }
 
+    /// An ask that does not read leaves the banner with no buttons.
     init?(fields: [String: String]) {
         guard let title = fields["title"], let body = fields["body"] else {
             return nil
         }
 
-        self.init(title: title, subtitle: fields["subtitle"], body: body, work: fields["work"])
+        self.init(
+            title: title, subtitle: fields["subtitle"], body: body, work: fields["work"], ask: NoticeAsk(fields: fields)
+        )
+    }
+}
+
+/// The ask a new ask's banner answers with its buttons: its id, its session, and what it wants back, its yes or its
+/// options among it. Its fields go in the post, and in the banner's userInfo, which a button's response gives back.
+public struct NoticeAsk: Equatable, Sendable {
+    public enum Wants: Equatable, Sendable {
+        case yes(String)
+        /// Its options, in Claude's order; never none.
+        case choice([String])
+        case words
+    }
+
+    public let id: String
+    public let session: String
+    public let wants: Wants
+
+    public init(id: String, session: String, wants: Wants) {
+        self.id = id
+        self.session = session
+        self.wants = wants
+    }
+
+    public var fields: [String: String] {
+        let wanted: [String: String] = switch wants {
+        case let .yes(yes): ["wants": "yes", "yes": yes]
+        case let .choice(options):
+            options.enumerated().reduce(into: ["wants": "choice"]) { $0[Self.optionKey($1.offset)] = $1.element }
+        case .words: ["wants": "words"]
+        }
+
+        return wanted.merging(["ask": id, "session": session]) { _, ask in ask }
+    }
+
+    public init?(fields: [String: String]) {
+        guard let id = fields["ask"], let session = fields["session"], let wants = Self.wants(fields) else {
+            return nil
+        }
+
+        self.init(id: id, session: session, wants: wants)
+    }
+
+    private static func wants(_ fields: [String: String]) -> Wants? {
+        switch (fields["wants"], fields["yes"]) {
+        case let ("yes", yes?): return .yes(yes)
+        case ("words", _): return .words
+        case ("choice", _):
+            let options = Array((0...).lazy.map { fields[optionKey($0)] }.prefix { $0 != nil }.compactMap { $0 })
+
+            return options.isEmpty ? nil : .choice(options)
+        default: return nil
+        }
+    }
+
+    private static func optionKey(_ index: Int) -> String {
+        "option.\(index)"
+    }
+}
+
+/// An answer from a banner's button, or the words typed in its Reply, empty where none were: the ask as its banner
+/// showed it, so SitRep can tell an ask reshaped since, and the answer's words.
+public struct NoticeAnswer: Equatable, Sendable {
+    public let ask: NoticeAsk
+    public let words: String
+
+    public init(to ask: NoticeAsk, words: String) {
+        self.ask = ask
+        self.words = words
+    }
+
+    var fields: [String: String] {
+        ask.fields.merging(["words": words]) { _, words in words }
+    }
+
+    init?(fields: [String: String]) {
+        guard let ask = NoticeAsk(fields: fields), let words = fields["words"] else {
+            return nil
+        }
+
+        self.init(to: ask, words: words)
     }
 }
 
@@ -80,6 +167,8 @@ public enum ToHelper: Relayed {
     case ask(id: String)
     /// The front given back to the app Lee was in: the jump for a click the helper relayed was refused.
     case handBack
+    /// The ask of the session waits on Lee no more: its banners still delivered go, their buttons with them.
+    case cleared(ask: String, session: String)
 
     public static let way = "to-helper"
 
@@ -90,6 +179,7 @@ public enum ToHelper: Relayed {
         case let .status(id): [kind: "status", "id": id]
         case let .ask(id): [kind: "ask", "id": id]
         case .handBack: [kind: "hand-back"]
+        case let .cleared(ask, session): [kind: "cleared", "ask": ask, "session": session]
         }
     }
 
@@ -105,6 +195,12 @@ public enum ToHelper: Relayed {
             self = .post(notice)
         case let ("status", id?): self = .status(id: id)
         case let ("ask", id?): self = .ask(id: id)
+        case ("cleared", _):
+            guard let ask = fields["ask"], let session = fields["session"] else {
+                return nil
+            }
+
+            self = .cleared(ask: ask, session: session)
         default: return nil
         }
     }
@@ -117,6 +213,8 @@ public enum ToSitRep: Relayed {
     case ready(helper: Int32)
     /// A banner clicked, naming the session it jumps to.
     case clicked(work: String)
+    /// A banner's button pressed, or words sent from its Reply: the answer, which SitRep sends at once.
+    case answered(NoticeAnswer)
     /// What macOS lets SitRep do, for the request with this id.
     case status(NoticeLeave, id: String)
 
@@ -126,6 +224,7 @@ public enum ToSitRep: Relayed {
         switch self {
         case let .ready(helper): [kind: "ready", "helper": String(helper)]
         case let .clicked(work): [kind: "clicked", "work": work]
+        case let .answered(answer): answer.fields.merging([kind: "answered"]) { _, kind in kind }
         case let .status(leave, id): [kind: "status", "leave": leave.word, "id": id]
         }
     }
@@ -137,6 +236,12 @@ public enum ToSitRep: Relayed {
         switch (fields[kind], helper, fields["work"], leave, fields["id"]) {
         case let ("ready", helper?, _, _, _): self = .ready(helper: helper)
         case let ("clicked", _, work?, _, _): self = .clicked(work: work)
+        case ("answered", _, _, _, _):
+            guard let answer = NoticeAnswer(fields: fields) else {
+                return nil
+            }
+
+            self = .answered(answer)
         case let ("status", _, _, leave?, id?): self = .status(leave, id: id)
         default: return nil
         }

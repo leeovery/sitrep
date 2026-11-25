@@ -4,18 +4,18 @@ import UserNotifications
 
 /// macOS banners: silent, since SitRep plays its own sound for a new ask, and shown even while the helper counts as
 /// the active app, as it does once a click activates it. A click on one's body is told to `onClick`, with the
-/// session it names, if any.
+/// session it names, if any; a new ask's banner has its buttons (`Buttons`), whose answers are told to `onAnswer`.
 @MainActor
 final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate {
-    /// The userInfo key carrying the id of the work a banner jumps to.
-    private nonisolated static let workKey = "work"
-
     private let center = UNUserNotificationCenter.current()
+    private let poster = Poster(center: LiveCenter())
     private let logger = Logger(helper: "banner")
     private var onClick: (String?) -> Void = { _ in }
+    private var onAnswer: (NoticeAnswer) -> Void = { _ in }
 
-    func listen(onClick: @escaping (String?) -> Void) {
+    func listen(onClick: @escaping (String?) -> Void, onAnswer: @escaping (NoticeAnswer) -> Void) {
         self.onClick = onClick
+        self.onAnswer = onAnswer
         center.delegate = self
     }
 
@@ -24,18 +24,11 @@ final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate
             return logger.notice("Banner not shown, as banners are not allowed: \(notice.body, privacy: .public)")
         }
 
-        let content = UNMutableNotificationContent()
+        await poster.post(notice)
+    }
 
-        content.title = notice.title
-        content.subtitle = notice.subtitle ?? ""
-        content.body = notice.body
-        content.userInfo = notice.work.map { [Self.workKey: $0] } ?? [:]
-
-        do {
-            try await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
-        } catch {
-            logger.error("Banner not posted: \(error.localizedDescription, privacy: .public)")
-        }
+    func clear(ask: String, session: String) async {
+        await poster.clear(ask: ask, session: session)
     }
 
     func leave() async -> NoticeLeave {
@@ -86,14 +79,20 @@ final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate
         [.banner, .list]
     }
 
+    /// A click on the banner's body, or one of its buttons; anything else, as an action not of its ask, is passed over.
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else {
-            return
+        let read = Buttons.response(
+            to: response.actionIdentifier, typed: (response as? UNTextInputNotificationResponse)?.userText,
+            userInfo: response.notification.request.content.userInfo
+        )
+
+        await MainActor.run {
+            switch read {
+            case let .click(work): onClick(work)
+            case let .answer(answer): onAnswer(answer)
+            case .passedOver: break
+            }
         }
-
-        let work = response.notification.request.content.userInfo[Self.workKey] as? String
-
-        await MainActor.run { onClick(work) }
     }
 }
 

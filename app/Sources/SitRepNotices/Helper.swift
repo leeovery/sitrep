@@ -5,6 +5,8 @@ import SitRepRelay
 @MainActor
 protocol Notifying {
     func post(_ notice: Notice) async
+    /// The banners still delivered of the ask of the session go.
+    func clear(ask: String, session: String) async
     func leave() async -> NoticeLeave
     /// macOS asked for leave, unless Lee answered already; then the leave.
     func ask() async -> NoticeLeave
@@ -24,8 +26,8 @@ protocol SitRepApp {
 /// The helper's work, between SitRep and macOS's notifications. A click activates the helper, which has no window, so
 /// macOS has no Space to take Lee to; the helper relays it, and SitRep jumps as from any other click. A click that
 /// started the helper while SitRep was not running starts SitRep, and is held until SitRep says it listens. A click on
-/// a banner naming no session hands the front back, as nothing jumps, as does a click whose jump SitRep refused. The
-/// helper quits as its SitRep ends.
+/// a banner naming no session hands the front back, as nothing jumps, as does a click whose jump SitRep refused. A
+/// banner's answer is relayed, or held, as a click is. The helper quits as its SitRep ends.
 @MainActor
 final class Helper {
     /// The helper's own app.
@@ -44,10 +46,10 @@ final class Helper {
     /// The pid of the SitRep it serves, once found or started.
     private var pid: Int32?
     private var isSitRepListening = false
-    /// Clicks heard before SitRep listens, in order.
-    private var held: [String] = []
-    /// The banner being posted, the next waiting on it, so they show in the order SitRep sent them.
-    private var posting: Task<Void, Never>?
+    /// Clicks and answers heard before SitRep listens, in order.
+    private var held: [ToSitRep] = []
+    /// The banner being posted, or cleared, the next waiting on it, so they go in the order SitRep sent them.
+    private var turn: Task<Void, Never>?
 
     init(notifications: Notifying, sitRep: SitRepApp, send: @escaping (Letter<ToSitRep>) -> Void, own: Own) {
         self.notifications = notifications
@@ -82,7 +84,8 @@ final class Helper {
 
         switch message {
         case .ready: sitRepListens()
-        case let .post(notice): post(notice)
+        case let .post(notice): inTurn { await $0.post(notice) }
+        case let .cleared(ask, session): inTurn { await $0.clear(ask: ask, session: session) }
         case let .status(id): answer(id, notifications.leave)
         case let .ask(id): answer(id, notifications.ask)
         case .handBack: own.handBack()
@@ -96,29 +99,44 @@ final class Helper {
             return own.handBack()
         }
 
-        if isSitRepListening {
-            relay(.clicked(work: work))
-        } else {
-            held.append(work)
-        }
+        relayOrHold(.clicked(work: work))
     }
 
-    /// SitRep's `ready` answered with the helper's, as SitRep may have missed it, and the clicks held handed on. Each
+    /// A banner's button pressed, or words sent from its Reply: relayed to SitRep, which sends it, or held until it
+    /// listens. Nothing jumps, so the front is handed back, as for a click naming no session, should macOS have made
+    /// the windowless helper active for the press, as it may when the press starts it. Not active, the helper hides
+    /// at its next activation within a second (`Front`): a click on a banner then jumps, and its window comes forward
+    /// all the same.
+    func answered(_ answer: NoticeAnswer) {
+        own.handBack()
+        relayOrHold(.answered(answer))
+    }
+
+    /// SitRep's `ready` answered with the helper's, as SitRep may have missed it, and what was held handed on. Each
     /// is answered, as SitRep says it again while it has not heard the helper; SitRep answers only a helper's first,
     /// so the two stop.
     private func sitRepListens() {
         isSitRepListening = true
         relay(.ready(helper: own.pid))
-        held.forEach { relay(.clicked(work: $0)) }
+        held.forEach(relay)
         held = []
     }
 
-    private func post(_ notice: Notice) {
-        let previous = posting
+    private func relayOrHold(_ message: ToSitRep) {
+        if isSitRepListening {
+            relay(message)
+        } else {
+            held.append(message)
+        }
+    }
 
-        posting = Task { [notifications] in
+    /// Done once what SitRep sent before it is, so banners show, and go, in the order SitRep sent them.
+    private func inTurn(_ work: @escaping @MainActor (Notifying) async -> Void) {
+        let previous = turn
+
+        turn = Task { [notifications] in
             await previous?.value
-            await notifications.post(notice)
+            await work(notifications)
         }
     }
 

@@ -303,15 +303,29 @@ struct BoardTests {
         #expect(throws: Unread.shape) { try Board.read(line) }
     }
 
-    /// What no surface shows is not read: the projects, read only for the names a jump gives sessions, the sessions'
-    /// boards, or `changed` in their place, in any shape or none, leave the board as it was.
+    /// What no surface shows is not read: the sessions' boards, or `changed` in their place, in any shape or none,
+    /// leave the board as it was.
     @Test(arguments: [
         watchedEmpty.replacingOccurrences(of: #","boards":{}"#, with: ""),
         watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""changed":[]"#),
-        watchedEmpty.replacingOccurrences(of: #""projects":[]"#, with: #""projects":{"humongous":1}"#),
-        watchedEmpty.replacingOccurrences(of: #""projects":[],"#, with: ""),
     ])
     func whatNoSurfaceShowsIsNotRead(line: String) throws {
         #expect(try Board.read(line) == (try Board.read(watchedEmpty)))
+    }
+
+    /// The projects, read for the names a jump gives sessions and for their asks, in any shape or none, leave every
+    /// surface's board as it was; such a line only says nothing of its asks, so none is told to have left.
+    @Test(arguments: [
+        watchedEmpty.replacingOccurrences(of: #""projects":[]"#, with: #""projects":{"humongous":1}"#),
+        watchedEmpty.replacingOccurrences(of: #""projects":[],"#, with: ""),
+    ])
+    func projectsThatDoNotReadLeaveTheBoardSayingNothingOfItsAsks(line: String) throws {
+        let read = try Board.read(line), empty = try Board.read(watchedEmpty)
+
+        #expect(read.waitingOnLee == nil)
+        #expect(empty.waitingOnLee == [])
+        #expect(read.rows == empty.rows && read.snoozed == empty.snoozed && read.windows == empty.windows)
+        #expect(read.head == empty.head && read.new == empty.new && read.at == empty.at)
+        #expect(read == (try Board.read(watchedEmpty.replacingOccurrences(of: #""projects":[],"#, with: ""))))
     }
 }

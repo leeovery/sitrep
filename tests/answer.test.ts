@@ -381,6 +381,25 @@ test('an answer is refused for an ask not open, an answer its ask does not take,
   expect(t.files.has(paths.letters(WRITER))).toBe(false)
 })
 
+test('given what the ask wanted as Lee saw it, an answer goes; an ask Claude reshaped since is refused, naming what it wants now, and writes nothing', async () => {
+  const t = terminal()
+  const paths = t.seed(META, {
+    lines: [...POSTED, [T0 + MIN, { type: 'edit', item: 'k1', changes: { wants: 'words' } }]],
+  })
+
+  expect(await t.run('answer', 'k1', '--wants', 'yes', ...SESSION, '--', 'Go')).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: 'sitrep: k1 now wants words, not a yes: look at it again.\n',
+  })
+  expect(t.files.has(paths.letters(WRITER))).toBe(false)
+
+  expect((await t.run('answer', 'k2', '--wants', 'choice', ...SESSION, '--', 'Keep it')).exit).toBe(
+    EXIT.done,
+  )
+  expect(letters(t, paths).map(line => line.type === 'reply' && line.item)).toEqual(['k2'])
+})
+
 test('a yes is answered in its words alone; an ask with an answer on its way takes no second', async () => {
   const t = terminal()
 

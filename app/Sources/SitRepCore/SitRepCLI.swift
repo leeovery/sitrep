@@ -54,12 +54,14 @@ public struct SitRepCLI: Sendable {
     /// Answers an ask of the session, or ignores it, into the session's inbox. The ask and the answer come after `--`,
     /// as the CLI reads a `--name` word before it as a flag, and `-h` or `--help` as a call for its help, so words such
     /// as `--force` or `ls -h` arrive whole. The answer's words, which can be anything Lee typed, are never logged.
-    public func answer(_ ask: String, of session: String, with answer: Answer) async -> WriteAnswer {
-        let ended = switch answer {
+    /// `--wants` says what the ask wanted as Lee saw it, so one Claude reshaped since is refused, never answered.
+    public func answer(_ answering: Answering) async -> WriteAnswer {
+        let flags = ["answer", "--session", answering.session, "--wants", answering.wants.rawValue]
+        let ended = switch answering.answer {
         case let .words(given):
-            await sitrep(["answer", "--session", session, "--", ask], unlogged: [given], limit: Self.sessionLimit)
+            await sitrep(flags + ["--", answering.ask], unlogged: [given], limit: Self.sessionLimit)
         case .ignore:
-            await sitrep(["answer", "--session", session, "--ignore", "--", ask], limit: Self.sessionLimit)
+            await sitrep(flags + ["--ignore", "--", answering.ask], limit: Self.sessionLimit)
         }
 
         return written(ended, by: "answer")

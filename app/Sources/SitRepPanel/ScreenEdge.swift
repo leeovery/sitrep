@@ -73,11 +73,24 @@ public struct ScreenEdge: Equatable, Sendable {
 
     /// The window: against the edge, the screen's full height, and `depth` into the screen. Its flipped content is
     /// the stage, mirrored on the right (`mirror`).
-    public var window: CGRect { against(depth: Self.depth, height: frame.height) }
+    public var window: CGRect { window(wide: false) }
 
     /// The stage into the window's flipped content: as it is on the left; on the right, x mirrored across the window,
     /// so the edge is the window's right side.
-    public var mirror: CGAffineTransform { mirror(depth: Self.depth) }
+    public var mirror: CGAffineTransform { mirror(wide: false) }
+
+    /// The window, `wide` while the asks panel is open beside the panel, for it and its shadow (`wideDepth`).
+    public func window(wide: Bool) -> CGRect {
+        against(depth: wide ? Self.wideDepth : Self.depth, height: frame.height)
+    }
+
+    /// The stage into the window's flipped content, the window `wide` or not.
+    public func mirror(wide: Bool) -> CGAffineTransform {
+        mirror(depth: wide ? Self.wideDepth : Self.depth)
+    }
+
+    /// How far into the screen the window reaches while the asks panel is open.
+    public static let wideDepth = max(depth, AsksLayout.reach)
 
     /// The screen as the strip sees it: the menu bar the difference between its top and the visible frame's.
     public var stripStage: StripStage {

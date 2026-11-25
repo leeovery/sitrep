@@ -28,6 +28,10 @@ public struct PanelBoard: Equatable, Sendable {
     /// board is stale, when it was last known current, "as of 12:04".
     public let unread: String?
     public let asOf: String?
+    /// The asks the asks panel answers, a yes, a choice or a words ask, by their Needs you rows' sessions: each row's
+    /// asks waiting on Lee, in its lines' order, the newest first, each timed as its line is. A row of Claude Code's
+    /// own prompts alone has none, and so no arrow.
+    public let asks: [String: [PanelAsk]]
 
     /// Until `watch` prints its first line.
     static let looking = Head(title: "Looking for sessions…", count: "")
@@ -73,25 +77,28 @@ public struct PanelBoard: Equatable, Sendable {
             new: isCurrent ? board.newRows : [],
             newTurns: isCurrent ? last.newTurns : [],
             pulses: pulses,
-            asOf: asOf
+            asOf: asOf,
+            asks: Self.answerable(board)
         )
     }
 
     /// A board of these rows, none in Snoozed, as a picture of the edge shows one, in the panel's order: its head from
-    /// their counts, and the rows new on it by their sessions, which pulse the notch.
-    public init(rows: [Session], new: Set<String> = []) {
+    /// their counts, the rows new on it by their sessions, which pulse the notch, and the asks the asks panel answers,
+    /// by their sessions.
+    public init(rows: [Session], new: Set<String> = [], asks: [String: [PanelAsk]] = [:]) {
         let waiting = rows.filter { $0.section == .needsYou }
 
         self.init(
             sessions: rows.inPanelOrder(), snoozed: [],
             head: Head(needYou: waiting.map(\.lines.count).reduce(0, +), sessions: rows.count),
-            need: waiting.contains(where: \.needsLee) ? .ask : waiting.isEmpty ? nil : .turn, new: new
+            need: waiting.contains(where: \.needsLee) ? .ask : waiting.isEmpty ? nil : .turn, new: new, asks: asks
         )
     }
 
     private init(
         sessions: [Session], snoozed: [Session], head: Head, need: Need? = nil, new: Set<String> = [],
-        newTurns: Set<String> = [], pulses: Set<Need> = [.ask], unread: String? = nil, asOf: String? = nil
+        newTurns: Set<String> = [], pulses: Set<Need> = [.ask], unread: String? = nil, asOf: String? = nil,
+        asks: [String: [PanelAsk]] = [:]
     ) {
         self.sessions = sessions
         self.snoozed = snoozed
@@ -102,6 +109,23 @@ public struct PanelBoard: Equatable, Sendable {
         self.pulses = pulses
         self.unread = unread
         self.asOf = asOf
+        self.asks = asks
+    }
+
+    /// The asks each Needs you row's lines show that the board lists, waiting on Lee, by the rows' sessions: none for a
+    /// row whose lines are Claude Code's own prompts alone, or its turn.
+    private static func answerable(_ board: Board) -> [String: [PanelAsk]] {
+        board.rows.filter { $0.section == .needsYou }.reduce(into: [:]) { asks, row in
+            let answerable = row.lines.compactMap { line in
+                line.ask.flatMap { board.ask($0, of: row.session) }.flatMap {
+                    $0.waitsOnLee ? PanelAsk($0, of: line) : nil
+                }
+            }
+
+            if !answerable.isEmpty {
+                asks[row.session] = answerable
+            }
+        }
     }
 
     /// Whether anything needs Lee, an ask or his turn: the notch lit, at its size for it.
@@ -123,7 +147,8 @@ public struct PanelBoard: Equatable, Sendable {
     /// twice for one line.
     public var retold: PanelBoard {
         PanelBoard(
-            sessions: sessions, snoozed: snoozed, head: head, need: need, pulses: pulses, unread: unread, asOf: asOf
+            sessions: sessions, snoozed: snoozed, head: head, need: need, pulses: pulses, unread: unread, asOf: asOf,
+            asks: asks
         )
     }
 
@@ -176,6 +201,34 @@ private extension Session.Line {
     /// An ask asleep, or a turn, its title its words, its time from `since`.
     init(_ line: Board.SnoozedRow.Line) {
         self.init(ask: line.ask, title: line.first.lead, since: line.since.timeIntervalSince1970 * 1000)
+    }
+}
+
+private extension PanelAsk {
+    /// An ask as the asks panel answers it: a yes by its one button, a choice by its options, a words ask in Claude;
+    /// timed as its line on the row is.
+    init(_ ask: Board.Ask, of line: Board.Row.Line) {
+        let (wants, answers): (Wants, [String]) = switch ask.wants {
+        case .yes: (.yes, [ask.yes ?? "yes"])
+        case .choice: (.choice, ask.options)
+        case .words: (.words, [])
+        }
+
+        self.init(
+            id: ask.id, title: ask.title, wants: wants, answers: answers,
+            recommended: ask.wants == .choice ? ask.recommended : nil, since: line.since.timeIntervalSince1970 * 1000
+        )
+    }
+}
+
+extension PanelAsk.Wants {
+    /// What it wants, as the board and `sitrep answer --wants` say it.
+    public var shape: Board.Ask.Wants {
+        switch self {
+        case .yes: .yes
+        case .choice: .choice
+        case .words: .words
+        }
     }
 }
 

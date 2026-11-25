@@ -32,6 +32,9 @@ public struct Board: Versioned, Sendable, Equatable {
     /// Each session's open asks, by its id, in the line's order; read as the names are, an ask that does not read left
     /// out.
     let asks: [String: [Ask]]
+    /// Whether the line's projects read, its asks with them: a line whose projects do not read holds none to tell
+    /// which asks left.
+    let readsAsks: Bool
 
     /// The rows holding a line new on this board, by their sessions.
     public var newRows: Set<String> {
@@ -51,7 +54,10 @@ public struct Board: Versioned, Sendable, Equatable {
         windows = try given.decode([Window].self, forKey: .windows)
         new = try given.decode([String].self, forKey: .new)
 
-        let sessions = (try? given.decodeIfPresent([Project].self, forKey: .projects))?.flatMap(\.sessions) ?? []
+        let projects = try? given.decode([Project].self, forKey: .projects)
+        let sessions = projects?.flatMap(\.sessions) ?? []
+
+        readsAsks = projects != nil
 
         named = sessions.reduce(into: [:]) { $0[$1.id] = $1.name }
         lastWindows = sessions.reduce(into: [:]) { $0[$1.id] = $1.lastWindow }
@@ -483,6 +489,18 @@ public struct Board: Versioned, Sendable, Equatable {
     /// carry them.
     public func asks(of session: String) -> [Ask] {
         asks[session] ?? []
+    }
+
+    /// Every open ask on the board waiting on Lee, by its session; nil from a line whose projects do not read, which
+    /// says nothing of its asks.
+    var waitingOnLee: Set<AskOf>? {
+        guard readsAsks else {
+            return nil
+        }
+
+        return Set(asks.flatMap { session, asks in
+            asks.filter(\.waitsOnLee).map { AskOf(session: session, ask: $0.id) }
+        })
     }
 
     /// An open ask of the session, by its id; nil for one not on the board, as a closed one is not.

@@ -136,11 +136,15 @@ struct SitRepCLITests {
         #expect(programs.all.map(\.arguments) == [["wake", "--session", "sr-4t2kq8"]])
     }
 
+    /// With what the ask wanted as Lee saw it, which the CLI refuses should the ask want something else by then.
     @Test func answerRunsAnswerOfTheAskOfTheSessionWithItsWords() async {
         let (cli, programs) = Self.cli(Self.exited(0))
+        let answering = Answering(.words("By change"), to: "k2", of: "sr-4t2kq8", wanting: .choice)
 
-        #expect(await cli.answer("k2", of: "sr-4t2kq8", with: .words("By change")) == .written)
-        #expect(programs.all.map(\.arguments) == [["answer", "--session", "sr-4t2kq8", "--", "k2", "By change"]])
+        #expect(await cli.answer(answering) == .written)
+        #expect(programs.all.map(\.arguments) == [
+            ["answer", "--session", "sr-4t2kq8", "--wants", "choice", "--", "k2", "By change"],
+        ])
         #expect(programs.all.map(\.limit) == [10])
     }
 
@@ -150,25 +154,29 @@ struct SitRepCLITests {
     func anAnswersWordsComeWholeAfterTheDashes(words: String) async {
         let (cli, programs) = Self.cli(Self.exited(0))
 
-        _ = await cli.answer("k3", of: "sr-4t2kq8", with: .words(words))
+        _ = await cli.answer(Answering(.words(words), to: "k3", of: "sr-4t2kq8", wanting: .words))
 
-        #expect(programs.all.map(\.arguments) == [["answer", "--session", "sr-4t2kq8", "--", "k3", words]])
+        #expect(programs.all.map(\.arguments) == [
+            ["answer", "--session", "sr-4t2kq8", "--wants", "words", "--", "k3", words],
+        ])
     }
 
     @Test func anIgnoreRunsAnswerOfTheAskWithIgnoreAndNoWords() async {
         let (cli, programs) = Self.cli(Self.exited(0))
 
-        #expect(await cli.answer("k1", of: "sr-4t2kq8", with: .ignore) == .written)
-        #expect(programs.all.map(\.arguments) == [["answer", "--session", "sr-4t2kq8", "--ignore", "--", "k1"]])
+        #expect(await cli.answer(Answering(.ignore, to: "k1", of: "sr-4t2kq8", wanting: .yes)) == .written)
+        #expect(programs.all.map(\.arguments) == [
+            ["answer", "--session", "sr-4t2kq8", "--wants", "yes", "--ignore", "--", "k1"],
+        ])
     }
 
     @Test func anAnswerRefusedGivesTheCLIsWords() async {
         let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: k1 is answered already: its answer is on its way.\n"))
 
-        #expect(await cli.answer("k1", of: "sr-4t2kq8", with: .words("Approve")) == .refused(
+        #expect(await cli.answer(Answering(.words("Approve"), to: "k1", of: "sr-4t2kq8", wanting: .yes)) == .refused(
             "k1 is answered already: its answer is on its way."
         ))
-        #expect(await cli.answer("k1", of: "sr-4t2kq8", with: .ignore) == .refused(
+        #expect(await cli.answer(Answering(.ignore, to: "k1", of: "sr-4t2kq8", wanting: .yes)) == .refused(
             "k1 is answered already: its answer is on its way."
         ))
     }
