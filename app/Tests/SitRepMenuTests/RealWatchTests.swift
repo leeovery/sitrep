@@ -10,7 +10,7 @@ import Testing
 struct RealWatchTests {
     private static let asked = heard(Lines.newAsk.map(Heard.line))
 
-    /// Its click goes to the away session, for the jump to carry it on (stage 8); its button, the ask's yes, answers it.
+    /// Its click goes to the away session, for the jump to carry it on (stage 8); its button, its yes, answers it.
     @Test func aNewAskSendsANoticeNamingItsProjectAndSession() {
         #expect(Notices.due(Self.asked, .notifyingAsks) == [
             Banner(
