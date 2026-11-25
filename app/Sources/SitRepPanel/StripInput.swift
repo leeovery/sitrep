@@ -26,15 +26,20 @@ public struct StripInput {
     public var stage: StripStage
     /// Whether to reduce motion, as the Mac or SitRep asks: then nothing springs, and shapes cross-fade.
     public var reducesMotion: Bool
+    /// A panel beside the open tab, the asks panel, and while the pointer is on its way there, the way to it: the
+    /// pointer on it is on the tab, so leaving both is leaving the tab, as the notch's `Input.beside`.
+    public var beside: CGPath?
 
     public init(
-        time: Double, pointer: CGPoint?, pointerAt: Double? = nil, stage: StripStage, reducesMotion: Bool = false
+        time: Double, pointer: CGPoint?, pointerAt: Double? = nil, stage: StripStage, reducesMotion: Bool = false,
+        beside: CGPath? = nil
     ) {
         self.time = time
         self.pointer = pointer
         self.pointerAt = pointerAt
         self.stage = stage
         self.reducesMotion = reducesMotion
+        self.beside = beside
     }
 
     /// When the pointer was read.

@@ -83,15 +83,17 @@ struct NoticesTests {
         #expect(Notices.due(stale, .notifyingAsks).isEmpty)
     }
 
-    /// It tells of the ask its line names, whatever the ask wants, for the banner to be taken down by once the ask
-    /// waits on Lee no more.
+    /// It tells of the ask its line names, whatever the ask wants, a choice with no options to choose from among them,
+    /// and though the board lists no such ask, for the banner to be taken down by once the ask waits on Lee no more.
     @Test(arguments: [
-        WatchLine.Ask(id: "k2", wants: .yes, yes: "Go"),
-        WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: ["Left", "Right"], recommended: "Right"),
-        WatchLine.Ask(id: "k2", wants: .words, yes: nil, needs: "the command's output"),
+        [WatchLine.Ask(id: "k2", wants: .yes, yes: "Go")],
+        [WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: ["Left", "Right"], recommended: "Right")],
+        [WatchLine.Ask(id: "k2", wants: .choice, yes: nil)],
+        [WatchLine.Ask(id: "k2", wants: .words, yes: nil, needs: "the command's output")],
+        [],
     ])
-    func aNewAsksBannerTellsOfItsAsk(ask: WatchLine.Ask) {
-        #expect(Notices.due(Self.asking([ask]), .notifyingAsks).map(\.ask) == [AskOf(session: "sr-nw0001", ask: "k2")])
+    func aNewAsksBannerTellsOfItsAsk(asks: [WatchLine.Ask]) {
+        #expect(Notices.due(Self.asking(asks), .notifyingAsks).map(\.ask) == [AskOf(session: "sr-nw0001", ask: "k2")])
     }
 
     /// A line naming no ask tells of none.

@@ -113,7 +113,7 @@ Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"
 - **The time:** in Needs you, how long its newest line has waited; in Working, how long the turn has run; on its own work, how long since its turn ended. Each reads as the notch's `Age` words it, rounded down: `now`, `12m`, `1h` at 90 minutes, `3d`, core's `ago`, which the pane uses too since 22 November 2026, when it stopped rounding to the nearest. In Snoozed, when it wakes, as core's `wakeWords` says it (`14:00`, `tomorrow 09:00`, `Sat 09:00`, `next week`), or `until it moves`.
 
 **Dimming.**
-- **An away row** dims its words as one, as the notch does: each ink 0.61 of the way from the background, its mark kept full and hollow (`DIMMED` in round 1). A Snoozed row is never drawn away: its mark stays filled and its words undimmed, as the notch draws it (`NotchGlass.swift`, 19 November 2026).
+- **An away row** dims its words as one, as the notch does: each ink 0.61 of the way from the background, its mark kept full and hollow (`DIMMED` in round 1). A Snoozed row is never drawn away: its mark stays filled and its words undimmed, as the notch draws it (`SessionRow.swift`, 19 November 2026).
 - **A Snoozed row** dims its mark, and only its mark. Its name is grey, as "The words" says, and its project and status line are as any row's.
 - **The band and the wash** sit over both lines of a row, from column 1 to W−2.
 - **A new ask's wash** is orange mixed 22% into the background, `#534345` on Nordfox, for two seconds from the first frame that shows the line.

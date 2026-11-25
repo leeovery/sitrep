@@ -297,9 +297,17 @@ public struct AsksLayout: Equatable, Sendable {
     /// overlapping it, its top line level with the row's, and moved just enough to keep inside the screen's visible
     /// frame, as a Mac submenu is.
     public func frame(besideRowAt rowTop: Double, front: Double, on stage: Stage, height: Double? = nil) -> CGRect {
+        frame(besideRowAt: rowTop, front: front, within: stage.visibleTop ... stage.visibleBottom, height: height)
+    }
+
+    /// Where it stands on the stage beside a row, as `frame(besideRowAt:front:on:height:)` places it, kept inside
+    /// `visible`, from the highest it may stand on the stage to the lowest.
+    public func frame(
+        besideRowAt rowTop: Double, front: Double, within visible: ClosedRange<Double>, height: Double? = nil
+    ) -> CGRect {
         let height = height ?? self.height
-        let highest = stage.visibleTop + Self.spare
-        let lowest = max(highest, stage.visibleBottom - Self.spare - height)
+        let highest = visible.lowerBound + Self.spare
+        let lowest = max(highest, visible.upperBound - Self.spare - height)
 
         return CGRect(
             x: front - Self.overlap, y: clamp(rowTop - Self.above, highest, lowest), width: Self.width, height: height
@@ -307,7 +315,12 @@ public struct AsksLayout: Equatable, Sendable {
     }
 
     /// How far from the edge the asks panel and its shadow reach, beside the open panel: what its window must hold.
-    public static let reach = Tuning.panelDepth - overlap + width + 40
+    public static let reach = reach(beside: Tuning.panelDepth)
+
+    /// How far from the edge the asks panel and its shadow reach beside a list whose front is this far from it.
+    public static func reach(beside front: Double) -> Double {
+        front - overlap + width + 40
+    }
 
     /// Where an answer's lines go in a row this big, as many as it wraps to, on its middle.
     public static func answerBoxes(in row: CGSize, lines: Int) -> [CGRect] {
@@ -333,27 +346,44 @@ public struct AsksLayout: Equatable, Sendable {
     }
 }
 
-/// A Needs you row's arrow (DESIGN, "The row's arrow"): a button 40 by 26 at the row's right end, in its time's place,
-/// 3 in from the row's lift, on its middle.
+/// A Needs you row's arrow (DESIGN, "The row's arrow"), at the end of its row it points toward, where the asks panel
+/// opens: on the left edge a button 40 by 26 at the row's right end, in its time's place, 3 in from the row's lift; on
+/// the right edge 26 by 26 at its left end, in its dot's place, centred on the dot. Each on the row's middle. A strip's
+/// tab has its arrow 40 by 26 at its front end on either edge, the tab's words making room for it.
 public enum RowArrow {
     public static let size = CGSize(width: 40, height: 26)
     public static let radius = 8.0, inset = 3.0
+    /// How far from a row's left its dot's centre stands, where the right edge's arrow stands (`SessionRowLayout`).
+    public static let dotSlot = 16.0
     /// How long, in seconds, its chevron takes to turn as its asks panel opens or closes.
     public static let turning = 0.2
 
-    /// Its box in a row this big, in the row's own frame.
-    public static func box(in row: CGSize) -> CGRect {
+    /// Its box in a row this big, in the row's own frame, read left to right: at the row's right end, or pointing
+    /// left, on the right edge, centred on its dot.
+    public static func box(in row: CGSize, pointsLeft: Bool = false) -> CGRect {
+        guard pointsLeft else {
+            return tabBox(in: row, pointsLeft: false)
+        }
+
+        let side = size.height
+
+        return CGRect(x: dotSlot - side / 2, y: (row.height - side) / 2, width: side, height: side)
+    }
+
+    /// Its box in a strip's tab's words this big, in their own frame, read left to right: at their end it points
+    /// toward.
+    public static func tabBox(in words: CGSize, pointsLeft: Bool) -> CGRect {
         CGRect(
-            x: row.width - inset - size.width, y: (row.height - size.height) / 2, width: size.width,
-            height: size.height
+            x: pointsLeft ? inset : words.width - inset - size.width, y: (words.height - size.height) / 2,
+            width: size.width, height: size.height
         )
     }
 
-    /// Its chevron, 6 by 10, centred in the box's own frame, pointing right, or left, away from the screen's edge on
-    /// the right.
-    public static func chevron(pointsLeft: Bool) -> CGPath {
+    /// Its chevron, 6 by 10, centred in a box this big, in the box's own frame, pointing right, or left, away from the
+    /// screen's edge on the right.
+    public static func chevron(pointsLeft: Bool, in box: CGSize = size) -> CGPath {
         let path = CGMutablePath()
-        let origin = CGPoint(x: (size.width - 6) / 2, y: (size.height - 10) / 2)
+        let origin = CGPoint(x: (box.width - 6) / 2, y: (box.height - 10) / 2)
         let points = [CGPoint(x: 1.2, y: 1.2), CGPoint(x: 4.8, y: 5), CGPoint(x: 1.2, y: 8.8)]
 
         path.addLines(between: points.map { CGPoint(x: origin.x + (pointsLeft ? 6 - $0.x : $0.x), y: origin.y + $0.y) })

@@ -121,11 +121,8 @@ public final class NotchRun: Framed {
     public let calendar: Calendar
     /// What the list was last laid out from, which its folds are told apart from.
     private var laid: Laid
-    /// The asks panel: where it is open, the answer held, and the asks answered.
-    var asking = AsksPanel()
-    /// How the drawing sets the asks panel's words, and the asks it last laid out.
-    let measure: AsksMeasure
-    var laidOut: [(ask: PanelAsk, offersSnooze: Bool, layout: AsksLayout)] = []
+    /// The asks panel: where it is open, the answer held, the asks answered, and how its words are set.
+    var asking: AsksPanel
 
     /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
     /// time zone, followed as it changes (`WakeTime.calendar`), and the asks panel's words as `measure` sets them.
@@ -134,7 +131,7 @@ public final class NotchRun: Framed {
         measure: AsksMeasure = .estimated
     ) {
         book = RunBook(at: time)
-        self.measure = measure
+        asking = AsksPanel(measure: measure)
         lit = time
         style = setting.style
         self.folding = folding
@@ -257,8 +254,8 @@ public final class NotchRun: Framed {
         }
         defer { placeAsks(in: moment.setting) }
 
-        if let asks = asksShown, asks.contains(point) {
-            return pressAsks(asks, at: point, in: moment.setting)
+        if asking.isOn(point) {
+            return pressAsks(at: point, in: moment.setting)
         }
         if let index = arrow(at: point, in: moment.setting) {
             toggleAsks(index)
@@ -345,12 +342,12 @@ public final class NotchRun: Framed {
     /// A scroll: over the asks panel, or in a swipe across it under way, a horizontal swipe pages it
     /// (`AsksPanel.swiped`); anywhere else, the content scrolled down by it (`scroll(by:)`).
     public func scroll(_ scroll: Scroll, _ moment: Moment) {
-        guard isOnAsks(moment.pointer) || asking.isSwiping else {
+        guard asking.isOn(moment.pointer) || asking.isSwiping else {
             return self.scroll(by: scroll.down, moment)
         }
 
         upToNow(moment)
-        asking.swiped(scroll, at: time, list, board, reducesMotion: moment.setting.reducesMotion)
+        asking.swiped(scroll, at: time, panelRows, board, reducesMotion: moment.setting.reducesMotion)
         placeAsks(in: moment.setting)
     }
 
@@ -358,7 +355,7 @@ public final class NotchRun: Framed {
     /// moves the list past a few points closes the asks panel (`AsksPanel.scrolled`).
     public func scroll(by delta: Double, _ moment: Moment) {
         upToNow(moment)
-        if let panel = frame.panel, !isOnAsks(moment.pointer) {
+        if let panel = frame.panel, !asking.isOn(moment.pointer) {
             scroll = list.content.scrolled(scroll, by: delta, showing: panel.frame.height)
             asking.scrolled(to: scroll)
         }
@@ -436,7 +433,7 @@ public final class NotchRun: Framed {
 
     /// A point on the stage in the content's own frame, while the panel shows it there, the asks panel not over it.
     func contentPoint(_ point: CGPoint, in setting: Setting) -> CGPoint? {
-        guard let panel = frame.panel, panel.contains(point), !isOnAsks(point) else {
+        guard let panel = frame.panel, panel.contains(point), !asking.isOn(point) else {
             return nil
         }
 

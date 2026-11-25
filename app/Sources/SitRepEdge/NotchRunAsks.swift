@@ -2,8 +2,8 @@ import CoreGraphics
 import SitRepCore
 import SitRepPanel
 
-/// The asks panel in the notch's run (DESIGN, "Answering from the panel"): where it stands at each input, what the
-/// pointer and a press are on there, the rows' arrows that open it, and what the notch is told of it.
+/// The asks panel in the notch's run (DESIGN, "Answering from the panel"): where it stands at each input, what a press
+/// is on there, the rows' arrows that open it, and what the notch is told of it.
 extension NotchRun {
     /// The asks panel as the last frame or input placed it, beside its row, the part of it under the pointer lit; nil
     /// while it is closed.
@@ -28,7 +28,7 @@ extension NotchRun {
     /// Whether a point on the stage is on the black, the notch's hit area or the asks panel: where the window takes
     /// clicks.
     public func hits(_ point: CGPoint) -> Bool {
-        frame.hits(point) || isOnAsks(point)
+        frame.hits(point) || asking.isOn(point)
     }
 
     /// An answer's news, as the answers tell it (DESIGN, "Answering, with two seconds to undo"): held, the asks panel
@@ -47,50 +47,39 @@ extension NotchRun {
         placeAsks(in: moment.setting)
     }
 
+    /// The panel's rows as the frame lays them out, for the asks panel beside them.
+    var panelRows: PanelRows {
+        PanelRows(list: list, panel: frame.panel, scroll: scroll)
+    }
+
     /// The asks panel kept to what shows, closed as the panel goes in, its row goes, or its last ask, and placed
     /// beside its row as the frame has it, once for all that reads it until the next.
     func placeAsks(in setting: Setting) {
+        let stage = setting.stage
         let ground = AsksGround(
-            list: list, board: board, panel: frame.panel, scroll: scroll, stage: setting.stage, mirror: setting.mirror
+            rows: panelRows, board: board, scroll: scroll, visible: stage.visibleTop ... stage.visibleBottom,
+            mirror: setting.mirror
         )
 
-        asking.keep(isOpen: notch.phase == .open, list, board)
-        asking.place(on: ground, pointer: seen, at: time) { self.layout($0, offersSnooze: setting.offersSnooze) }
+        asking.place(
+            isOpen: notch.phase == .open, on: ground, pointer: seen, at: time, offersSnooze: setting.offersSnooze
+        )
     }
 
-    func isOnAsks(_ point: CGPoint?) -> Bool {
-        point.map { asksShown?.contains($0) == true } ?? false
-    }
+    /// A press on the asks panel (`AsksPanel.press`): Open in Claude jumps as the row does, closing it. Nowhere on it
+    /// carries the notch.
+    func pressAsks(at point: CGPoint, in setting: Setting) -> Press? {
+        let press = asking.press(
+            at: point, panelRows, board, mirror: setting.mirror, reducesMotion: setting.reducesMotion, at: time
+        )
 
-    /// A press on the asks panel: a page dot slides to its ask at once, as it pages the same whatever ask shows,
-    /// though not under the fingers; the rest once its asks have stopped sliding and what it shows has settled
-    /// (`AsksPanel.settle`). An answer's row, or Ignore, holds that answer, while none is held; Undo takes the held one
-    /// back; Snooze ▾ offers the snooze of the ask shown; Open in Claude jumps as the row does, closing it. Nowhere on
-    /// it carries the notch.
-    func pressAsks(_ asks: AsksShown, at point: CGPoint, in setting: Setting) -> Press? {
-        let ask = asks.ask, session = asks.session.id, part = asking.part(at: point, mirror: setting.mirror)
-
-        if case let .page(page)? = part, !asking.isFollowing {
-            asking.page(to: page, list, board, reducesMotion: setting.reducesMotion)
-            return .asks
-        }
-        guard !asking.isSliding, asking.isSettled(at: time) else {
-            return nil
-        }
-
-        switch part {
-        case let .answer(row)?:
-            return .answer(Answering(.words(ask.answers[row]), to: ask.id, of: session, wanting: ask.wants.shape))
-        case .ignore?:
-            return .answer(Answering(.ignore, to: ask.id, of: session, wanting: ask.wants.shape))
-        case .undo?:
-            return .undo
-        case .snooze?:
-            return .snooze(ask: ask.id, of: session, at: point)
-        case .open?:
-            return list.index(of: asks.row).flatMap { jump($0) }
-        case .page?, nil:
-            return nil
+        switch press {
+        case .paged?: return .asks
+        case let .answer(answering)?: return .answer(answering)
+        case .undo?: return .undo
+        case let .snooze(ask, of: session, at: point)?: return .snooze(ask: ask, of: session, at: point)
+        case let .open(row)?: return list.index(of: row).flatMap { jump($0) }
+        case nil: return nil
         }
     }
 
@@ -103,7 +92,8 @@ extension NotchRun {
         asking.toggle(row.key, session, on: board)
     }
 
-    /// The row whose arrow a point on the stage is on, by its index in the list, while the panel is open.
+    /// The row whose arrow a point on the stage is on, by its index in the list, while the panel is open: at the row's
+    /// end toward the asks panel, its right on the left edge and its left on the right (`RowArrow.box`).
     func arrow(at point: CGPoint, in setting: Setting) -> Int? {
         guard notch.phase == .open, let content = contentPoint(point, in: setting),
               let index = list.content.item(at: content), arrowRow(index) != nil
@@ -111,10 +101,9 @@ extension NotchRun {
             return nil
         }
 
-        let row = list.content.laidFrame(index)
+        let row = list.content.laidFrame(index), box = RowArrow.box(in: row.size, pointsLeft: setting.mirror.a < 0)
 
-        return RowArrow.box(in: row.size).contains(CGPoint(x: content.x - row.minX, y: content.y - row.minY))
-            ? index : nil
+        return box.contains(CGPoint(x: content.x - row.minX, y: content.y - row.minY)) ? index : nil
     }
 
     /// The key of the row at this index where it has an arrow: a Needs you row, not folding away, whose session the
@@ -128,17 +117,24 @@ extension NotchRun {
 
         return entry.item.key
     }
+}
 
-    /// An ask laid out as the drawing sets its words, Snooze ▾ in its foot where Snooze offers a time, the last two
-    /// kept, as a frame lays out the ask shown and the ask beside it as they slide, each more than once.
-    func layout(_ ask: PanelAsk, offersSnooze: Bool) -> AsksLayout {
-        if let kept = laidOut.first(where: { $0.ask == ask && $0.offersSnooze == offersSnooze }) {
-            return kept.layout
+/// The notch's panel rows as a frame lays them out, the list scrolled this far in the open panel: what the asks panel
+/// opens beside, level with its row and overlapping the panel's front.
+struct PanelRows: AsksRows {
+    let list: PanelList
+    let panel: Frame.Panel?
+    let scroll: Double
+
+    func session(ofRow key: String) -> Session? {
+        list.index(of: key).flatMap { list.item($0)?.session }
+    }
+
+    func standing(ofRow key: String) -> (top: Double, front: Double)? {
+        guard let panel, let index = list.index(of: key) else {
+            return nil
         }
 
-        let layout = AsksLayout(ask, measure: measure, offersSnooze: offersSnooze)
-
-        laidOut = (laidOut + [(ask, offersSnooze, layout)]).suffix(2)
-        return layout
+        return (panel.frame.minY + list.content.laidFrame(index).minY - scroll, panel.frame.maxX)
     }
 }

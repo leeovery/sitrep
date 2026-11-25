@@ -27,10 +27,6 @@ public struct LastBoard: Sendable, Equatable {
     /// is; a restarted run's first line among them, against the board the last run left, as asks may have left
     /// between the runs.
     public private(set) var asksLeft: Set<AskOf> = []
-    /// The asks that waited on Lee on the board kept and still wait on him on the line just heard, edited meanwhile:
-    /// their title, their yes, their options or what they want, so their banners go, which tell of what the ask no
-    /// longer asks. Only as the line comes, as `asksLeft` is, and by the same rules.
-    public private(set) var asksChanged: Set<AskOf> = []
 
     /// A run has started and nothing it printed has been heard yet.
     private var awaitsRunsFirst = false
@@ -53,7 +49,6 @@ public struct LastBoard: Sendable, Equatable {
         isRunsFirst = false
         newTurns = []
         asksLeft = []
-        asksChanged = []
 
         switch heard {
         case let .line(line):
@@ -78,7 +73,6 @@ public struct LastBoard: Sendable, Equatable {
 
             newTurns = turnsEnded(on: read, after: isRunsFirst ? nil : board)
             asksLeft = asksLeft(on: read, after: board)
-            asksChanged = asksChanged(on: read, after: board)
             board = read
             stale = nil
             staleSince = nil
@@ -123,18 +117,6 @@ public struct LastBoard: Sendable, Equatable {
         }
 
         return was.subtracting(now)
-    }
-
-    /// The asks waiting on Lee on both the last board and this one that ask something else on this one; none where
-    /// either line's projects did not read, as for `asksLeft`.
-    private func asksChanged(on board: Board, after last: Board?) -> Set<AskOf> {
-        guard let was = last?.asksWaitingOnLee, let now = board.asksWaitingOnLee else {
-            return []
-        }
-
-        let changed = now.filter { ask, asked in was[ask].map { !$0.asksAlike(asked) } ?? false }
-
-        return Set(changed.keys)
     }
 
     /// Stale for the reason given, since it first went stale.

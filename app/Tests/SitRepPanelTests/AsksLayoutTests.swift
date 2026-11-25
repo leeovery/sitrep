@@ -192,4 +192,28 @@ struct AsksLayoutTests {
         // its tail, where its path ends, is behind its tip
         #expect(RowArrow.chevron(pointsLeft: false).currentPoint.x < RowArrow.chevron(pointsLeft: true).currentPoint.x)
     }
+
+    /// On the right edge, pointing left, the arrow is at the row's left end, 26 by 26 on its dot's middle.
+    @Test func onTheRightEdgeTheRowsArrowIsOnItsDot() {
+        #expect(RowArrow.box(in: CGSize(width: 344, height: 30), pointsLeft: true) == CGRect(x: 3, y: 2, width: 26, height: 26))
+        #expect(RowArrow.chevron(pointsLeft: true, in: CGSize(width: 26, height: 26)).boundingBox.midX == 13)
+    }
+
+    /// A strip's tab's arrow is 40 by 26, 3 in from its words' front end on their middle: their right on the left edge,
+    /// their left on the right.
+    @Test func aTabsArrowIs3InFromItsFrontEnd() {
+        let words = CGSize(width: 300, height: 52)
+
+        #expect(RowArrow.tabBox(in: words, pointsLeft: false) == CGRect(x: 257, y: 13, width: 40, height: 26))
+        #expect(RowArrow.tabBox(in: words, pointsLeft: true) == CGRect(x: 3, y: 13, width: 40, height: 26))
+    }
+
+    /// Beside a strip's tab, kept between the menu bar and the screen's bottom as given.
+    @Test func itKeepsWithinTheSpanItIsGiven() {
+        let layout = AsksLayout(Self.choice, measure: Self.measure)
+
+        #expect(layout.frame(besideRowAt: 20, front: 300, within: 37 ... 982).minY == CGFloat(37 + AsksLayout.spare))
+        #expect(layout.frame(besideRowAt: 960, front: 300, within: 37 ... 982).maxY == CGFloat(982 - AsksLayout.spare))
+        #expect(layout.frame(besideRowAt: 300, front: 300, within: 37 ... 982).minX == 292)
+    }
 }

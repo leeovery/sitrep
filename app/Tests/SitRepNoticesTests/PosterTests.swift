@@ -71,6 +71,19 @@ struct PosterTests {
         #expect(BannerInfo.work(center.added[0].content.userInfo) == "sr-nw0001")
     }
 
+    /// A banner an earlier build posted, still in Notification Center, carried its ask's words and answers too, for
+    /// the buttons it had then: its ask and its session read from it all the same, so it is taken down, and its click
+    /// jumps.
+    @Test func aBannerInAnEarlierBuildsShapeStillReadsItsAskAndItsSession() {
+        let earlier: [AnyHashable: Any] = [
+            "work": "sr-nw0001", "ask": "k1", "session": "sr-nw0001", "askTitle": "Pick the export format",
+            "place": "Northwind · Ledger export", "wants": "choice", "option.0": "CSV", "option.1": "Parquet",
+        ]
+
+        #expect(BannerInfo.ask(earlier) == Self.ask)
+        #expect(BannerInfo.work(earlier) == "sr-nw0001")
+    }
+
     /// The test notification, a refusal's, and any other naming no session carry nothing.
     @Test func aBannerNamingNoSessionCarriesNothing() async {
         await poster().post(Notice(title: "Not answered", subtitle: nil, body: "Answered already", work: nil))

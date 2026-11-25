@@ -59,6 +59,20 @@ final class EdgeWindow: NSPanel {
         return window
     }
 
+    /// Moved to a new frame, widened for the asks panel or narrowed back, and drawn there by `draw`. On the right edge
+    /// it grows into the screen, its stage mirrored across its new width, so all it draws moves in it: the window takes
+    /// its new frame, its views their new bounds, and then `draw` draws into them, all in one transaction, flushed at
+    /// once, so the screen gets the new window and what it draws together.
+    func reframe(_ frame: CGRect, drawing draw: () -> Void) {
+        CATransaction.begin()
+        setFrame(frame, display: false)
+        contentView?.layoutSubtreeIfNeeded()
+        draw()
+        displayIfNeeded()
+        CATransaction.commit()
+        CATransaction.flush()
+    }
+
     private func letClicks() {
         ignoresMouseEvents = !(isShown && takesClicks)
     }

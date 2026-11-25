@@ -225,23 +225,16 @@ final class NotchController: NSObject, CalloutShape {
     }
 
     /// The window wide while the asks panel is open beside the panel, and back to the panel's once it closes, a frame
-    /// drawn through its mirror. On the right edge it grows into the screen, its stage mirrored across its new width,
-    /// so all it draws moves in it: the window takes its new frame, its views their new bounds, and then the frame is
-    /// drawn into them, the black mirrored across the new width, all in one transaction, flushed at once, so the screen
-    /// gets the new window and what it draws together.
+    /// drawn through its mirror (`EdgeWindow.reframe`).
     private func widen(_ wide: Bool, drawing draw: (CGAffineTransform) -> Void) {
         guard wide != isWide else {
             return draw(edge.mirror(wide: isWide))
         }
 
         isWide = wide
-        CATransaction.begin()
-        window.setFrame(edge.window(wide: wide), display: false)
-        window.contentView?.layoutSubtreeIfNeeded()
-        draw(edge.mirror(wide: wide))
-        window.displayIfNeeded()
-        CATransaction.commit()
-        CATransaction.flush()
+        window.reframe(edge.window(wide: wide)) {
+            draw(edge.mirror(wide: wide))
+        }
     }
 
     /// The notch at rest at its home, from the edge to its front, on the screen, for what stands beside it: at the home

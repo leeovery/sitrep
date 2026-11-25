@@ -2,16 +2,16 @@ import AppKit
 @testable import SitRep
 import Testing
 
-/// An edge's surface shot on the README's desktop (`app/screens`), at the screen's left edge: the wallpaper, the
-/// display's black bezel beside the edge, and the surface's drawing over them as Core Animation's endless turns stand
-/// at a moment, each shot a picture at 2×. Only the wallpaper, the bezel and the glows' stand-ins (`Glows`) are not the
-/// app's.
+/// An edge's surface shot on the README's desktop (`app/screens`), at the screen's left edge, or its right: the
+/// wallpaper, the display's black bezel beside the edge, and the surface's drawing over them as Core Animation's
+/// endless turns stand at a moment, each shot a picture at 2×. Only the wallpaper, the bezel and the glows' stand-ins
+/// (`Glows`) are not the app's.
 @MainActor
 final class EdgeShot {
     /// The display's black bezel shown beside the screen's edge, which the edge's black flares into.
     private static let bezel = 6.0
 
-    /// The shot's frame on the screen, the bezel at its left.
+    /// The shot's frame in the surface, the bezel past its edge.
     private let cut: CGRect
     /// How far below the screen's top the surface's window starts.
     private let hung: Double
@@ -19,13 +19,18 @@ final class EdgeShot {
     /// The surface's drawing, under a flipped root, as `Drawn` draws a layer.
     private let root = CALayer()
 
-    /// The surface, shot over `cut` on the screen, its window starting `hung` below the screen's top.
-    init(_ surface: NSView, cut: CGRect, hung: Double = 0) throws {
-        let framed = CGRect(x: -Self.bezel, y: cut.minY, width: cut.maxX + Self.bezel, height: cut.height)
+    /// The surface, shot over `cut` in its own points, its window starting `hung` below the screen's top: against the
+    /// screen's left edge, from it; or `onRight`, against its right edge, out to it.
+    init(_ surface: NSView, cut: CGRect, hung: Double = 0, onRight: Bool = false) throws {
+        let framed = onRight
+            ? CGRect(x: cut.minX, y: cut.minY, width: surface.bounds.width - cut.minX + Self.bezel, height: cut.height)
+            : CGRect(x: -Self.bezel, y: cut.minY, width: cut.maxX + Self.bezel, height: cut.height)
 
         self.cut = framed
         self.hung = hung
-        backdrop = try Self.backdrop(framed)
+        backdrop = try onRight
+            ? Self.backdrop(rightOf: framed, from: ReadmeDesktop.screen.width - surface.bounds.width)
+            : Self.backdrop(framed)
 
         let drawing = try #require(surface.subviews.first?.layer)
 
@@ -62,6 +67,17 @@ final class EdgeShot {
         layer.contentsScale = Canvas.scale
         layer.displayIfNeeded()
         layer.sublayers?.forEach(display)
+    }
+
+    /// The wallpaper under the shot's frame against the screen's right edge, the surface standing this far from the
+    /// screen's left, and the bezel past the edge.
+    private static func backdrop(rightOf cut: CGRect, from left: Double) throws -> CGImage {
+        let canvas = try Canvas(cut.size)
+
+        try ReadmeDesktop.drawWallpaper(cut.offsetBy(dx: left, dy: 0), in: canvas.context)
+        canvas.context.setFillColor(EdgeStyle.black)
+        canvas.context.fill(CGRect(x: cut.width - bezel, y: 0, width: bezel, height: cut.height))
+        return try canvas.image()
     }
 
     /// The wallpaper under the shot's frame, the bezel beside the screen's edge.

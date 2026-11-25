@@ -55,9 +55,14 @@ public struct AsksShown: Equatable, Sendable {
         }
     }
 
-    /// Stood beside its row, as tall as it is as it slides (`AsksLayout.frame`).
+    /// Stood beside its row, as tall as it is as it slides, kept within the screen's visible frame (`AsksLayout.frame`).
     mutating func stand(besideRowAt rowTop: Double, front: Double, on stage: Stage) {
-        frame = layout.frame(besideRowAt: rowTop, front: front, on: stage, height: height)
+        stand(besideRowAt: rowTop, front: front, within: stage.visibleTop ... stage.visibleBottom)
+    }
+
+    /// Stood beside its row, as tall as it is as it slides, kept within `visible` on the stage.
+    mutating func stand(besideRowAt rowTop: Double, front: Double, within visible: ClosedRange<Double>) {
+        frame = layout.frame(besideRowAt: rowTop, front: front, within: visible, height: height)
     }
 
     /// Whether a point on the stage is on it, its corners rounded.

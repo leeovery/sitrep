@@ -59,7 +59,7 @@ struct NotchAsksWindowTests {
     /// The middle of Help desk redesign's arrow on the stage.
     static func arrow(_ run: NotchRun, mirror: CGAffineTransform) throws -> CGPoint {
         let panel = try #require(run.frame.panel), index = try #require(run.list.index(of: helpDesk))
-        let row = run.list.content.laidFrame(index), box = RowArrow.box(in: row.size)
+        let row = run.list.content.laidFrame(index), box = RowArrow.box(in: row.size, pointsLeft: mirror.a < 0)
 
         return panel.stagePoint(
             CGPoint(x: row.minX + box.midX, y: row.minY + box.midY), mirror: mirror, scroll: run.scroll

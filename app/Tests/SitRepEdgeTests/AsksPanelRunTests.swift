@@ -86,9 +86,20 @@ struct AsksPanelRunTests {
     private static func arrow(
         _ key: String, _ run: NotchRun, _ setting: NotchRun.Setting = setting()
     ) throws -> CGPoint {
-        let row = try row(key, run), box = RowArrow.box(in: row.size)
+        let row = try row(key, run), box = RowArrow.box(in: row.size, pointsLeft: setting.mirror.a < 0)
 
         return try onStage(row.minX + box.midX, row.minY + box.midY, run, setting)
+    }
+
+    /// A row's end away from the asks panel, 23 in from it: its left on the left edge, its right on the right, where
+    /// the right edge's arrow stood until 25 November 2026. The longest way from the list to the asks panel starts
+    /// there.
+    private static func farEnd(
+        _ key: String, _ run: NotchRun, _ setting: NotchRun.Setting = setting()
+    ) throws -> CGPoint {
+        let row = try row(key, run)
+
+        return try onStage(setting.mirror.a < 0 ? row.maxX - 23 : row.minX + 23, row.midY, run, setting)
     }
 
     /// A row's words, near its left.
@@ -630,16 +641,19 @@ struct AsksPanelRunTests {
         }
     }
 
-    /// On a list of one row the asks panel runs on below it: the straight way from the arrow, where it stands on
-    /// either edge, to the last answer of a choice of three, past the list's bottom corner, keeps the panel open, as a
-    /// Mac submenu's safe triangle does, on either notch, however the pointer's samples come. The pointer goes slowly
-    /// enough that its way off both panels takes longer than a leave's grace, and within the triangle's time.
-    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
-    func theWayFromTheArrowToTheLastAnswerKeepsItOpen(_ style: NotchStyle, right: Bool) throws {
+    /// On a list of one row the asks panel runs on below it: the straight way from the row, its arrow or its far end,
+    /// to the last answer of a choice of three, past the list's bottom corner, keeps the panel open, as a Mac submenu's
+    /// safe triangle does, on either notch, however the pointer's samples come. The pointer goes slowly enough that its
+    /// way off both panels takes longer than a leave's grace, and within the triangle's time. On the right edge the
+    /// way from the arrow, at the row's end by the asks panel, never leaves the list and the asks panel.
+    @Test(arguments: [NotchStyle.meniscus, .card], [Start.leftArrow, .leftFarEnd, .rightFarEnd])
+    func theWayFromTheRowToTheLastAnswerKeepsItOpen(_ style: NotchStyle, start: Start) throws {
         for feed in Feed.allCases {
-            let setting = Self.setting(right: right, style: style)
+            let setting = Self.setting(right: start == .rightFarEnd, style: style)
             let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
-            let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
+            let from = try start == .leftArrow
+                ? Self.arrow(Self.helpDesk, run, setting) : Self.farEnd(Self.helpDesk, run, setting)
+            let to = try Self.part(.answer(2), run, setting)
             let off = try Self.offBoth(run, from: from, to: to)
 
             try #require(off.length > 0, "the way never leaves both panels")
@@ -651,6 +665,11 @@ struct AsksPanelRunTests {
         }
     }
 
+    /// Where the way to the asks panel starts: the row's arrow on the left edge, or its far end on either.
+    enum Start: CaseIterable {
+        case leftArrow, leftFarEnd, rightFarEnd
+    }
+
     /// A pointer resting on the list, near its bottom edge, longer than the way's time, with no frames meanwhile,
     /// then going slowly on its way to the last answer: the way's time counts from the move off the list, not from
     /// the rest, so it keeps the panel open, on either notch and edge.
@@ -658,7 +677,7 @@ struct AsksPanelRunTests {
     func aRestOnTheListBeforeTheWayLeavesItAllItsTime(_ style: NotchStyle, right: Bool) throws {
         let setting = Self.setting(right: right, style: style)
         let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
-        let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
+        let from = try Self.farEnd(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
         let off = try Self.offBoth(run, from: from, to: to), panel = try #require(run.frame.panel)
         let way = Self.way(from: from, to: to, at: off.length / (SafeTriangle.lasts - 60))
         let edge = try #require(way.lastIndex { panel.contains($0) })
@@ -684,7 +703,7 @@ struct AsksPanelRunTests {
     func onTheWayAPointerThatDawdlesClosesIt(_ style: NotchStyle, dawdle: String) throws {
         let setting = Self.setting(right: true, style: style)
         let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
-        let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
+        let from = try Self.farEnd(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
         let off = try Self.offBoth(run, from: from, to: to), panel = try #require(run.frame.panel)
         let speed = dawdle == "creeps" ? off.length / (SafeTriangle.lasts + 600) : 1.0
         var way = Self.way(from: from, to: to, at: speed), halfway = way.count
@@ -727,7 +746,7 @@ struct AsksPanelRunTests {
     func aPointerRestingOnTheWayClosesItWithNoOtherInput(_ style: NotchStyle) throws {
         let setting = Self.setting(right: true, style: style)
         let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
-        let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
+        let from = try Self.farEnd(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
         let off = try Self.offBoth(run, from: from, to: to), panel = try #require(run.frame.panel)
         let way = Self.way(from: from, to: to, at: 1)
         let halfway = try #require(way.firstIndex { hypot($0.x - off.middle.x, $0.y - off.middle.y) < 20 })
@@ -1245,6 +1264,47 @@ struct AsksPanelRunTests {
     }
 
     // MARK: The right edge
+
+    /// On the right edge the arrow is at the row's left end, in its dot's place, the end by the asks panel: lit there,
+    /// a press there opens the asks panel; at the row's right end, where the time stays, the pointer lights no arrow,
+    /// and a press jumps.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func onTheRightEdgeTheArrowIsAtTheRowsLeftEnd(_ style: NotchStyle) throws {
+        let setting = Self.setting(right: true, style: style), run = Self.opened(setting)
+        let row = try Self.row(Self.helpDesk, run)
+        let atLeft = RowArrow.box(in: row.size, pointsLeft: true), atRight = RowArrow.box(in: row.size)
+        let arrow = try Self.onStage(row.minX + atLeft.midX, row.minY + atLeft.midY, run, setting)
+        let time = try Self.onStage(row.minX + atRight.midX, row.minY + atRight.midY, run, setting)
+
+        run.step(Self.at(run, arrow, setting))
+        #expect(run.arrows(in: setting) == [Self.helpDesk: true])
+        run.step(Self.at(run, time, setting))
+        #expect(run.arrows(in: setting) == [Self.helpDesk: false])
+        guard case .jump? = run.press(Self.at(run, time, setting)) else {
+            Issue.record("a press at the row's right end did not jump")
+            return
+        }
+
+        let opening = Self.opened(setting)
+
+        #expect(opening.press(Self.at(opening, arrow, setting)) == .asks)
+        #expect(opening.asksShown?.row == Self.helpDesk)
+    }
+
+    /// On the right edge the way from the arrow, where it now stands, to the last answer keeps the panel open, the
+    /// pointer on the list or the asks panel all the way.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func onTheRightEdgeTheWayFromTheArrowKeepsItOpen(_ style: NotchStyle) throws {
+        let setting = Self.setting(right: true, style: style)
+        let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
+        let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
+
+        for point in Self.way(from: from, to: to, at: 0.3) {
+            run.step(Self.at(run, point, setting))
+        }
+        Self.frames(run, for: 2000, to, setting)
+        #expect(run.phase == .open && run.asksShown?.hover == .answer(2))
+    }
 
     /// Mirrored on the right edge, it still reads left to right: its rows where they are drawn.
     @Test(arguments: [NotchStyle.meniscus, .card])

@@ -133,8 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Each board, to everything that shows it, and then to the jump, whose read of here dims rows on the board they
     /// already show; the sound Lee chose, once for the asks new on it, or for the sessions it moved into his turn, and
-    /// a notification for each, each while Lee has it on; and the banners of the asks that left it or changed taken
-    /// down.
+    /// a notification for each, each while Lee has it on; and the banners of the asks that left it taken down.
     private func heard(_ last: LastBoard) {
         live.last = last
         edge?.show(last)
@@ -142,7 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         works.show(last)
 
         Chime.due(last, preferences.app).map(sounds.play)
-        last.asksLeft.union(last.asksChanged).forEach(banners.clear)
+        last.asksLeft.forEach(banners.clear)
         Notices.due(last, preferences.app).forEach(banners.post)
     }
 

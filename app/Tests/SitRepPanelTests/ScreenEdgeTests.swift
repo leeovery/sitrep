@@ -99,6 +99,19 @@ struct ScreenEdgeTests {
         #expect(Self.studio.mirror(wide: true) == .identity)
     }
 
+    /// The strip's window, wide while the asks panel is open beside a tab, grows into the screen as the notch's does,
+    /// deep enough for the asks panel and its shadow beside the widest tab, from under the menu bar to the bottom.
+    @Test func theStripsWideWindowGrowsIntoTheScreenAndStillDrawsUnderThePointer() throws {
+        let wide = Self.right.stripWindow(wide: true), screenPoint = CGPoint(x: 1900, y: 900)
+        let stage = try #require(Self.right.stagePoint(screenPoint))
+        let widestTab = Strip.restingWidth + StripTuning.tabMax
+
+        #expect(ScreenEdge.stripWideDepth >= widestTab - AsksLayout.overlap + AsksLayout.width)
+        #expect(wide.maxX == 2560 && wide.width == ScreenEdge.stripWideDepth && wide.height == Self.right.stripWindow.height)
+        #expect(wide.minX + stage.applying(Self.right.stripMirror(wide: true)).x == screenPoint.x)
+        #expect(Self.studio.stripWindow(wide: true).minX == 0 && Self.studio.stripMirror(wide: true) == .identity)
+    }
+
     /// A point on the content is the same through the wide window's mirror as through the narrow one's, as the run
     /// reads it through the narrow one while the drawing draws through the wide.
     @Test(arguments: [EdgeSettings.Edge.left, .right])

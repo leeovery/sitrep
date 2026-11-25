@@ -19,14 +19,15 @@ final class StripSurface: EdgeSurface {
     }
 
     /// The run's latest frame, as it runs in `setting`, through the edge's mirror, hung from the menu bar its window
-    /// starts under, its tabs' times as of `now` on the wall clock. The real strip draws through here, and the
-    /// welcome's stage.
+    /// starts under, the tab's arrow and the asks panel, its tabs' times as of `now` on the wall clock. The real strip
+    /// draws through here, and the welcome's stage.
     func draw(
         _ run: StripRun, in setting: StripRun.Setting, mirror: CGAffineTransform, now: Double = Displays.wallNow
     ) {
         show(StripScene(
             frame: run.frame, hoverRow: run.hoverRow, note: run.note, now: now, mirror: mirror,
-            menu: setting.stage.menu, reducesMotion: setting.reducesMotion
+            menu: setting.stage.menu, reducesMotion: setting.reducesMotion, arrow: run.arrow(in: setting),
+            asks: run.asksShown
         ))
     }
 }

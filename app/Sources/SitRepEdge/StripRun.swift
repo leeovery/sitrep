@@ -1,27 +1,55 @@
 import CoreGraphics
 import Foundation
+import SitRepCore
 import SitRepPanel
 
 /// The strip as the controller runs it, with nothing of the screen in it: the model, the board it shows and what its
-/// tabs say of it, the sections Lee folded, shared with the card, the frames and the clock they run on, and what a
-/// press let go means. Every input reaches the model through here, and each first brings it up to the input's moment,
-/// so it takes its time from the clock, and a click lands on the strip as it is drawn. The controller draws what this
-/// has, and paces its frames.
+/// tabs say of it, the sections Lee folded, shared with the card, the frames and the clock they run on, the asks panel
+/// beside its tab, and what a press, and a press let go, mean. Every input reaches the model through here, and each
+/// first brings it up to the input's moment, so it takes its time from the clock, and a click lands on the strip as it
+/// is drawn. The controller draws what this has, and paces its frames.
 public final class StripRun: Framed {
     /// What the strip runs in, as it stands at each frame.
     public struct Setting: Equatable, Sendable {
         public var stage: StripStage
         public var reducesMotion: Bool
+        /// The stage into the window: mirrored on the right edge. Only its flip matters here, as for the notch's
+        /// (`NotchRun.Setting.mirror`): every point read through it is taken from what is drawn through the same one.
+        public var mirror: CGAffineTransform
+        /// Whether one ask's Snooze offers a time now, as Lee set them: the asks panel's foot shows Snooze ▾ only
+        /// while it does.
+        public var offersSnooze: Bool
 
-        public init(stage: StripStage, reducesMotion: Bool) {
+        public init(
+            stage: StripStage, reducesMotion: Bool, mirror: CGAffineTransform = .identity, offersSnooze: Bool = true
+        ) {
             self.stage = stage
             self.reducesMotion = reducesMotion
+            self.mirror = mirror
+            self.offersSnooze = offersSnooze
         }
     }
 
     public typealias Moment = RunMoment<Setting>
     public typealias Shown = RunShown
     public typealias Drop = RunDrop
+
+    /// What a press on the asks panel or a tab's arrow comes to, at once: the rest of the strip waits for the press to
+    /// let go (`release`).
+    public enum Press: Equatable, Sendable {
+        /// What the asks panel shows changed, and nothing else: the tab's arrow opened it or closed it; a click on the
+        /// strip or the tab closed it; or a page dot paged it.
+        case asks
+        /// An answer's row, or Ignore, on the asks panel: the answer to hold.
+        case answer(Answering)
+        /// The sending line's Undo: the answer held taken back.
+        case undo
+        /// Snooze ▾ on the asks panel: the ask it shows, by its id, and its session's, to snooze from a menu at this
+        /// point on the stage.
+        case snooze(ask: String, of: String, at: CGPoint)
+        /// Open in Claude, as a click on the tab: its session, the session to jump to, and which click it is.
+        case jump(Session, to: String, click: Int)
+    }
 
     /// What a press let go comes to.
     public enum Release: Equatable, Sendable {
@@ -43,6 +71,8 @@ public final class StripRun: Framed {
     private var menu: (at: CGPoint, isOpen: Bool)?
     /// The calendar a session's menu words its snooze times on.
     public let calendar: Calendar
+    /// The asks panel beside the tab: where it is open, the answer held, the asks answered, and how its words are set.
+    var asking: AsksPanel
 
     /// A pointer let go off the strip's screen, which lands on nothing.
     private static let offStage = CGPoint(x: -1, y: -1)
@@ -52,13 +82,15 @@ public final class StripRun: Framed {
     /// the Gregorian calendar in the Mac's time zone, followed as it changes (`WakeTime.calendar`).
     public init(
         at time: Double, in setting: Setting, _ settings: EdgeSettings, folding: Folding = Folding(),
-        calendar: Calendar = WakeTime.calendar, measure: (@escaping () -> StripNote) -> StripMeasure
+        calendar: Calendar = WakeTime.calendar, asksMeasure: AsksMeasure = .estimated,
+        measure: (@escaping () -> StripNote) -> StripMeasure
     ) {
         let input = Self.input(at: time, pointer: nil, setting), said = Said()
 
         self.said = said
         self.folding = folding
         self.calendar = calendar
+        asking = AsksPanel(measure: asksMeasure)
         book = RunBook(at: time)
         strip = Strip(
             length: settings.length, maxLength: settings.maxLength, along: settings.along,
@@ -90,15 +122,19 @@ public final class StripRun: Framed {
     public var isAcross: Bool { strip.isAcross }
 
     /// One frame: the sections as folded on the card meanwhile, the model moved on with the pointer where it is, or
-    /// where a menu was opened while it shows, what the drawing must show once latched.
+    /// where a menu was opened while it shows, the asks panel and the way to it counting as the tab, what the drawing
+    /// must show once latched, and the asks panel placed beside the tab.
     public func step(_ moment: Moment) {
         let time = book.clock(moment.time), held = menu.flatMap { $0.isOpen ? $0.at : nil }
-        var input = Self.input(at: time, pointer: held ?? moment.pointer, moment.setting)
+        let pointer = held ?? moment.pointer
+        var input = Self.input(at: time, pointer: pointer, moment.setting)
 
         input.pointerAt = held == nil ? moment.pointerAt : nil
+        input.beside = asking.beside(pointer, onList: pointer.map(frame.covers) ?? false, at: time)
         strip.folded = folding.folds.sections
         frame = strip.frame(input)
         latch(frame, at: time)
+        placeAsks(in: moment.setting)
     }
 
     /// Hidden, the strip's time ran on: the sections as folded on the card meanwhile, it is taken on to now
@@ -110,6 +146,7 @@ public final class StripRun: Framed {
 
         strip.folded = folding.folds.sections
         frame = strip.runOn(from: from, to: to, input) { latch($1, at: $0) }
+        placeAsks(in: moment.setting)
     }
 
     /// What a frame at this time showed, for the drawing: the edge swapped, and the spin over for a click's jump.
@@ -122,14 +159,16 @@ public final class StripRun: Framed {
     /// as the notch's pulse does; while it is stale, the tabs say since when, an open one taking its new words as it
     /// does.
     public func show(_ board: PanelBoard, _ moment: Moment) {
-        let note = StripNote(board), reworded = note != said.note
+        let note = StripNote(board), reworded = !note.saysAlike(said.note)
 
         upToNow(moment)
         said.note = note
         self.board = board
+        asking.take(board)
         strip.show(
             board.cardSessions, new: board.new, stopped: board.newTurns, pulses: board.pulses, reworded: reworded
         )
+        placeAsks(in: moment.setting)
     }
 
     /// A section folded, or unfolded, from a menu on the strip: at once, here and on the card.
@@ -149,7 +188,7 @@ public final class StripRun: Framed {
     public func target(_ moment: Moment) -> StripTarget? {
         upToNow(moment)
         menu = moment.pointer.map { (at: $0, isOpen: false) }
-        return moment.pointer.flatMap(strip.target)
+        return moment.pointer.flatMap { asking.isOn($0) ? nil : strip.target(at: $0) }
     }
 
     /// The menu asked for showing: until it closes, the strip holds as if the pointer rested where the right-click
@@ -157,6 +196,13 @@ public final class StripRun: Framed {
     /// out stays out, no other pours, and nothing re-sorts under a choice made on it.
     public func menuOpened() {
         menu?.isOpen = true
+        strip.holdHover()
+    }
+
+    /// A menu opened from a press at a point on the stage, as the asks panel's Snooze ▾ opens its own: the strip holds
+    /// as if the pointer rested there until it closes (`menuOpened()`).
+    public func menuOpened(at point: CGPoint) {
+        menu = (at: point, isOpen: true)
         strip.holdHover()
     }
 
@@ -188,12 +234,31 @@ public final class StripRun: Framed {
         strip.along = settings.along
     }
 
-    /// A press at the pointer, on the strip as it is now, which moved may become a drag.
-    public func press(_ moment: Moment) {
+    /// A press at the pointer, on the strip as it is now. On the asks panel, what it is on there (`pressAsks`); on the
+    /// tab's arrow, the asks panel opens beside the tab, or, open beside it, closes; anywhere else on the strip or the
+    /// tab while the asks panel is open, it closes, and nothing else, the press letting go on nothing: no jump, no drag.
+    /// Else on the strip, which moved may become a drag, or an open tab, which clicks as it lets go.
+    @discardableResult
+    public func press(_ moment: Moment) -> Press? {
         upToNow(moment)
-        if let point = moment.pointer {
-            strip.press(at: point)
+        guard let point = moment.pointer else {
+            return nil
         }
+        defer { placeAsks(in: moment.setting) }
+
+        if asking.isOn(point) {
+            return pressAsks(at: point, in: moment.setting)
+        }
+        if let row = arrow(at: point, in: moment.setting) {
+            toggleAsks(row)
+            return .asks
+        }
+        if asking.row != nil, frame.covers(point) {
+            asking.close()
+            return .asks
+        }
+        strip.press(at: point)
+        return nil
     }
 
     /// The press moved to the pointer: the model's frame then carries the strip with it.
@@ -226,16 +291,31 @@ public final class StripRun: Framed {
         return strip.cancelPress()
     }
 
-    /// A click anywhere off the strip and its tab: a tab out draws back.
+    /// A click anywhere off the strip, its tab and the asks panel: a tab out draws back, and the asks panel closes with
+    /// it.
     public func clickElsewhere(_ moment: Moment) {
         upToNow(moment)
         strip.clickElsewhere()
+        asking.close()
+        placeAsks(in: moment.setting)
     }
 
     /// The jump a click asked for answered: its spin ends now.
     public func jumpAnswered(_ moment: Moment) {
         upToNow(moment)
         strip.jumpAnswered()
+    }
+
+    /// A scroll: over the asks panel, or in a swipe across it under way, a horizontal swipe pages it
+    /// (`AsksPanel.swiped`); anywhere else, an open count's tab scrolled down by it (`scroll(by:)`).
+    public func scroll(_ scroll: Scroll, _ moment: Moment) {
+        guard asking.isOn(moment.pointer) || asking.isSwiping else {
+            return self.scroll(by: scroll.down, moment)
+        }
+
+        upToNow(moment)
+        asking.swiped(scroll, at: time, tabRows, board, reducesMotion: moment.setting.reducesMotion)
+        placeAsks(in: moment.setting)
     }
 
     /// The wheel over an open count's tab scrolls its rows this much further.
@@ -254,19 +334,41 @@ public final class StripRun: Framed {
         }
     }
 
-    /// When, after this wall time, the time or a wake's countdown on a tab out next reads differently; nil with none,
-    /// and while the board is stale, its times as of then.
+    /// When, after this wall time, the time or a wake's countdown on a tab out, or the asks panel's ask's age, next
+    /// reads differently; nil with none, and while the board is stale, the tabs' times as of then.
     public func nextAgeChange(after now: Double) -> Double? {
+        let asked = asking.shown.map { $0.ask.ageChanges(after: now) }
+
         guard note.asOf == nil else {
-            return nil
+            return asked
         }
 
-        return frame.tabs.flatMap(\.words).compactMap { $0.changes(after: now) }.min()
+        return (frame.tabs.flatMap(\.words).compactMap { $0.changes(after: now) } + [asked].compactMap { $0 }).min()
+    }
+
+    /// Whether frames must keep coming at this time, though the pointer is still: the strip moves, the way to the asks
+    /// panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`), or its asks slide, under
+    /// the fingers or settling (`AsksSlide`).
+    public var needsFrames: Bool {
+        frame.isMoving || asking.isFindingWay || asking.isSliding
     }
 
     /// A click on a session: its jump, or an away one carried on.
     private func jump(_ session: Session) -> Release {
         .jump(session, to: session.id, click: book.click())
+    }
+
+    /// Open in Claude on the asks panel, for the session of the tab it opened beside: the asks panel closes, and the
+    /// jump goes as a click on the tab, which presses in (`Strip.jump`).
+    func open(_ row: String) -> Press? {
+        guard let session = tabRows.session(ofRow: row) else {
+            return nil
+        }
+
+        let jumping = strip.jump(to: session)
+
+        asking.close()
+        return .jump(jumping, to: jumping.id, click: book.click())
     }
 
     private static func input(at time: Double, pointer: CGPoint?, _ setting: Setting) -> StripInput {

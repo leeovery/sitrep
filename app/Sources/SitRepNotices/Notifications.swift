@@ -12,9 +12,13 @@ final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate
     private let logger = Logger(helper: "banner")
     private var onClick: (String?) -> Void = { _ in }
 
+    /// Clicks told to `onClick` from now on, and no banner buttons: macOS keeps the categories a build registered
+    /// until another registers its own, so the buttons of the builds that answered from a banner (#203 to #206) would
+    /// show on a banner still, and a press on one go nowhere.
     func listen(onClick: @escaping (String?) -> Void) {
         self.onClick = onClick
         center.delegate = self
+        center.setNotificationCategories([])
     }
 
     func post(_ notice: Notice) async {

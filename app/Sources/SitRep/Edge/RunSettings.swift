@@ -15,11 +15,11 @@ extension NotchRun.Setting {
 }
 
 extension StripRun.Setting {
-    /// What the strip runs in on this screen edge, as Lee set it: the edge's stage, and motion as he and the Mac set
-    /// it. The real strip's and the welcome stage's alike.
+    /// What the strip runs in on this screen edge, as Lee set it: the edge's stage and mirror, and motion as he and the
+    /// Mac set it. The real strip's and the welcome stage's alike.
     @MainActor
     static func on(_ edge: ScreenEdge, _ settings: EdgeSettings) -> Self {
-        Self(stage: edge.stripStage, reducesMotion: Displays.reducesMotion(settings))
+        Self(stage: edge.stripStage, reducesMotion: Displays.reducesMotion(settings), mirror: edge.stripMirror)
     }
 }
 

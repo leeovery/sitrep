@@ -3,15 +3,17 @@ import Foundation
 @testable import SitRep
 @testable import SitRepCore
 @testable import SitRepEdge
-import SitRepPanel
+@testable import SitRepPanel
 import SitRepTestSupport
 import Testing
 
 /// The row's arrow and the asks panel, drawn by the real run into the real surface at the README desktop's left edge,
 /// to read beside Paper's boards E2, F, H3 and A2: the pointer on a Needs you row's words, then on its arrow; the asks
 /// panel on a session's choice, and on a words ask; and an answer sending, its countdown under way; a choice whose
-/// pick wraps to two lines, the pointer off it and on it; and a choice mid-swipe, the yes beside it sliding in. Only
-/// when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing.
+/// pick wraps to two lines, the pointer off it and on it; and a choice mid-swipe, the yes beside it sliding in. At the
+/// right edge, the pointer on a row's arrow at its left end, and the asks panel open from it; and on the strip, at
+/// either edge, the asks panel open beside a tab. Only when `SITREP_STILLS` names a folder for them, so a run of the
+/// tests writes nothing.
 @MainActor
 @Suite(.backstop, .enabled(if: stills != nil))
 struct AsksPanelStillsTests {
@@ -20,17 +22,27 @@ struct AsksPanelStillsTests {
     /// The wall clock the stills are drawn at, ms: Wednesday 18 November 2026, 10:30 UTC.
     private static let now = 1_794_997_800_000.0
     private static let settings = EdgeSettings()
-    private static let edge = ScreenEdge(
-        frame: CGRect(origin: .zero, size: ReadmeDesktop.screen),
-        visible: CGRect(
-            x: 0, y: 0, width: ReadmeDesktop.screen.width, height: ReadmeDesktop.screen.height - ReadmeDesktop.menuBar
-        ),
-        edge: settings.edge, along: settings.along
-    )
-    private static let setting = NotchRun.Setting(
-        stage: edge.stage, mirror: edge.mirror(wide: true), style: settings.style, reducesMotion: false,
-        isChosen: true
-    )
+    private static let edge = edge(.left)
+    private static let setting = setting(on: edge)
+
+    /// The README desktop's screen, its edge on this side.
+    private static func edge(_ side: EdgeSettings.Edge) -> ScreenEdge {
+        ScreenEdge(
+            frame: CGRect(origin: .zero, size: ReadmeDesktop.screen),
+            visible: CGRect(
+                x: 0, y: 0, width: ReadmeDesktop.screen.width,
+                height: ReadmeDesktop.screen.height - ReadmeDesktop.menuBar
+            ),
+            edge: side, along: settings.along
+        )
+    }
+
+    private static func setting(on edge: ScreenEdge) -> NotchRun.Setting {
+        NotchRun.Setting(
+            stage: edge.stage, mirror: edge.mirror(wide: true), style: settings.style, reducesMotion: false,
+            isChosen: true
+        )
+    }
     private static let helpDesk = "needs:sr-nw0001", shifts = "needs:sr-ct0002", onboarding = "needs:sr-tw0006"
     /// Onboarding flow's pick, long enough to wrap to a second line.
     private static let pairing = "Pair each one with a lead for five shifts, then let them take tickets alone"
@@ -113,27 +125,54 @@ struct AsksPanelStillsTests {
         try Self.shoot(run, pointer: title, as: "8-asks-mid-swipe")
     }
 
+    // MARK: The right edge
+
+    @Test
+    func onTheRightEdgeThePointerOnTheRowsArrow() throws {
+        let edge = Self.edge(.right), setting = Self.setting(on: edge), run = try Self.opened(setting)
+
+        try Self.shoot(run, pointer: try Self.arrow(Self.helpDesk, run, setting), as: "9-right-row-arrow", on: edge)
+    }
+
+    @Test
+    func onTheRightEdgeTheAsksPanelOpenFromTheArrow() throws {
+        let edge = Self.edge(.right), setting = Self.setting(on: edge), run = try Self.opened(setting)
+
+        try Self.open(Self.helpDesk, run, setting)
+        try Self.shoot(run, pointer: try Self.onTitle(run, setting), as: "10-right-asks-choice", on: edge)
+    }
+
+    // MARK: The strip
+
+    @Test(arguments: [EdgeSettings.Edge.left, .right])
+    func onTheStripTheAsksPanelOpenBesideATab(_ side: EdgeSettings.Edge) throws {
+        try StripStills.shoot(on: Self.edge(side), board: Self.board(), at: Self.now, into: try #require(stills))
+    }
+
     // MARK: The run
 
     /// The run over the board, its panel poured out and settled under the pointer held at the notch's home.
-    private static func opened() throws -> NotchRun {
+    private static func opened(_ setting: NotchRun.Setting = setting) throws -> NotchRun {
         let run = NotchRun(at: 0, in: setting, measure: AsksMeasure.drawn)
-        let home = CGPoint(x: 4, y: edge.stage.notchY)
+        let home = CGPoint(x: 4, y: setting.stage.notchY)
 
         _ = run.show(board(), NotchRun.Moment(time: 0, pointer: nil, setting: setting))
-        step(run, for: 5000, pointer: home) { run.phase == .open && !run.frame.isMoving }
+        step(run, for: 5000, pointer: home, setting) { run.phase == .open && !run.frame.isMoving }
         try #require(run.phase == .open)
         return run
     }
 
-    private static func open(_ row: String, _ run: NotchRun) throws {
-        let arrow = try arrow(row, run)
+    private static func open(_ row: String, _ run: NotchRun, _ setting: NotchRun.Setting = setting) throws {
+        let arrow = try arrow(row, run, setting)
 
-        step(run, for: frameMS, pointer: arrow)
+        step(run, for: frameMS, pointer: arrow, setting)
         try #require(run.press(NotchRun.Moment(time: run.time + frameMS, pointer: arrow, setting: setting)) == .asks)
     }
 
-    private static func step(_ run: NotchRun, for ms: Double, pointer: CGPoint, until done: () -> Bool = { false }) {
+    private static func step(
+        _ run: NotchRun, for ms: Double, pointer: CGPoint, _ setting: NotchRun.Setting = setting,
+        until done: () -> Bool = { false }
+    ) {
         let end = run.time + ms
 
         while run.time < end, !done() {
@@ -143,30 +182,37 @@ struct AsksPanelStillsTests {
         }
     }
 
-    /// A row's frame on the stage.
-    private static func row(_ key: String, _ run: NotchRun) throws -> CGRect {
+    /// A point in a row's own frame, read left to right, on the stage: through the edge's mirror.
+    private static func onRow(
+        _ key: String, _ x: Double, _ y: Double, _ run: NotchRun, _ setting: NotchRun.Setting
+    ) throws -> CGPoint {
         let panel = try #require(run.frame.panel), index = try #require(run.list.index(of: key))
+        let row = run.list.content.drawnFrame(index)
 
-        return run.list.content.drawnFrame(index).offsetBy(dx: panel.frame.minX, dy: panel.frame.minY - run.scroll)
+        return panel.stagePoint(CGPoint(x: row.minX + x, y: row.minY + y), mirror: setting.mirror, scroll: run.scroll)
     }
 
     private static func words(_ key: String, _ run: NotchRun) throws -> CGPoint {
-        let row = try row(key, run)
+        let index = try #require(run.list.index(of: key))
 
-        return CGPoint(x: row.minX + 90, y: row.midY)
+        return try onRow(key, 90, run.list.content.drawnFrame(index).height / 2, run, setting)
     }
 
-    private static func arrow(_ key: String, _ run: NotchRun) throws -> CGPoint {
-        let row = try row(key, run), box = RowArrow.box(in: row.size)
+    private static func arrow(_ key: String, _ run: NotchRun, _ setting: NotchRun.Setting = setting) throws -> CGPoint {
+        let index = try #require(run.list.index(of: key)), row = run.list.content.drawnFrame(index)
+        let box = RowArrow.box(in: row.size, pointsLeft: setting.mirror.a < 0)
 
-        return CGPoint(x: row.minX + box.midX, y: row.minY + box.midY)
+        return try onRow(key, box.midX, box.midY, run, setting)
     }
 
     /// On the asks panel's title, where nothing lifts.
-    private static func onTitle(_ run: NotchRun) throws -> CGPoint {
-        let asks = try #require(run.asksShown)
+    private static func onTitle(_ run: NotchRun, _ setting: NotchRun.Setting = setting) throws -> CGPoint {
+        let asks = try #require(run.asksShown), title = asks.layout.title
 
-        return CGPoint(x: asks.frame.minX + asks.layout.title.midX, y: asks.frame.minY + asks.layout.title.midY)
+        return CGPoint(
+            x: setting.mirror.a < 0 ? asks.frame.maxX - title.midX : asks.frame.minX + title.midX,
+            y: asks.frame.minY + title.midY
+        )
     }
 
     /// On the middle of an answer's row.
@@ -178,18 +224,22 @@ struct AsksPanelStillsTests {
 
     /// The run moved on a few frames with the pointer here, drawn, and shot from the screen's edge past the asks panel,
     /// over the panel's height and the asks panel's, with room round them.
-    private static func shoot(_ run: NotchRun, pointer: CGPoint, as name: String) throws {
-        let folder = try #require(stills), surface = NotchSurface()
+    private static func shoot(_ run: NotchRun, pointer: CGPoint, as name: String, on edge: ScreenEdge = edge) throws {
+        let folder = try #require(stills), surface = NotchSurface(), setting = setting(on: edge)
+        let window = edge.window(wide: true).size, onRight = edge.edge == .right
 
-        step(run, for: 6 * frameMS, pointer: pointer)
+        step(run, for: 6 * frameMS, pointer: pointer, setting)
         surface.appearance = NSAppearance(named: .darkAqua)
-        surface.frame = CGRect(origin: .zero, size: edge.window(wide: true).size)
+        surface.frame = CGRect(origin: .zero, size: window)
         surface.draw(run, in: setting, mirror: edge.mirror(wide: true), now: now)
 
         let outline = run.frame.outline.boundingBox
         let shown = run.asksShown.map { outline.union($0.frame) } ?? outline
-        let cut = CGRect(x: 0, y: shown.minY - 40, width: AsksLayout.reach + 24, height: shown.height + 80)
-        let shot = try EdgeShot(surface, cut: cut).shoot(turned: Running.at(0.3))
+        let width = AsksLayout.reach + 24
+        let cut = CGRect(
+            x: onRight ? window.width - width : 0, y: shown.minY - 40, width: width, height: shown.height + 80
+        )
+        let shot = try EdgeShot(surface, cut: cut, onRight: onRight).shoot(turned: Running.at(0.3))
 
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try shot.png().write(to: folder.appending(path: "\(name).png"))

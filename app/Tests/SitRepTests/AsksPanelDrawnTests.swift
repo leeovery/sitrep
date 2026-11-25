@@ -92,25 +92,72 @@ struct AsksPanelDrawnTests {
 
     /// Its chevron's tip toward the asks panel: right on the left edge, left on the right.
     @Test func itsChevronPointsAwayFromTheEdge() throws {
-        let box = Self.arrowBox, middle = box.midY
-        let tipRight = CGPoint(x: box.midX + 1.5, y: middle), tipLeft = CGPoint(x: box.midX - 1.5, y: middle)
         let right = try Self.arrowed(isLit: true), left = try Self.arrowed(isLit: true, pointsLeft: true)
-        let light = { (drawn: Drawn, point: CGPoint) in drawn.pixel(at: point)?.lightness ?? 0 }
 
-        #expect(light(right, tipRight) > light(right, tipLeft))
-        #expect(light(left, tipLeft) > light(left, tipRight))
+        #expect(Self.tip(of: right, in: Self.arrowBox) == .right)
+        #expect(Self.tip(of: left, in: RowArrow.box(in: Self.row, pointsLeft: true)) == .left)
     }
 
-    /// Turned, while its asks panel is open, it points back the other way, on either edge.
+    /// Turned, while its asks panel is open, it points back the other way, on either edge: ‹ on the left, › on the
+    /// right.
     @Test func turnedItsChevronPointsBack() throws {
-        let box = Self.arrowBox, middle = box.midY
-        let tipRight = CGPoint(x: box.midX + 1.5, y: middle), tipLeft = CGPoint(x: box.midX - 1.5, y: middle)
         let right = try Self.arrowed(isLit: true, isTurned: true)
         let left = try Self.arrowed(isLit: true, pointsLeft: true, isTurned: true)
-        let light = { (drawn: Drawn, point: CGPoint) in drawn.pixel(at: point)?.lightness ?? 0 }
 
-        #expect(light(right, tipLeft) > light(right, tipRight))
-        #expect(light(left, tipRight) > light(left, tipLeft))
+        #expect(Self.tip(of: right, in: Self.arrowBox) == .left)
+        #expect(Self.tip(of: left, in: RowArrow.box(in: Self.row, pointsLeft: true)) == .right)
+    }
+
+    private enum Tip {
+        case left, right
+    }
+
+    /// Which way the chevron drawn in a box points: the side of its middle it is brighter on.
+    private static func tip(of drawn: Drawn, in box: CGRect) -> Tip {
+        let light = { (dx: CGFloat) in drawn.pixel(at: CGPoint(x: box.midX + dx, y: box.midY))?.lightness ?? 0 }
+
+        return light(1.5) > light(-1.5) ? .right : .left
+    }
+
+    /// On the right edge the arrow takes the dot's place at the row's left end, 26 by 26 on the dot's middle, the dot
+    /// hidden while it shows, its time and its words where they were; on the left edge it takes the time's place, the
+    /// dot showing.
+    @Test func onTheRightEdgeTheArrowTakesTheDotsPlaceAndTheTimeStays() throws {
+        let row = Self.arrowRow(), layout = SessionRowLayout(size: Self.row, project: 60)
+        let dot = CGRect(x: layout.mark.x - 6, y: layout.mark.y - 6, width: 12, height: 12)
+        let words = CGRect(x: layout.title.minX, y: 0, width: 80, height: Self.row.height)
+
+        row.isHighlighted = true
+        row.showAge(at: 4 * 60_000)
+
+        let before = try Drawn(row.layer)
+
+        row.arrow = SessionRow.Arrow(isLit: true, pointsLeft: true)
+
+        let after = try Drawn(row.layer), box = try #require(row.arrowLayer?.box.frame)
+
+        #expect(box == RowArrow.box(in: Self.row, pointsLeft: true))
+        #expect(box.size == CGSize(width: 26, height: 26) && box.midX == layout.mark.x && box.midY == layout.mark.y)
+        #expect(Double(layout.mark.x) == RowArrow.dotSlot)
+        #expect(Self.shows(0x34343B, at: CGPoint(x: box.minX + 3, y: box.midY), in: after))
+        let dotBefore = try before.brightest(in: dot), dotAfter = try after.brightest(in: dot)
+
+        #expect(Self.isOrange(dotBefore) && !Self.isOrange(dotAfter))
+        #expect(after.pixels(in: layout.age) == before.pixels(in: layout.age))
+        #expect(after.pixels(in: words) == before.pixels(in: words))
+
+        row.arrow = SessionRow.Arrow(isLit: true, pointsLeft: false)
+
+        let dotLeftEdge = try Drawn(row.layer).brightest(in: dot)
+
+        #expect(row.arrowLayer?.box.frame == Self.arrowBox)
+        #expect(Self.isOrange(dotLeftEdge))
+    }
+
+    /// Whether a colour is the asks' orange, as a Needs you row's dot draws it, not the white, grey or black of the
+    /// arrow and the row.
+    private static func isOrange(_ colour: NSColor) -> Bool {
+        colour.redComponent > 0.8 && colour.blueComponent < 0.5
     }
 
     /// The chevron's turns, as the render server runs them: half a turn in 0.2 seconds as its asks panel opens, and

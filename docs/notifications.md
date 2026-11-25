@@ -14,7 +14,7 @@ SitRep tells you when a new ask lands, even if you are in another app. It can te
 - **Claude stopping can play another sound.** Turn on **Play a sound when Claude stops**, and Claude stopping plays Tink, so you can tell the two apart by ear.
 - **A banner names the session.** A new ask shows the ask title, over the project and the session, such as "Northwind · Help desk redesign". Claude stopping shows "Stopped", the project and the session, then a line from the session status: what is under way, or else its summary.
 - **A click on a banner takes you there.** It brings forward the window running that session. See [A click takes you there](jump.md).
-- **A banner leaves once its ask is done.** If the ask is answered anywhere, or Claude changes it, its banner leaves Notification Center. A banner has no buttons: to answer from your screen, use the notch. See [Answering from the notch](answering-edge.md).
+- **A banner leaves once its ask is done.** If the ask is answered anywhere, its banner leaves Notification Center. A banner has no buttons: to answer from your screen, use the notch or the strip. See [Answering from the edge of your screen](answering-edge.md).
 - **The edge pulses.** For a new ask, the notch swells twice and its light flashes. A window that starts waiting at a permission prompt pulses it too, with no sound and no banner. On the strip, the mark flashes its ring twice instead. Turn on **Pulse when Claude stops** to pulse for a Stopped session too.
 
 ## Good to know

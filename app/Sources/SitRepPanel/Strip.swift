@@ -96,6 +96,8 @@ public final class Strip {
     /// ... and from this frame on the other edge.
     var swapsEdge = false
 
+    /// A panel beside the open tab, as the last input had it (`StripInput.beside`).
+    var beside: CGPath?
     /// The mark under the pointer, or the open tab's.
     var hot: MarkKey?
     /// While a menu shows, the hover as it opened (`holdHover`).
@@ -217,6 +219,7 @@ public final class Strip {
     /// held to the screen, which carries a drag.
     private func take(_ input: StripInput) {
         reducesMotion = input.reducesMotion
+        beside = input.beside
         if input.stage != stage {
             stage = input.stage
             centre = clampCentre(stage.height * along)

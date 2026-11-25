@@ -2,9 +2,9 @@ import AppKit
 import SitRepPanel
 
 /// The strip in black: its black, each tab's black, and the hairlines, through the edge's mirror; over them the marks
-/// and each tab's words, placed through it but never mirrored themselves. All are layers in the stage's own coordinates
-/// (y down from the screen's top), hung from the menu bar the window starts under. A frame changes paths, places,
-/// opacities and clips; a tab's words and a mark's letters are laid out once.
+/// and each tab's words, and over all the asks panel, placed through it but never mirrored themselves. All are layers in
+/// the stage's own coordinates (y down from the screen's top), hung from the menu bar the window starts under. A frame
+/// changes paths, places, opacities and clips; a tab's words and a mark's letters are laid out once.
 @MainActor
 final class StripView: StageHost {
     /// The blacks, through the edge's mirror, ...
@@ -18,6 +18,7 @@ final class StripView: StageHost {
     private let marks = CALayer()
     private var tabs: [Int: Tab] = [:]
     private var shownMarks: [MarkKey: StripMarkLayer] = [:]
+    private let asks = AsksPanelLayer()
 
     /// A tab's black, and its words in a box clipped to its body.
     private struct Tab {
@@ -38,6 +39,7 @@ final class StripView: StageHost {
         fading.isHidden = true
         stage.addSublayer(rules)
         over.addSublayer(marks)
+        over.addSublayer(asks.layer)
         root.addSublayer(stage)
         root.addSublayer(over)
     }
@@ -70,6 +72,7 @@ final class StripView: StageHost {
             showHairlines(frame.hairlines)
             showMarks(scene)
         }
+        asks.show(scene.asks, mirror: scene.mirror, now: scene.now)
     }
 
     private func showHairlines(_ lines: [StripFrame.Hairline]) {
@@ -85,9 +88,10 @@ final class StripView: StageHost {
         }
     }
 
-    /// The stage, hung from the menu bar, its blacks turned about its centre for the window's mirror.
+    /// The stage, hung from the menu bar, as wide as the window, its blacks turned about its centre for the window's
+    /// mirror.
     private func place(_ scene: StripScene) {
-        let size = CGSize(width: Strip.depth, height: scene.menu + bounds.height)
+        let size = CGSize(width: bounds.width, height: scene.menu + bounds.height)
         let hung = CGRect(origin: CGPoint(x: 0, y: -scene.menu), size: size)
 
         for layer in [stage, over] {
@@ -138,7 +142,10 @@ final class StripView: StageHost {
             }()
 
             drawn.words[words.id] = layer
-            layer.show(words, in: frame, hover: tab.isLive ? scene.hoverRow : nil, now: scene.now)
+            layer.show(
+                words, in: frame, hover: tab.isLive ? scene.hoverRow : nil,
+                arrow: tab.isLive ? scene.arrow(on: words) : nil, now: scene.now
+            )
         }
     }
 
@@ -148,7 +155,7 @@ final class StripView: StageHost {
         tab.shape.fillColor = EdgeStyle.black
         tab.box.mask = tab.clip
         stage.insertSublayer(tab.shape, below: rules)
-        over.addSublayer(tab.box)
+        over.insertSublayer(tab.box, below: asks.layer)
         return tab
     }
 
@@ -176,6 +183,9 @@ final class StripView: StageHost {
     private func rescaleToWindow() {
         rescaled(stage)
         rescaled(over)
+        if let scale = window?.backingScaleFactor {
+            asks.rescaled(to: scale)
+        }
     }
 
     /// Drawn at the window's pixel density, once there is a window.
