@@ -8,6 +8,7 @@ import {
   checkEdit,
   droppedRecommendation,
   parseEntries,
+  pickFirst,
   readOptions,
   unmarked,
   type Ask,
@@ -487,7 +488,15 @@ test('the CLI posts recommended with --recommended, reads a typed marker as it, 
   })
 })
 
-test('board prints the option recommended once, and board --json gives it, null where an ask recommends none', async () => {
+test("the options SitRep offers to press put Claude's pick first, the rest in Claude's order; with no pick, or one not among them, Claude's order alone", () => {
+  expect(pickFirst(OPTIONS, 'Hold off')).toEqual(['Hold off', 'Ship it', 'Redraw'])
+  expect(pickFirst(OPTIONS, 'Ship it')).toEqual(OPTIONS)
+  expect(pickFirst(OPTIONS, undefined)).toEqual(OPTIONS)
+  expect(pickFirst(OPTIONS, 'Wait')).toEqual(OPTIONS)
+  expect(pickFirst([], 'Wait')).toEqual([])
+})
+
+test("board prints the option recommended once, in Claude's order, and board --json gives it, first among the options, null where an ask recommends none", async () => {
   const t = terminal()
 
   t.seed(META, {
@@ -505,7 +514,7 @@ test('board prints the option recommended once, and board --json gives it, null 
   expect(printed).toContain('; options: Ship it | Redraw | Hold off; recommended: Redraw')
   expect(printed.match(/recommended/gi)).toHaveLength(1)
   expect(json.asks.map(ask => [ask.id, ask.options, ask.recommended])).toEqual([
-    ['k1', OPTIONS, 'Redraw'],
+    ['k1', ['Redraw', 'Ship it', 'Hold off'], 'Redraw'],
     ['k2', [], null],
   ])
 })

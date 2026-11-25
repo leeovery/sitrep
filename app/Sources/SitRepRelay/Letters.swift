@@ -82,7 +82,7 @@ public struct Notice: Equatable, Sendable {
 public struct NoticeAsk: Equatable, Sendable {
     public enum Wants: Equatable, Sendable {
         case yes(String)
-        /// Its options, in Claude's order; never none.
+        /// Its options as its banner shows them, Claude's pick first; never none.
         case choice([String])
         case words
     }

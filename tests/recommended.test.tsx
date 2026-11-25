@@ -153,7 +153,7 @@ test('the ask and edit tools take recommended, and ask Claude to give it wheneve
   expect(ask?.description).toContain('never the word in an option')
 })
 
-test("the pane draws the word inside the recommended button, in a darker lilac after a middle dot at its label's end, and on no other, on every surface", async ($, on) => {
+test("the pane draws the recommended button first, the word inside it in a darker lilac after a middle dot at its label's end, and on no other, on every surface", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -173,8 +173,8 @@ test("the pane draws the word inside the recommended button, in a darker lilac a
       options.map(each => [each?.props.label, each?.props.variant, each?.children]),
       surface,
     ).toEqual([
-      ['Ship it', undefined, []],
       ['Redraw', 'primary', ['Redraw', ' ', expect.objectContaining({ type: 'Text' })]],
+      ['Ship it', undefined, []],
       ['Hold off', undefined, []],
     ])
     expect(
@@ -192,18 +192,18 @@ test("the pane draws the word inside the recommended button, in a darker lilac a
     rowsOf(await terminal.find({ key: `choose:${w.item(id)}:${i}` }))
 
   expect([await rows(0), await rows(1), await rows(2)]).toEqual([
-    ['[ Ship it ]'],
     ['[ Redraw · recommended ]'],
+    ['[ Ship it ]'],
     ['[ Hold off ]'],
   ])
   await terminal.unmount()
   expect(
     (await boardRows(w, NARROW)).filter(row => row.includes('recommended')),
     'a short option keeps its line, on a narrow pane too',
-  ).toEqual(['[ Ship it ] [ Redraw · recommended ]'])
+  ).toEqual(['[ Redraw · recommended ] [ Ship it ]'])
 })
 
-test('pressing the recommended option replies with the option alone, never the word', async ($, on) => {
+test('pressing the recommended option, first, replies with the option alone, never the word', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -211,7 +211,7 @@ test('pressing the recommended option replies with the option alone, never the w
   const id = await asked(w, { ...THREE_WAY, recommended: 'Redraw' })
   const ui = await w.pane()
 
-  await ui.press({ key: `choose:${w.item(id)}:1` })
+  await ui.press({ key: `choose:${w.item(id)}:0` })
   expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).at(-1)).toMatch(
     /^└ → Redraw · not sent yet/,
   )
@@ -226,7 +226,7 @@ test('pressing the recommended option replies with the option alone, never the w
   await ui.unmount()
 })
 
-test('a long recommended option wraps inside its own button, the word on the line before its closing bracket', async ($, on) => {
+test('a long recommended option comes first and wraps inside its own button, the word on the line before its closing bracket', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -240,11 +240,10 @@ test('a long recommended option wraps inside its own button, the word on the lin
   const option = rows.indexOf(`[ ${long} ·`)
 
   expect(option, 'its button on a line of its own').toBeGreaterThan(0)
-  expect(rows.slice(option - 1, option + 3)).toEqual([
-    '[ Ship it ]',
+  expect(rows.slice(option, option + 3)).toEqual([
     `[ ${long} ·`,
     'recommended ]',
-    expect.stringMatching(/^\[ Hold off \]/),
+    expect.stringMatching(/^\[ Ship it \] \[ Hold off \]/),
   ])
   expect(rows.filter(row => row.includes('recommended'))).toEqual(['recommended ]'])
 })

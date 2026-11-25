@@ -71,18 +71,38 @@ extension RowMenu.Row {
 }
 
 /// Snooze's times, each with when it would wake at the right, dimmer than its name, and brighter as it is highlighted
-/// (board G), on a right tab stop, as AppKit's menus set no second label at the right of their own; Until it moves after
-/// a separator, with no time, or alone where Lee switched every time off. The menu is its own delegate, to brighten the
-/// time highlighted. Each time is worked out once, as the menu opens: chosen, it hands on the time it shows, none for
-/// Until it moves, so what is snoozed to is what Lee saw, though the clock or the zone moved while the menu stood open.
+/// (board G), on a right tab stop, as AppKit's menus set no second label at the right of their own; on a row's,
+/// Until it moves after a separator, with no time, or alone where Lee switched every time off. The menu is its own
+/// delegate, to brighten the time highlighted. Each time is worked out once, as the menu opens: chosen, it hands on
+/// the time it shows, none for Until it moves, so what is snoozed to is what Lee saw, though the clock or the zone
+/// moved while the menu stood open.
 @MainActor
 final class SnoozeMenu: NSMenu, NSMenuDelegate {
     private let choices: [SnoozeTime]
     private let times: [String]
 
-    /// The times `settings` offer at `now`, then Until it moves.
-    init(offering settings: SnoozeSettings, at now: Date, in calendar: Calendar, choose: @escaping (Date?) -> Void) {
-        let choices = SnoozeTime.offered(at: now, in: calendar, settings: settings)
+    /// The times `settings` offer at `now`, then Until it moves: a row's.
+    convenience init(
+        offering settings: SnoozeSettings, at now: Date, in calendar: Calendar, choose: @escaping (Date?) -> Void
+    ) {
+        let times = SnoozeTime.offered(at: now, in: calendar, settings: settings)
+
+        self.init(times, settings, at: now, in: calendar, choose)
+    }
+
+    /// The times `settings` offer at `now` alone: one ask's, as the pane offers them, each snoozing until its time.
+    static func forAsk(
+        offering settings: SnoozeSettings, at now: Date, in calendar: Calendar, choose: @escaping (Date) -> Void
+    ) -> SnoozeMenu {
+        let times = SnoozeTime.offeredForAsk(at: now, in: calendar, settings: settings)
+
+        return SnoozeMenu(times, settings, at: now, in: calendar) { $0.map(choose) }
+    }
+
+    private init(
+        _ choices: [SnoozeTime], _ settings: SnoozeSettings, at now: Date, in calendar: Calendar,
+        _ choose: @escaping (Date?) -> Void
+    ) {
         let untils = choices.map { $0.wakes(after: now, in: calendar, settings: settings) }
 
         self.choices = choices

@@ -57,7 +57,7 @@ A project with nothing current but parked items shows `no current sessions (1 pa
 | `ask <title>` | Posts an ask, and prints its id |
 | `park <title>` | Parks an item on the session's project, and prints its id |
 | `answer <ask> <answer>` | Answers a yes, a choice or a words ask, the way you would on the board |
-| `snooze <ask>...` | Snoozes a session, until a time or until it moves |
+| `snooze <ask>...` | Snoozes a session, or one ask with `--ask` |
 | `wake` | Wakes a snoozed session now |
 | `finish` | Finishes a session no window is running |
 | `move <project>` | Moves a session to a project already on the board; it makes none |
@@ -116,6 +116,8 @@ Every word that isn't a flag goes into the title. Quote the title if it holds a 
 
   `--ignore`, in place of an answer, ignores any ask. A comment needs the Claude Code prompt. The answer goes into the session's inbox. The session's Claude Code window sends it to Claude as your own message, now or once a window takes the session up.
 - **`snooze`** names every ask waiting on you in the session, so none is snoozed unseen. A session at your turn with no asks takes no ids. `--until <ms>` sets the wake time, in milliseconds since the epoch. Without it, the session sleeps until it moves. In the terminal view, `z` writes the same line, and its menu works out the time.
+
+  `--ask <id>` in place of the ids snoozes only that ask, and needs `--until`. The other asks stay waiting. The asks panel snoozes one ask this way. The pane writes the same line through its own window.
 - **`list`** shows the current sessions. Projects whose directory holds your current folder come first. `--project <name>` lists only that project.
 
 For example, approve the review from the sample, then snooze the session for an hour:
@@ -137,6 +139,8 @@ sitrep snooze xsaq \
 | `board --json` | One session: open asks, the items it parked itself, the latest status changes, and resolved asks |
 
 The text form of `board` lists every item parked in the project, not only this session's.
+
+In `board --json` and `watch`, a choice lists the option Claude recommends first, then the rest in Claude's order. The text form keeps Claude's order.
 
 ## Exit codes
 

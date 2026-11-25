@@ -63,6 +63,8 @@ struct AsksPanel {
     private var told: (room: CGRect, pointer: CGPoint?)?
     /// The way to it from the list.
     private var way = SafeTriangle()
+    /// A horizontal swipe on it, which pages it.
+    private var swipe = AsksSwipe()
     private var look: Look?
     private var lookedAt = -Double.infinity
     /// The row it opened beside, and how far the list was scrolled then.
@@ -123,18 +125,34 @@ struct AsksPanel {
         guard let open else {
             return
         }
-        guard isOpen, let session = list.index(of: open.row).flatMap({ list.item($0)?.session }) else {
-            return close()
-        }
-
-        let asks = asks(of: session, on: board)
-        guard !asks.isEmpty else {
+        guard isOpen, let asks = asks(of: open.row, in: list, board), !asks.isEmpty else {
             return close()
         }
 
         let page = asks.firstIndex { $0.id == open.ask } ?? min(open.page, asks.count - 1)
 
         self.open = Open(row: open.row, ask: asks[page].id, page: page)
+    }
+
+    /// At the ask on this page of its row's session's, where it has one (DESIGN, "Paging").
+    mutating func page(to page: Int, _ list: PanelList, _ board: PanelBoard) {
+        guard let open, let asks = asks(of: open.row, in: list, board), asks.indices.contains(page) else {
+            return
+        }
+
+        self.open = Open(row: open.row, ask: asks[page].id, page: page)
+    }
+
+    /// A scroll on it: a horizontal swipe's gesture steps to the next ask or the previous one, once (`AsksSwipe`).
+    mutating func swiped(_ scroll: Scroll, at time: Double, _ list: PanelList, _ board: PanelBoard) {
+        if let step = swipe.step(scroll, at: time), let open {
+            page(to: open.page + step, list, board)
+        }
+    }
+
+    /// The asks the asks panel answers of the session of the row `key`, while the list holds it.
+    private func asks(of key: String, in list: PanelList, _ board: PanelBoard) -> [PanelAsk]? {
+        list.index(of: key).flatMap { list.item($0)?.session }.map { asks(of: $0, on: board) }
     }
 
     /// An answer's news: held, it shows sending until it is taken back or goes; gone, its ask leaves the asks panel,
@@ -221,12 +239,14 @@ struct AsksPanel {
             return nil
         }
 
-        let part = shown.layout.part(at: shown.ownPoint(point, mirror: mirror), sending: shown.sending != nil)
+        let part = shown.layout.part(
+            at: shown.ownPoint(point, mirror: mirror), sending: shown.sending != nil, page: shown.page, of: shown.pages
+        )
 
         switch part {
         case .answer?, .ignore?:
             return holding ? nil : part
-        case .inClaude?, .snooze?, .open?, .undo?, nil:
+        case .page?, .snooze?, .open?, .undo?, nil:
             return part
         }
     }

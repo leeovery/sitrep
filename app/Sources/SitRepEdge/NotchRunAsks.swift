@@ -55,24 +55,29 @@ extension NotchRun {
         )
 
         asking.keep(isOpen: notch.phase == .open, list, board)
-        asking.place(on: ground, pointer: seen, at: time, layout: layout)
+        asking.place(on: ground, pointer: seen, at: time) { self.layout($0, offersSnooze: setting.offersSnooze) }
     }
 
     func isOnAsks(_ point: CGPoint?) -> Bool {
         point.map { asksShown?.contains($0) == true } ?? false
     }
 
-    /// A press on the asks panel, once what it shows has settled (`AsksPanel.settle`): an answer's row, or Ignore,
-    /// holds that answer, while none is held; Undo takes the held one back; Snooze ▾ offers the row's snooze; Answer
-    /// in Claude and Open in Claude jump as the row does, closing it. Nowhere on it carries the notch.
+    /// A press on the asks panel: a page dot shows its ask at once, as it pages the same whatever ask shows; the rest
+    /// once what it shows has settled (`AsksPanel.settle`). An answer's row, or Ignore, holds that answer, while none
+    /// is held; Undo takes the held one back; Snooze ▾ offers the snooze of the ask shown; Open in Claude jumps as the
+    /// row does, closing it. Nowhere on it carries the notch.
     func pressAsks(_ asks: AsksShown, at point: CGPoint, in setting: Setting) -> Press? {
-        let ask = asks.ask, session = asks.session.id
+        let ask = asks.ask, session = asks.session.id, part = asking.part(at: point, mirror: setting.mirror)
 
+        if case let .page(page)? = part {
+            asking.page(to: page, list, board)
+            return .asks
+        }
         guard asking.isSettled(at: time) else {
             return nil
         }
 
-        switch asking.part(at: point, mirror: setting.mirror) {
+        switch part {
         case let .answer(row)?:
             return .answer(Answering(.words(ask.answers[row]), to: ask.id, of: session, wanting: ask.wants.shape))
         case .ignore?:
@@ -80,10 +85,10 @@ extension NotchRun {
         case .undo?:
             return .undo
         case .snooze?:
-            return .snooze(asks.session, at: point)
-        case .inClaude?, .open?:
+            return .snooze(ask: ask.id, of: session, at: point)
+        case .open?:
             return list.index(of: asks.row).flatMap { jump($0) }
-        case nil:
+        case .page?, nil:
             return nil
         }
     }
@@ -123,15 +128,16 @@ extension NotchRun {
         return entry.item.key
     }
 
-    /// An ask laid out as the drawing sets its words, the last one kept, as a frame lays it out more than once.
-    func layout(_ ask: PanelAsk) -> AsksLayout {
-        if let laidOut, laidOut.ask == ask {
+    /// An ask laid out as the drawing sets its words, Snooze ▾ in its foot where Snooze offers a time, the last one
+    /// kept, as a frame lays it out more than once.
+    func layout(_ ask: PanelAsk, offersSnooze: Bool) -> AsksLayout {
+        if let laidOut, laidOut.ask == ask, laidOut.offersSnooze == offersSnooze {
             return laidOut.layout
         }
 
-        let layout = AsksLayout(ask, measure: measure)
+        let layout = AsksLayout(ask, measure: measure, offersSnooze: offersSnooze)
 
-        laidOut = (ask, layout)
+        laidOut = (ask, offersSnooze, layout)
         return layout
     }
 }

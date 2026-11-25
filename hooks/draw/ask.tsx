@@ -5,9 +5,10 @@
  * that one branch. Opened, it shows its whole title, its tree (what its
  * words are, where to look, Claude's own record of it, and where Lee's
  * reply stands) and its buttons, by what it wants back: a yes in its own
- * words, its options, the one Claude recommends marked in its button, or
- * words, written in the prompt box (DESIGN.md, "Answering an ask"). Any
- * session's asks answer the same way; a reply names the session it goes to.
+ * words, its options, the one Claude recommends first and marked in its
+ * button, or words, written in the prompt box (DESIGN.md, "Answering an
+ * ask"). Any session's asks answer the same way; a reply names the session
+ * it goes to.
  *
  * An ask waiting on Lee offers `snooze` among its buttons, which asks in
  * place until when, and snoozes that ask alone. One snoozed, on its own or
@@ -19,6 +20,7 @@
  */
 import {
   isAnswer,
+  pickFirst,
   replyOnItsWay,
   shownWords,
   snoozeChoicesAt,
@@ -128,7 +130,7 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef<ProjectKey>, ask: Ask, verdict
         />,
       ]
     case 'choose':
-      return (ask.options ?? []).map((option, i) =>
+      return pickFirst(ask.options ?? [], ask.recommended).map((option, i) =>
         drawOption(d, `choose:${key}:${i}`, option, ask, () => reply({ verdict, option })),
       )
     case 'answer':

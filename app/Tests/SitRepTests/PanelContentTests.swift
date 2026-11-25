@@ -118,7 +118,8 @@ struct PanelContentTests {
         #expect(content.rows["turn:x"] != nil)
     }
 
-    /// The pointer on another row, the row beside the asks panel stays lifted, its arrow lit; closed, it comes down.
+    /// The pointer on another row, the row beside the asks panel stays lifted, its arrow lit and turned, at once under
+    /// Reduce motion; closed, it comes down.
     @Test func theRowBesideTheAsksPanelStaysLitItsArrowLit() {
         let content = PanelContent()
         let asking = Session(
@@ -138,8 +139,12 @@ struct PanelContentTests {
         content.show(scene)
 
         #expect(content.rows["needs:a"]?.row.isHighlighted == true && content.rows["b"]?.row.isHighlighted == true)
-        #expect(content.rows["needs:a"]?.row.arrow == SessionRow.Arrow(isLit: true, pointsLeft: false))
+        #expect(content.rows["needs:a"]?.row.arrow == SessionRow.Arrow(isLit: true, pointsLeft: false, isTurned: true))
         #expect(content.rows["b"]?.row.arrow == nil)
+
+        scene.reducesMotion = true
+        content.show(scene)
+        #expect(content.rows["needs:a"]?.row.arrow?.turnsAtOnce == true)
 
         scene.arrows = [:]
         scene.asks = nil

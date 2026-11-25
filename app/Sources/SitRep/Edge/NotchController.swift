@@ -17,8 +17,12 @@ final class NotchController: NSObject, CalloutShape {
     var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
     /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen, or until it moves.
     var onSnooze: (String, [String], Date?) -> Void = { _, _, _ in }
+    /// The asks panel's Snooze ▾: the session, the ask it shows, and the time chosen.
+    var onSnoozeAsk: (String, String, Date) -> Void = { _, _, _ in }
     /// Snooze's choices as Lee set them, read as a row's menu opens.
     private let snoozeSettings: () -> SnoozeSettings
+    /// Whether one ask's Snooze offers a time, for the asks panel's Snooze ▾.
+    private var snoozeOffer = SnoozeOffer()
     /// A Snoozed row's menu's Wake now: the session.
     var onWake: (String) -> Void = { _ in }
     /// An answer's row, or Ignore, on the asks panel: the answer to hold; and the sending line's Undo.
@@ -76,7 +80,7 @@ final class NotchController: NSObject, CalloutShape {
             pressed: { [unowned self] in press(at: $0) },
             dragged: { [unowned self] in drag(to: $0) },
             released: { [unowned self] in release() },
-            scrolled: { [unowned self] in scroll(by: $0) },
+            scrolled: { [unowned self] in scroll($0) },
             menu: { [unowned self] in menu(at: $0) }
         )
         caption.over = edge.visible
@@ -145,8 +149,16 @@ final class NotchController: NSObject, CalloutShape {
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> NotchRun.Moment {
         NotchRun.Moment(
             time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
-            isShown: isShown, setting: .on(edge, settings)
+            isShown: isShown, setting: setting
         )
+    }
+
+    /// What the run runs in: this edge as Lee set it, and whether one ask's Snooze offers a time now, as he set them.
+    private var setting: NotchRun.Setting {
+        var setting = NotchRun.Setting.on(edge, settings)
+
+        setting.offersSnooze = snoozeOffer.offers(at: Date(), in: run.calendar, settings: snoozeSettings())
+        return setting
     }
 
     private func startLink(_ selector: Selector, rate: CAFrameRateRange? = nil) -> CADisplayLink {
@@ -197,7 +209,7 @@ final class NotchController: NSObject, CalloutShape {
     /// saved, the caption told the panel drained, and the clocks paced.
     private func draw() {
         let time = run.time, pointer = run.seen
-        let setting = NotchRun.Setting.on(edge, settings), shown = run.takeShown()
+        let setting = setting, shown = run.takeShown()
 
         if shown.swappedEdge, let crossing {
             self.crossing = nil
@@ -295,8 +307,8 @@ final class NotchController: NSObject, CalloutShape {
 
     /// A press on a row that jumps presses it in and jumps to its session, in place of any jump under way, and once the
     /// jump has jumped, the caption says where; on an eyebrow, its section folds or unfolds, kept; on the asks panel,
-    /// an answer is held or taken back, or its Snooze offers the row's; anywhere else on the black, it may become a
-    /// drag (`NotchRun.press`). Internal only for the tests.
+    /// an answer is held or taken back, or its Snooze offers the snooze of the ask it shows; anywhere else on the
+    /// black, it may become a drag (`NotchRun.press`). Internal only for the tests.
     func press(at screenPoint: CGPoint) {
         guard let point = edge.stagePoint(screenPoint) else {
             return
@@ -309,27 +321,25 @@ final class NotchController: NSObject, CalloutShape {
             onAnswer(answering)
         case .undo?:
             onUndo()
-        case let .snooze(session, at: pressed)?:
-            snooze(session, pressed: pressed)
+        case let .snooze(ask, of: session, at: pressed)?:
+            snooze(ask, of: session, pressed: pressed)
         case .fold?, .carry?, .asks?, nil:
             break
         }
         took()
     }
 
-    /// The asks panel's Snooze ▾: the Snooze choices of its row's menu, under the button, the card held open as the
-    /// row's menu holds it while it shows. A choice snoozes the session, naming the asks its row showed, and closes the
-    /// asks panel.
-    private func snooze(_ session: Session, pressed: CGPoint) {
-        guard let asks = run.asksShown else {
+    /// The asks panel's Snooze ▾: the times one ask's Snooze offers, under the button, the card held open as the
+    /// row's menu holds it while it shows. A choice snoozes the ask it shows alone, and closes the asks panel.
+    private func snooze(_ ask: String, of session: String, pressed: CGPoint) {
+        guard let asks = run.asksShown, let button = asks.layout.snooze else {
             return
         }
 
-        let drawn = asks.frame.applying(edge.mirror(wide: isWide)), button = asks.layout.snooze
-        let id = session.id, showing = RowMenu.Row(session).asks ?? []
+        let drawn = asks.frame.applying(edge.mirror(wide: isWide))
         // the close drawn as the choice is made, whether AppKit performs it before `popUp` returns or after
-        let menu = SnoozeMenu(offering: snoozeSettings(), at: Date(), in: run.calendar) { [unowned self] until in
-            onSnooze(id, showing, until)
+        let menu = SnoozeMenu.forAsk(offering: snoozeSettings(), at: Date(), in: run.calendar) { [unowned self] until in
+            onSnoozeAsk(session, ask, until)
             run.closeAsks(moment())
             took()
         }
@@ -358,7 +368,7 @@ final class NotchController: NSObject, CalloutShape {
     /// or wakes the row's session, a snooze naming the asks the row showed.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
-              let row = run.row(at: point, in: .on(edge, settings)), let session = row.session
+              let row = run.row(at: point, in: setting), let session = row.session
         else {
             return nil
         }
@@ -448,8 +458,8 @@ final class NotchController: NSObject, CalloutShape {
         }
     }
 
-    private func scroll(by delta: Double) {
-        run.scroll(by: delta, moment())
+    private func scroll(_ scroll: Scroll) {
+        run.scroll(scroll, moment())
         took()
     }
 

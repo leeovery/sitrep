@@ -403,4 +403,28 @@ struct SnoozeTests {
         #expect(asleep.title == "Finish the Tailspin migration")
         #expect(asleep.asks == ["k1"])
     }
+
+    /// Whether one ask's Snooze offers a time is worked out again only as the minute or the settings change: with
+    /// Tonight alone on, at 18:00, it offers one through 17:59 and none from 18:00; turning Tomorrow on within that
+    /// minute offers one again at once.
+    @Test func whetherSnoozeOffersATimeIsWorkedOutAgainAsTheMinuteOrTheSettingsChange() {
+        var tonight = SnoozeSettings(), offer = SnoozeOffer()
+
+        tonight.inAnHour.isOn = false
+        tonight.laterToday.isOn = false
+        tonight.tomorrow.isOn = false
+        tonight.nextWeek.isOn = false
+        var tomorrow = tonight
+
+        tomorrow.tomorrow.isOn = true
+
+        let asked = [
+            offer.offers(at: Self.at(20, 17, 59), in: Self.london, settings: tonight),
+            offer.offers(at: Self.at(20, 17, 59).addingTimeInterval(59), in: Self.london, settings: tonight),
+            offer.offers(at: Self.at(20, 18), in: Self.london, settings: tonight),
+            offer.offers(at: Self.at(20, 18).addingTimeInterval(30), in: Self.london, settings: tomorrow),
+        ]
+
+        #expect(asked == [true, true, false, true])
+    }
 }

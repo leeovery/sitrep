@@ -9,11 +9,12 @@ import Testing
 
 /// The row's arrow and the asks panel in glass, in the dark appearance over black (DESIGN, "Answering from the panel",
 /// "Black and Glass"): the arrow's chevron in the secondary on the row's lift, lit a step stronger with its chevron in
-/// the primary, pointing away from the screen's edge, taking the time's place; the asks panel's hairline and its
-/// shadows, cast outside it alone, its words in the label colours, its
-/// current page dot orange, its rows and keycaps in the glass's tints, lifted under the pointer, the words ask's row
-/// outlined; and while an answer is held, its row white with its check in ink, and the countdown run down from what is
-/// left. The glass itself is the window server's, which draws nothing offscreen: these read what is drawn over it.
+/// the primary, pointing away from the screen's edge, turned back while its asks panel is open, taking the time's
+/// place; the asks panel's hairline and its shadows, cast outside it alone, its words in the label colours, its
+/// current page dot orange, its rows their words alone in the glass's tints, Claude's pick in lilac, darker in the
+/// light, each lifted under the pointer, a words ask with none; Snooze ▾ only while Snooze offers a time; and while an
+/// answer is held, its row white with its check in ink at its end, and the countdown run down from what is left. The
+/// glass itself is the window server's, which draws nothing offscreen: these read what is drawn over it.
 @MainActor
 @Suite(.backstop)
 struct AsksPanelGlassTests {
@@ -29,9 +30,9 @@ struct AsksPanelGlassTests {
 
     private static let row = CGSize(width: 344, height: 30)
 
-    /// A Needs you row lifted under the pointer, its arrow unlit or lit, pointing right or left.
+    /// A Needs you row lifted under the pointer, its arrow unlit or lit, pointing right or left, turned or not.
     @available(macOS 26, *)
-    private static func arrowed(isLit: Bool, pointsLeft: Bool = false) throws -> Drawn {
+    private static func arrowed(isLit: Bool, pointsLeft: Bool = false, isTurned: Bool = false) throws -> Drawn {
         let session = Session(
             id: "sr-nw0001", project: "Northwind", name: "Help desk redesign", kind: .needs, ask: "k1",
             title: "Thread replies, or keep them flat?", sub: "Northwind", since: 0
@@ -40,7 +41,7 @@ struct AsksPanelGlassTests {
         return try Drawn(
             GlassSessionRow(
                 session: session, size: row, hovered: true, pressed: false, now: 60_000, wash: 0,
-                arrow: SessionRow.Arrow(isLit: isLit, pointsLeft: pointsLeft)
+                arrow: SessionRow.Arrow(isLit: isLit, pointsLeft: pointsLeft, isTurned: isTurned, turnsAtOnce: true)
             ),
             size: row
         )
@@ -88,6 +89,18 @@ struct AsksPanelGlassTests {
         #expect(Self.light(left, at: tipLeft) > Self.light(left, at: tipRight))
     }
 
+    /// Turned, while its asks panel is open, it points back the other way, on either edge.
+    @available(macOS 26, *)
+    @Test func turnedItsChevronPointsBack() throws {
+        let box = Self.arrowBox, middle = box.midY
+        let tipRight = CGPoint(x: box.midX + 1.5, y: middle), tipLeft = CGPoint(x: box.midX - 1.5, y: middle)
+        let right = try Self.arrowed(isLit: true, isTurned: true)
+        let left = try Self.arrowed(isLit: true, pointsLeft: true, isTurned: true)
+
+        #expect(Self.light(right, at: tipLeft) > Self.light(right, at: tipRight))
+        #expect(Self.light(left, at: tipRight) > Self.light(left, at: tipLeft))
+    }
+
     // MARK: The asks panel
 
     private static let helpDesk = Session(
@@ -107,9 +120,10 @@ struct AsksPanelGlassTests {
     @available(macOS 26, *)
     private static func drawn(
         _ ask: PanelAsk = choice, pages: Int = 2, sending: Sending? = nil, heldFor: Double = 1000,
-        hover: AsksPart? = nil, pointsLeft: Bool = false, over ground: Color = .black, scheme: ColorScheme = .dark
+        hover: AsksPart? = nil, pointsLeft: Bool = false, over ground: Color = .black, scheme: ColorScheme = .dark,
+        offersSnooze: Bool = true
     ) throws -> (Drawn, AsksShown) {
-        let layout = AsksLayout(ask, measure: .drawn)
+        let layout = AsksLayout(ask, measure: .drawn, offersSnooze: offersSnooze)
         let asks = AsksShown(
             row: "needs:sr-nw0001", session: helpDesk, ask: ask, page: 0, pages: pages, layout: layout,
             frame: CGRect(origin: .zero, size: layout.size), sending: sending, hover: hover
@@ -199,50 +213,89 @@ struct AsksPanelGlassTests {
         #expect(Self.isTertiary(try Self.brightest(drawn, in: Self.placed(asks.layout.age))))
     }
 
-    /// Each answer's row filled in the glass's tint and bordered a step over it, its keycap a step over the row; over
-    /// them its label in the primary, its number in the secondary, and Claude's pick's "recommended" in the tertiary,
-    /// each dimmer than the last.
+    /// The tag's box on Claude's pick's row, after "Threaded" on its one line.
+    private static func tagBox(_ row: CGRect) -> CGRect {
+        let words = TextLine.width(AsksPanelParts.answerText("Threaded", colour: EdgeStyle.ink))
+
+        return CGRect(x: row.minX + 12 + words + 4, y: row.minY + 8, width: 100, height: 22)
+    }
+
+    /// Whether a colour leans lilac: blue over red over green, as #B1B9F9 and #7178C7 do, never a grey.
+    private static func isLilac(_ colour: NSColor) -> Bool {
+        colour.blueComponent > colour.redComponent + 0.04 && colour.blueComponent > colour.greenComponent + 0.04
+    }
+
+    /// Each answer's row its words alone in the primary, from 12 in, no number before them: Claude's pick filled and
+    /// bordered in lilac, its tag after its words in lilac; any other filled in the glass's grey tint, bordered a step
+    /// over it.
     @available(macOS 26, *)
-    @Test func itsAnswersAreNumberedRowsTheRecommendedOneSaysSo() throws {
+    @Test func itsAnswersAreTheirWordsAloneThePickInLilac() throws {
         let (drawn, asks) = try Self.drawn()
         let first = Self.placed(asks.layout.answers[0]), second = Self.placed(asks.layout.answers[1])
-        let keycap = AsksLayout.keycap.offsetBy(dx: second.minX, dy: second.minY)
+        let pick = try #require(drawn.pixel(at: CGPoint(x: first.maxX - 20, y: first.midY)))
+        let pickBorder = try #require(drawn.pixel(at: CGPoint(x: first.midX, y: first.minY + 0.25)))
+        let other = try #require(drawn.pixel(at: CGPoint(x: second.maxX - 20, y: second.midY)))
         let fill = Self.light(drawn, at: CGPoint(x: second.maxX - 20, y: second.midY))
         let border = Self.light(drawn, at: CGPoint(x: second.midX, y: second.minY + 0.25))
-        let cap = Self.light(drawn, at: CGPoint(x: keycap.minX + 3, y: keycap.midY))
-        let label = CGRect(x: second.minX + 40, y: second.minY, width: 40, height: 38)
-        let recommended = CGRect(x: first.maxX - 70, y: first.minY + 8, width: 60, height: 22)
+        let tag = try drawn.brightest(in: Self.tagBox(first))
 
-        #expect(fill > 0.15)
-        #expect(border > fill + 0.1)
-        #expect(cap > fill + 0.1)
-        let words = try Self.brightest(drawn, in: label), note = try Self.brightest(drawn, in: recommended)
-        let number = try Self.brightest(drawn, in: keycap.insetBy(dx: 4, dy: 4))
-
-        #expect(Self.isPrimary(words))
-        #expect(number < words - 0.3 && note < number - 0.3 && note > fill + 0.3)
+        #expect(Self.isLilac(pick) && Self.isLilac(pickBorder) && pickBorder.lightness > pick.lightness + 0.1)
+        #expect(Self.isLilac(tag) && tag.lightness > 1.5)
+        #expect(!Self.isLilac(other) && fill > 0.15 && border > fill + 0.1)
+        #expect(Self.isPrimary(try Self.brightest(drawn, in: CGRect(x: second.minX + 12, y: second.minY, width: 12, height: 38))))
+        #expect(abs(Self.light(drawn, at: CGPoint(x: second.minX + 8, y: second.midY)) - fill) < 0.02)
     }
 
+    /// In the light, Claude's pick and its tag are the board pane's darker lilac, #7178C7: its tag darker than the
+    /// dark's #9AA2EE, and still lilac.
     @available(macOS 26, *)
-    @Test func anAnswersRowLiftsUnderThePointer() throws {
-        let (resting, asks) = try Self.drawn(), (lifted, _) = try Self.drawn(hover: .answer(1))
-        let row = Self.placed(asks.layout.answers[1]), point = CGPoint(x: row.maxX - 20, y: row.midY)
+    @Test func inTheLightThePickIsADarkerLilac() throws {
+        let (light, asks) = try Self.drawn(over: .white, scheme: .light), (dark, _) = try Self.drawn()
+        let first = Self.placed(asks.layout.answers[0])
+        let lightTag = try #require(light.pixels(in: Self.tagBox(first)).min { $0.lightness < $1.lightness })
+        let darkTag = try dark.brightest(in: Self.tagBox(first))
+        let border = try #require(light.pixel(at: CGPoint(x: first.midX, y: first.minY + 0.25)))
+
+        #expect(Self.isLilac(lightTag) && lightTag.lightness < darkTag.lightness - 0.3)
+        #expect(Self.isLilac(border))
+    }
+
+    /// Under the pointer each row is a step stronger, Claude's pick still lilac.
+    @available(macOS 26, *)
+    @Test(arguments: [0, 1])
+    func anAnswersRowLiftsUnderThePointer(row: Int) throws {
+        let (resting, asks) = try Self.drawn(), (lifted, _) = try Self.drawn(hover: .answer(row))
+        let box = Self.placed(asks.layout.answers[row]), point = CGPoint(x: box.maxX - 20, y: box.midY)
 
         #expect(Self.light(lifted, at: point) > Self.light(resting, at: point) + 0.08)
+        #expect(try Self.isLilac(#require(lifted.pixel(at: point))) == (row == 0))
     }
 
+    /// Lee switched every Snooze time off: nothing drawn where Snooze ▾ stood.
     @available(macOS 26, *)
-    @Test func aWordsAskHasOneOutlinedRowAndNoOpenInClaude() throws {
-        let (drawn, asks) = try Self.drawn(Self.words, pages: 1), row = Self.placed(asks.layout.answers[0])
+    @Test func withNoSnoozeTimeOfferedItsFootHasNoSnooze() throws {
+        let (offered, asks) = try Self.drawn(), (none, _) = try Self.drawn(offersSnooze: false)
+        let snooze = Self.placed(try #require(asks.layout.snooze))
 
-        #expect(asks.layout.open == nil)
-        #expect(Self.light(drawn, at: CGPoint(x: row.maxX - 20, y: row.midY)) < 0.02)
-        #expect(Self.light(drawn, at: CGPoint(x: row.midX, y: row.minY + 0.25)) > 0.2)
+        #expect(Self.isSecondary(try Self.brightest(offered, in: snooze)))
+        #expect(try Self.brightest(none, in: snooze) < 0.02)
+    }
+
+    /// A words ask draws no row between its age and its foot, whose Open in Claude it has.
+    @available(macOS 26, *)
+    @Test func aWordsAskHasNoRowsAndItsFootsOpenInClaude() throws {
+        let (drawn, asks) = try Self.drawn(Self.words, pages: 1), layout = asks.layout
+        let gap = layout.foot.minY - layout.age.maxY
+        let between = Self.placed(CGRect(x: layout.foot.minX, y: layout.age.maxY + 2, width: layout.foot.width, height: gap - 4))
+        let open = Self.placed(layout.open)
+
+        #expect(try Self.brightest(drawn, in: between) < 0.02)
+        #expect(Self.light(drawn, at: CGPoint(x: open.midX, y: open.minY + 0.25)) > 0.2)
     }
 
     @available(macOS 26, *)
     @Test func openInClaudeIsAnOutlinedPill() throws {
-        let (drawn, asks) = try Self.drawn(), open = Self.placed(try #require(asks.layout.open))
+        let (drawn, asks) = try Self.drawn(), open = Self.placed(asks.layout.open)
 
         #expect(Self.light(drawn, at: CGPoint(x: open.midX, y: open.minY + 0.25)) > 0.2)
         #expect(Self.light(drawn, at: CGPoint(x: open.minX + 6, y: open.midY)) < 0.02)
@@ -253,13 +306,13 @@ struct AsksPanelGlassTests {
 
     private static let held = Sending(row: 0, words: "Threaded", heldAt: 4 * 60_000, goesAt: 4 * 60_000 + 2000)
 
-    /// "Sending Threaded" in the dark: its row white, a check in ink in its keycap's place, the words in the primary,
+    /// "Sending Threaded" in the dark: its row white, a check in ink at its trailing end, the words in the primary,
     /// and Undo outlined.
     @available(macOS 26, *)
     @Test func aHeldAnswersRowIsWhiteWithInkInTheDark() throws {
         let (drawn, asks) = try Self.drawn(sending: Self.held)
         let row = Self.placed(asks.layout.answers[0]), undo = Self.placed(asks.layout.undo)
-        let check = AsksLayout.keycap.offsetBy(dx: row.minX, dy: row.minY)
+        let check = AsksLayout.check(in: row.size).offsetBy(dx: row.minX, dy: row.minY)
 
         #expect(try #require(drawn.pixel(at: CGPoint(x: row.minX + 36, y: row.minY + 4))).isWhite)
         #expect(try #require(drawn.pixels(in: check).min { $0.lightness < $1.lightness }).lightness < 0.5)
@@ -267,15 +320,15 @@ struct AsksPanelGlassTests {
         #expect(Self.light(drawn, at: CGPoint(x: undo.midX, y: undo.minY + 0.25)) > 0.2)
     }
 
-    /// In the light, over a white desk, the held row is the primary made opaque, near black, and its check, label and
-    /// "recommended" are light on it.
+    /// In the light, over a white desk, the held row is the primary made opaque, near black, and its check, words and
+    /// "Recommended" are light on it, the tag at half.
     @available(macOS 26, *)
     @Test func aHeldAnswersRowIsNearBlackWithLightWordsInTheLight() throws {
         let (drawn, asks) = try Self.drawn(sending: Self.held, over: .white, scheme: .light)
-        let row = Self.placed(asks.layout.answers[0]), at = AsksPanelParts.labelBoxes(in: row.size, note: "recommended")
-        let check = AsksLayout.keycap.offsetBy(dx: row.minX, dy: row.minY)
-        let label = at.label.offsetBy(dx: row.minX, dy: row.minY)
-        let note = try #require(at.note).offsetBy(dx: row.minX, dy: row.minY)
+        let row = Self.placed(asks.layout.answers[0])
+        let check = AsksLayout.check(in: row.size).offsetBy(dx: row.minX, dy: row.minY)
+        let label = CGRect(x: row.minX + 12, y: row.minY + 8, width: 40, height: 22)
+        let note = Self.tagBox(row)
 
         #expect(Self.light(drawn, at: CGPoint(x: row.minX + 36, y: row.minY + 4)) < 0.3)
         #expect(try Self.brightest(drawn, in: check) > 2.4)
@@ -318,7 +371,7 @@ struct AsksPanelGlassTests {
         #expect(panel(asks, "Asked 4m ago", 0) != panel(lifted, "Asked 4m ago", 0))
     }
 
-    /// A name's box, and "recommended"'s, a point wider than Core Text sets the words, so SwiftUI never cuts them a
+    /// A name's box, and an answer's lines', a point wider than Core Text sets the words, so SwiftUI never cuts them a
     /// hair early; the project still 8 after the name as set, so the black draws as it did.
     @Test func wordsSetWholeHaveAPointToSpare() throws {
         let layout = AsksLayout(Self.choice, measure: .drawn)
@@ -327,12 +380,11 @@ struct AsksPanelGlassTests {
             frame: CGRect(origin: .zero, size: layout.size), sending: nil, hover: nil
         )
         let name = TextLine.width(TextLine.text(Self.helpDesk.name, EdgeStyle.asksName, EdgeStyle.ink))
-        let note = TextLine.width(TextLine.text("recommended", EdgeStyle.asksNote, EdgeStyle.ink3))
         let top = AsksPanelParts.top(asks)
-        let noted = try #require(AsksPanelParts.labelBoxes(in: layout.answers[0].size, note: "recommended").note)
+        let line = try #require(AsksPanelParts.answerLines(0, of: asks).first).box
 
         #expect(top.name.width == name + 1 && top.project.minX == top.name.minX + name + 8)
-        #expect(noted.width == note + 1 && noted.minX == layout.answers[0].width - AsksLayout.rowSide - note)
+        #expect(line.minX == 12 && line.width == AsksLayout.answerWidth + 1)
     }
 
     /// The countdown runs down in the render server from what is left when it is first shown, over what is left of

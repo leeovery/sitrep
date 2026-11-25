@@ -68,22 +68,29 @@ enum EdgeStyle {
 
     /// The row's arrow, lit (Paper's board E2).
     static let arrowLit = srgb(0x34343B)
-    /// The asks panel's (board F): its hairline, an answer's row and its border, lifted under the pointer, a keycap and
-    /// an outlined row's or pill's border, a page dot not current, and the words on an answer's row held, white.
+    /// The asks panel's (boards F and H3): its hairline, an answer's row and its border, lifted under the pointer, an
+    /// outlined pill's border, a page dot not current, and the words on an answer's row held, white.
     static let asksBorder = white(0.15)
     static let answer = srgb(0x1C1C1F)
     static let answerBorder = srgb(0x34343A)
     static let answerLifted = srgb(0x26262A)
-    static let answerLiftedBorder = srgb(0x45454C)
-    static let keycap = srgb(0x2C2C31)
+    static let answerLiftedBorder = srgb(0x46464D)
     static let outline = srgb(0x2C2C31)
+    /// Claude's pick's row: Claude Code's suggestion lilac, #B1B9F9, the board pane's primary button's, at 20% with its
+    /// border at 36%, and under the pointer at 28% and 50%; and its tag, "Recommended", in a lilac of its own.
+    static let pick = srgb(0xB1B9F9, alpha: 0x33)
+    static let pickBorder = srgb(0xB1B9F9, alpha: 0x5C)
+    static let pickLifted = srgb(0xB1B9F9, alpha: 0x47)
+    static let pickLiftedBorder = srgb(0xB1B9F9, alpha: 0x80)
+    static let pickTag = srgb(0x9AA2EE)
+    /// The board pane's darker lilac, #7178C7, its "recommended": Claude's pick's on light glass.
+    static let pickOnLight = srgb(0x7178C7)
     static let dot = srgb(0x3A3A40)
     static let onWhite = srgb(0x111113)
-    /// The asks panel's type: the session's name, the ask's title, a keycap's number, an answer's label and its
-    /// "recommended", and the foot's words, medium and regular.
+    /// The asks panel's type: the session's name, the ask's title, an answer's words and its pick's "Recommended",
+    /// and the foot's words, medium and regular.
     static let asksName = NSFont.systemFont(ofSize: 12, weight: .semibold)
     static let asksTitle = NSFont.systemFont(ofSize: 17, weight: .semibold)
-    static let asksKeycap = NSFont.systemFont(ofSize: 11, weight: .semibold)
     static let asksLabel = NSFont.systemFont(ofSize: 13, weight: .medium)
     static let asksNote = NSFont.systemFont(ofSize: 11, weight: .medium)
     static let asksFoot = NSFont.systemFont(ofSize: 12, weight: .medium)
@@ -115,10 +122,11 @@ enum EdgeStyle {
         CGColor(srgbRed: 1, green: 1, blue: 1, alpha: alpha)
     }
 
-    private static func srgb(_ hex: UInt32) -> CGColor {
+    /// A colour as CSS writes it, #RRGGBB, at an alpha out of 255.
+    static func srgb(_ hex: UInt32, alpha: UInt32 = 0xFF) -> CGColor {
         CGColor(
             srgbRed: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255,
-            blue: CGFloat(hex & 0xFF) / 255, alpha: 1
+            blue: CGFloat(hex & 0xFF) / 255, alpha: CGFloat(alpha) / 255
         )
     }
 }

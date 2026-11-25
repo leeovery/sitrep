@@ -10,6 +10,7 @@ import {
   checkResolve,
   checkSnooze,
   checkSnoozeAsk,
+  checkSnoozeOneAsk,
   checkStart,
   checkStatus,
   checkWake,
@@ -858,6 +859,49 @@ test("Lee's snooze of one ask is refused, the first refusal in order saying why:
     ['a comment on its way', snoozeAskOf('k1', LATER, commenting), onItsWay],
     ['Claude has a comment', snoozeAskOf('k3'), claudes],
     ['come already', snoozeAskOf('k1', NOW), come],
+  ] as const) {
+    expect(refusal(refused), why).toBe(error)
+  }
+})
+
+test("Lee's snooze of one ask as the CLI gives it, for the asks panel: the ask by its id and a time still to come, in digits or a number, checked as the pane's; refused with no time or none a Date holds, with the asks a row showed beside it, then as the pane's is, each refusal a sentence of its own", () => {
+  const oneOf = (fields: Record<string, unknown>, board = BOARD) =>
+    checkSnoozeOneAsk(board, fields, NOW)
+  const noTime = 'An ask snoozes until a time in milliseconds since the epoch.'
+  const finished = boardOf([[T0 + 2 * MIN, finish('lee')]])
+  const come = 'That time has come already: give one still to come.'
+
+  expect(value(oneOf({ item: 'k1', until: String(LATER) }))).toEqual({
+    type: 'snooze',
+    item: 'k1',
+    until: LATER,
+  })
+  expect(value(oneOf({ item: 'k2', until: LATER })), 'a number').toMatchObject({ item: 'k2' })
+
+  for (const [why, refused, error] of [
+    ['no time', oneOf({ item: 'k1' }), noTime],
+    ['not a time', oneOf({ item: 'k1', until: 'tomorrow' }), noTime],
+    ['past what a Date holds', oneOf({ item: 'k1', until: 8.64e15 + 1 }), noTime],
+    [
+      'the asks a row showed beside it',
+      oneOf({ item: 'k1', ask: SHOWN, until: LATER }),
+      'Snooze one ask with --ask, or the asks the row shows: not both.',
+    ],
+    ['finished', oneOf({ item: 'k1', until: LATER }, finished), FINISHED],
+    ['no item', oneOf({ item: 'zz', until: LATER }), 'That ask is no longer on the board.'],
+    ['closed', oneOf({ item: 'k5', until: LATER }), 'That ask is closed already.'],
+    ['ignored', oneOf({ item: 'k4', until: LATER }), 'That ask is ignored already.'],
+    [
+      'an answer on its way',
+      oneOf({ item: 'k6', until: LATER }),
+      'Your reply to that ask is on its way to Claude.',
+    ],
+    [
+      'Claude has a comment',
+      oneOf({ item: 'k3', until: LATER }),
+      "That ask waits on Claude: your comment is Claude's to act on.",
+    ],
+    ['come already', oneOf({ item: 'k1', until: NOW }), come],
   ] as const) {
     expect(refusal(refused), why).toBe(error)
   }

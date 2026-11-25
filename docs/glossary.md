@@ -28,9 +28,9 @@ Each word below means one thing on every page of these docs. The words are group
 
 **session id**: The id the board gives a session, such as `sr-nw0001`. Claude uses it to join a session. The pane and the Mac app never show it, but the `sitrep` command does. It is not Claude Code's own session id, which names one conversation and changes on `/clear`.
 
-**Snooze menu**: The list of snooze choices, each with the time it wakes, then Until it moves. In the Mac app, it opens from **Snooze** when you right-click a row. In the terminal view, `z` opens it under the chosen row.
+**Snooze menu**: The list of snooze choices, each with the time it wakes, then Until it moves. In the Mac app, it opens from **Snooze** when you right-click a row. In the terminal view, `z` opens it under the chosen row. **Snooze ▾** in the asks panel offers the times only, for one ask.
 
-**snoozed**: A session you put off until a time you pick, or until it moves. Its asks and your turn there stop counting until it wakes. A new ask wakes it at once. Only you can snooze a session: Claude has no way to.
+**snoozed**: Put off by you until a time you pick: a whole session, or one ask. In a snoozed session, the asks and your turn there stop counting until it wakes, and a new ask wakes it at once. A session can also snooze until it moves. A snoozed ask stops counting by itself, and nothing new wakes it. Only you can snooze: Claude has no way to.
 
 **status**: Where a session stands: its name, a one-line summary, what is under way now, and what comes next.
 
@@ -60,7 +60,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 ## In the Mac app
 
-**asks panel**: What the arrow on a row opens, beside the panel: one session's asks, one at a time. A click answers a yes or a choice, with two seconds to undo. A words ask shows there too, and its one row takes you to Claude to answer it.
+**asks panel**: What the arrow on a row opens, beside the panel: one session's asks, one at a time. A click answers a yes or a choice, with two seconds to undo. A words ask shows there too, with **Open in Claude ↗** to answer it in Claude.
 
 **banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. A click on one takes you to the session, and the banner for a new ask has buttons to answer it. Both are off until you turn them on in Settings › Notifications. **Turn On…** in the welcome window also turns on the banner for a new ask. A failure banner, such as "SitRep could not jump", "Not snoozed" or "Not answered", shows even with both switches off.
 

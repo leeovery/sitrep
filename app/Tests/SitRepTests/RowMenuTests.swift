@@ -109,6 +109,21 @@ struct RowMenuTests {
         ])
     }
 
+    /// One ask's Snooze, as the asks panel's Snooze ▾ offers it: the times alone, each with when it wakes, as the pane
+    /// offers one ask's; no Until it moves. Each snoozes until the time it shows.
+    @Test func anAsksSnoozeOffersTheTimesAloneNoUntilItMoves() throws {
+        var untils: [Date] = []
+        let snooze = SnoozeMenu.forAsk(offering: SnoozeSettings(), at: Self.now, in: Self.london) { untils.append($0) }
+
+        #expect(Self.choices(snooze) == [
+            "In an hour\t15:00", "Later today\t17:00", "Tonight\t18:00", "Tomorrow\t09:00", "Next week\tMon 09:00",
+        ])
+
+        try snooze.choose(0)
+        try snooze.choose(2)
+        #expect(untils == [Self.now.addingTimeInterval(60 * 60), Self.evening()])
+    }
+
     /// 18:00 on Friday 23 October 2026 in London, and so many seconds after.
     private static func evening(_ seconds: TimeInterval = 0) -> Date {
         now.addingTimeInterval(4 * 60 * 60 + seconds)

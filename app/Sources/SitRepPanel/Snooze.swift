@@ -67,7 +67,13 @@ public enum SnoozeTime: Hashable, Sendable {
 
     /// What every row's Snooze offers at `now`: Snooze's times offered as Lee set them, then until it moves.
     public static func offered(at now: Date, in calendar: Calendar, settings: SnoozeSettings) -> [SnoozeTime] {
-        SnoozeChoice.offered(at: now, in: calendar, settings: settings).map(SnoozeTime.at) + [.untilItMoves]
+        offeredForAsk(at: now, in: calendar, settings: settings) + [.untilItMoves]
+    }
+
+    /// What one ask's Snooze offers at `now`, in the pane and the asks panel: Snooze's times offered as Lee set them,
+    /// never until it moves (DESIGN, "An ask snoozes in the pane").
+    public static func offeredForAsk(at now: Date, in calendar: Calendar, settings: SnoozeSettings) -> [SnoozeTime] {
+        SnoozeChoice.offered(at: now, in: calendar, settings: settings).map(SnoozeTime.at)
     }
 
     public var title: String {
@@ -201,4 +207,25 @@ public enum WakeTime {
         "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November",
         "December",
     ]
+}
+
+/// Whether one ask's Snooze offers a time (`SnoozeTime.offeredForAsk`), worked out again only as the minute or Lee's
+/// settings change, as it is asked for every frame the notch draws; a time passing for today shows within the minute.
+public struct SnoozeOffer: Sendable {
+    private var known: (minute: Int, settings: SnoozeSettings, offers: Bool)?
+
+    public init() {}
+
+    public mutating func offers(at now: Date, in calendar: Calendar, settings: SnoozeSettings) -> Bool {
+        let minute = Int((now.timeIntervalSince1970 / 60).rounded(.down))
+
+        if let known, known.minute == minute, known.settings == settings {
+            return known.offers
+        }
+
+        let offers = !SnoozeTime.offeredForAsk(at: now, in: calendar, settings: settings).isEmpty
+
+        known = (minute, settings, offers)
+        return offers
+    }
 }

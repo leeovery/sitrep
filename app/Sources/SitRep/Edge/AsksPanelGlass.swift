@@ -5,10 +5,11 @@ import SwiftUI
 
 /// The asks panel in glass (DESIGN, "Answering from the panel", "Black and Glass"): the panel's glass, plain, its
 /// hairline the separator's and its shadows a submenu's, as the black's; its words in the glass's label colours, as
-/// the glass rows' are; its rows, keycaps and outlines the black's shapes, filled in the glass's tints; its current
-/// page dot Claude's orange, and the answer held in the primary made opaque, its words in the other. Laid out as the
-/// black's, in its own frame, its words over the glass beside it rather than in it, as the panel's rows are, so the
-/// glass never tints them for what is under it. Drawn again only as what it shows changes: never for the clock alone.
+/// the glass rows' are; its rows and outlines the black's shapes, filled in the glass's tints, Claude's pick in its
+/// lilac (`GlassInk.pick`); its current page dot Claude's orange, and the answer held in the primary made opaque, its
+/// words in the other. Laid out as the black's, in its own frame, its words over the glass beside it rather than in
+/// it, as the panel's rows are, so the glass never tints them for what is under it. Drawn again only as what it shows
+/// changes: never for the clock alone.
 @available(macOS 26, *)
 struct GlassAsksPanel: View, Equatable {
     let asks: AsksShown
@@ -70,67 +71,68 @@ struct GlassAsksPanel: View, Equatable {
             .placed(in: asks.layout.age)
     }
 
-    /// An answer's row: filled and bordered, lifted under the pointer, white while it is the answer held; outlined, for
-    /// the one row that answers in Claude. Its keycap holds its number, or ↗, or held, a check in its place; then its
-    /// label, and "recommended" at its end for Claude's pick.
+    /// An answer's row, as the black's (Paper's board H3): its words alone on up to two lines, Claude's pick in its
+    /// lilac with "Recommended" after its words, any other in the glass's tints; each a step stronger under the
+    /// pointer; the primary made opaque while it is the answer held, its words in the other and a check at its end.
     private func answer(_ index: Int) -> some View {
         let box = asks.layout.answers[index], shows = AsksPanelParts.answerRow(index, of: asks)
-        let isHeld = shows.isHeld, label = AsksPanelParts.label(index, of: asks.ask)
-        let at = AsksPanelParts.labelBoxes(in: box.size, note: label.note), ink = GlassInk.onHeld
+        let lines = AsksPanelParts.answerLines(index, of: asks)
 
         return ZStack(alignment: .topLeading) {
-            ground(shows.ground)
-            if let mark = shows.mark {
-                keycap(mark)
-            } else {
-                check(ink)
+            ground(shows)
+            ForEach(lines.indices, id: \.self) { line in
+                answerLine(lines[line].line, isHeld: shows.isHeld).placed(in: lines[line].box)
             }
-            if let note = label.note, let noteBox = at.note {
-                Text(note).font(Font(EdgeStyle.asksNote))
-                    .foregroundStyle(isHeld ? AnyShapeStyle(ink.opacity(0.5)) : AnyShapeStyle(.tertiary))
-                    .placed(in: noteBox)
+            if shows.isHeld {
+                check(in: box.size)
             }
-            Text.tight(label.words, EdgeStyle.asksLabel)
-                .foregroundStyle(isHeld ? AnyShapeStyle(ink) : AnyShapeStyle(.primary))
-                .placed(in: at.label)
         }
         .frame(width: box.width, height: box.height, alignment: .topLeading)
         .offset(x: box.minX, y: box.minY)
     }
 
-    /// An answer's row's ground: the primary held; a step stronger lifted; outlined, answering in Claude; else filled,
-    /// its border a step over its fill.
-    @ViewBuilder private func ground(_ ground: AsksPanelParts.AnswerRow.Ground) -> some View {
+    /// An answer's row's ground: the primary held; Claude's pick filled and bordered in its lilac; any other in the
+    /// primary's tints, its border a step over its fill; each a step stronger lifted.
+    @ViewBuilder private func ground(_ shows: AsksPanelParts.AnswerRow) -> some View {
         let row = RoundedRectangle(cornerRadius: AsksLayout.answerRadius, style: .circular)
+        let isLifted = shows.ground == .lifted
 
-        switch ground {
-        case .held:
+        switch (shows.ground, shows.isPick) {
+        case (.held, _):
             row.fill(GlassInk.held)
-        case .lifted:
-            row.fill(.primary.opacity(GlassTint.lifted)).overlay(row.strokeBorder(.primary.opacity(GlassTint.press)))
-        case .outlined:
-            row.strokeBorder(.primary.opacity(GlassTint.outline))
-        case .filled:
-            row.fill(.primary.opacity(GlassTint.press)).overlay(row.strokeBorder(.primary.opacity(GlassTint.hover)))
+        case (_, true):
+            row.fill(GlassInk.pick.opacity(isLifted ? GlassTint.Pick.lifted : GlassTint.Pick.fill))
+                .overlay(row.strokeBorder(
+                    GlassInk.pick.opacity(isLifted ? GlassTint.Pick.liftedBorder : GlassTint.Pick.border)
+                ))
+        case (_, false):
+            row.fill(.primary.opacity(isLifted ? GlassTint.lifted : GlassTint.press))
+                .overlay(row.strokeBorder(.primary.opacity(isLifted ? GlassTint.press : GlassTint.hover)))
         }
     }
 
-    /// A keycap, a step over its row, its number or ↗ soft on it.
-    private func keycap(_ mark: String) -> some View {
-        let cap = AsksLayout.keycap, shape = RoundedRectangle(cornerRadius: AsksLayout.keycapRadius, style: .circular)
+    /// One line of an answer's words, the primary, or the held row's ink, and its pick's tag after them in its lilac,
+    /// or in the ink at half on the held row; a tag on a line of its own alone, set as the black sets it.
+    private func answerLine(_ line: AsksPanelParts.AnswerLine, isHeld: Bool) -> Text {
+        let ink = isHeld ? AnyShapeStyle(GlassInk.onHeld) : AnyShapeStyle(.primary)
+        let words = Text.tight(line.words, EdgeStyle.asksLabel).foregroundStyle(ink)
 
-        return Text(mark).font(Font(EdgeStyle.asksKeycap)).foregroundStyle(.secondary)
-            .frame(width: cap.width, height: cap.height)
-            .background(.primary.opacity(GlassTint.hover), in: shape)
-            .offset(x: cap.minX, y: cap.minY)
+        guard let tag = line.tag else {
+            return words
+        }
+
+        let tagInk = isHeld ? AnyShapeStyle(GlassInk.onHeld.opacity(0.5)) : AnyShapeStyle(GlassInk.pickTag)
+        let tagged = Text(tag).font(Font(EdgeStyle.asksNote)).foregroundStyle(tagInk)
+
+        return line.words.isEmpty ? tagged : Text("\(words)\(tagged)")
     }
 
-    /// The held answer's check, in the held row's ink, in its keycap's place.
-    private func check(_ ink: Color) -> some View {
-        let check = AsksPanelParts.check()
+    /// The held answer's check, in the held row's ink, at its row's trailing end.
+    private func check(in row: CGSize) -> some View {
+        let check = AsksPanelParts.check(in: row)
 
         return Outline(path: Path(check.path))
-            .stroke(ink, style: .rounded(AsksPanelParts.checkWidth))
+            .stroke(GlassInk.onHeld, style: .rounded(AsksPanelParts.checkWidth))
             .frame(width: check.box.width, height: check.box.height)
             .offset(x: check.box.minX, y: check.box.minY)
     }
@@ -144,11 +146,11 @@ struct GlassAsksPanel: View, Equatable {
             sendingLine(sending)
         } else {
             footWords(AsksLayout.ignoreWords, in: layout.ignore, lit: asks.hover == .ignore)
-            footWords(AsksLayout.snoozeWords, in: layout.snooze, lit: asks.hover == .snooze)
-            snoozeChevron(in: layout.snooze, lit: asks.hover == .snooze)
-            if let open = layout.open {
-                openPill(open, lit: asks.hover == .open)
+            if let snooze = layout.snooze {
+                footWords(AsksLayout.snoozeWords, in: snooze, lit: asks.hover == .snooze)
+                snoozeChevron(in: snooze, lit: asks.hover == .snooze)
             }
+            openPill(layout.open, lit: asks.hover == .open)
         }
     }
 
