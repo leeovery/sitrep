@@ -15,8 +15,8 @@ The pane shows the board inside Claude Code, docked beside the chat or inline un
 
 ## What happens
 
-- **A session shows four sections, in order.** ASKS lists what waits on you, with its buttons. The project name beside the session opens the project. STATUS says what is under way and what is next, and `show history` opens every change to it. PARKED lists the project's parked items, this session's first, then those under `from other sessions`; `show picked up` lists those picked up, dropped or closed. RESOLVED lists the closed asks, ignored ones aside, 3 until you press `show all`.
-- **All projects lists each project with its open sessions.** Each line shows what waits there, such as `1 waiting`. A project with nothing open, waiting or parked folds into one line at the foot. The name of a project opens its view.
+- **A session shows four sections, in order.** ASKS lists what waits on you, with its buttons. The project name beside the session opens the project. STATUS says what is under way and what is next, and `show history` opens every change to it. PARKED lists the project's parked items, this session's first, then those under `from other sessions`; `show picked up` lists those picked up, dropped or closed. RESOLVED lists the closed asks, ignored ones aside. PARKED and RESOLVED show 3 until you press `show all`.
+- **All projects lists each project with its open sessions.** Each line shows what waits there, such as `1 waiting`. A project with nothing open, waiting or parked folds into one line at the foot.
 - **A project shows SESSIONS, ASKS and PARKED.** Under SESSIONS, `show old sessions` opens the old ones. A session is old once finished, or after 7 days with no window, no ask and no change. ASKS holds every session's asks, and PARKED all the project's parked items, each naming the session it came from.
 - **A parked item can be picked up.** Open it and press `pick it up`. The pick-up waits in Ready to send, and `✎ comment` under it adds a note. Then it goes to the Claude in this window. You can pick an item up only from a window running a session of its project.
 - **A parked item can be dropped, from any window.** Press `✕ drop`, and the pane asks "Drop it? It leaves Parked, and Claude no longer sees it." Then `yes, drop it` takes it off the board at once. Claude learns only that the item is gone.
@@ -36,7 +36,7 @@ The pane shows the board inside Claude Code, docked beside the chat or inline un
 | `≡ All projects` tab | Every project, and the asks waiting in them all |
 | ASKS | Asks, with their buttons |
 | STATUS | Now and next; `show history` for the changes |
-| PARKED | The project's parked items; pick up or drop |
+| PARKED | Parked items, 3 at first; pick up or drop |
 | RESOLVED | Closed asks, 3 at first; `show all` for the rest |
 | READY TO SEND | Replies and pick-ups not sent yet |
 | The band | Asks here, asks elsewhere, show or hide |

@@ -1,12 +1,13 @@
 /**
- * A list of the board's past at its section's foot, and the presses that
- * show it: Status's history, Parked's picked up, a project's old sessions,
- * and RESOLVED. A list that folds away shows only its press until it is
- * opened (`show history 14`, then `hide history` over it); RESOLVED always
- * shows. Shown, it lists its latest few, and with more, a press shows every
- * one (`show all 14`, then `show fewer`). Only these presses change what a
- * list shows, kept in the pane per list; opening or closing an item never
- * does.
+ * A list of the pane's that folds, and the presses that show it: Status's
+ * history, PARKED and its picked up, a project's old sessions, and
+ * RESOLVED. A list that folds away shows only its press until it is
+ * opened (`show history 14`, then `hide history` over it); PARKED and
+ * RESOLVED always show. Shown, it lists its first few, and with more, a
+ * press shows every one (`show all 14`, then `show fewer`), past the first
+ * few only those Lee is acting on while it shows fewer. Only these presses
+ * change what a list shows, kept in the pane per list; opening or closing
+ * an item never does.
  */
 import { LATEST_SHOWN as LATEST, type Listing } from '../../core'
 import type { SitrepShowing } from '../../types'
@@ -26,6 +27,8 @@ export type Past<T> = {
   opens?: (entry: T) => string
   /** The presses that open the list and fold it away; none for a list that always shows. */
   folding?: Folding
+  /** Whether an entry past the first few shows while the list shows fewer, Lee acting on it; none for a list that keeps none. */
+  keeps?: (entry: T) => boolean
 }
 
 /**
@@ -39,9 +42,9 @@ const drawPress = (d: Drawing, key: string, label: string, onPress: () => void):
   return { key, element: <Button key={key} plain dimColor label={label} onPress={onPress} /> }
 }
 
-/** A list's blocks: its press alone while it is folded away, none with nothing in it; else its entries, the latest or every one, between its presses. */
+/** A list's blocks: its press alone while it is folded away, none with nothing in it; else its entries, the first few or every one, between its presses. */
 export const drawPast = <T,>(d: Drawing, past: Past<T>): Block[] => {
-  const { list, listing, draw, opens, folding } = past
+  const { list, listing, draw, opens, folding, keeps } = past
   const { entries, count } = listing
   const showing = d.scene.pane.shown?.[list]
   const show = (to: SitrepShowing | undefined, hidden: readonly T[]) => () =>
@@ -56,6 +59,9 @@ export const drawPast = <T,>(d: Drawing, past: Past<T>): Block[] => {
   }
 
   const isInFull = showing === 'all'
+  const isShownFewer = (entry: T, at: number) => at < LATEST || keeps?.(entry) === true
+  const fewerShown = entries.filter(isShownFewer)
+  const fewerHides = entries.filter((entry, at) => !isShownFewer(entry, at))
   const hide = folding && drawPress(d, list, folding.hide, show(undefined, entries))
   const fewer = folding === undefined ? undefined : 'latest'
   const all =
@@ -64,12 +70,12 @@ export const drawPast = <T,>(d: Drawing, past: Past<T>): Block[] => {
       d,
       `all:${list}`,
       isInFull ? 'show fewer' : `show all ${count}`,
-      isInFull ? show(fewer, entries.slice(LATEST)) : show('all', []),
+      isInFull ? show(fewer, fewerHides) : show('all', []),
     )
 
   return [
     ...(hide ? [hide] : []),
-    ...(isInFull ? entries : entries.slice(0, LATEST)).map(draw),
+    ...(isInFull ? entries : fewerShown).map(draw),
     ...(all ? [all] : []),
   ]
 }

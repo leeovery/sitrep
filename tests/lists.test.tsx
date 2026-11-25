@@ -73,6 +73,9 @@ const PARKED = [
   park('p3', 'Export the ledger as CSV'),
 ]
 
+/** PARKED shown in full, every item parked in the project. */
+const PARKED_IN_FULL = { shown: { [`parked:project:${PROJECT.key}`]: 'all' as const } }
+
 test("a session lists its status's history and its closed asks with no blank row between their entries", async () => {
   const rows = await rowsAt(
     {
@@ -97,14 +100,14 @@ test("a session lists its status's history and its closed asks with no blank row
   expect(listedUnder(rows, 'RESOLVED')).toEqual([' ● Review round 2 1m', ' ● Review round 1 2m'])
 })
 
-test("PARKED lists every item parked in the project with no blank row between them: in a session, its own first, unnamed, then the others', each naming its session; in the project, the oldest first, each naming its session; each counting them all", async () => {
+test("PARKED shown in full lists every item parked in the project with no blank row between them: in a session, its own first, unnamed, then the others', each naming its session; in the project, the oldest first, each naming its session; each counting them all", async () => {
   const desk: Desk = {
     lines: minutely(...PARKED),
     around: [{ meta: LEDGER, lines: [[T0 - MIN, park('p1', 'Archive old invoices')]], seenAt: T0 }],
     now: T0 + 3 * MIN,
   }
-  const session = await rowsAt(desk)
-  const project = await rowsAt(desk, { place: projectPlace(PROJECT.key) })
+  const session = await rowsAt(desk, PARKED_IN_FULL)
+  const project = await rowsAt(desk, { ...PARKED_IN_FULL, place: projectPlace(PROJECT.key) })
 
   expect(listedUnder(session, 'PARKED')).toEqual([
     ' ● A priority badge 3m',
@@ -112,12 +115,14 @@ test("PARKED lists every item parked in the project with no blank row between th
     ' ● Export the ledger as CSV 1m',
     ' from other sessions',
     ' ● Invoice ledger: Archive old invoices 4m',
+    ' show fewer',
   ])
   expect(listedUnder(project, 'PARKED')).toEqual([
     ' ● Invoice ledger: Archive old invoices 4m',
     ' ● Help desk redesign: A priority badge 3m',
     ' ● Help desk redesign: Thumbnails in the picker 2m',
     ' ● Help desk redesign: Export the ledger as CSV 1m',
+    ' show fewer',
   ])
 
   for (const rows of [session, project]) {
@@ -137,10 +142,15 @@ test("an ask's ● is orange and a parked item's purple, in a session and in its
     around: [{ meta: LEDGER, lines: [[T0 - MIN, park('p9', 'Archive old invoices')]], seenAt: T0 }],
     now: T0 + 5 * MIN,
   }
-  const session = pane(sceneFrom(desk))
-  const project = pane(sceneFrom({ ...desk, pane: { place: projectPlace(PROJECT.key) } }))
+  const session = pane(sceneFrom({ ...desk, pane: PARKED_IN_FULL }))
+  const project = pane(
+    sceneFrom({ ...desk, pane: { ...PARKED_IN_FULL, place: projectPlace(PROJECT.key) } }),
+  )
 
-  for (const [view, ui] of [['session', session], ['project', project]] as const) {
+  for (const [view, ui] of [
+    ['session', session],
+    ['project', project],
+  ] as const) {
     expect(await marksIn(ui, 'ask:'), `${view}: ASKS`).toEqual([C.ask, C.ask])
     expect(await marksIn(ui, 'parked:'), `${view}: PARKED`).toEqual(Array(4).fill(C.parked))
   }
