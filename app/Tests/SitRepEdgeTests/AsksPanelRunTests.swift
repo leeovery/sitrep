@@ -1374,12 +1374,111 @@ struct AsksPanelRunTests {
         #expect(run.asking.isSliding)
 
         try Self.drag(run, 60, each: 20)
+
+        let before = try #require(run.asksShown?.slid)
+
         try Self.swipe(run, .ended, along: 0)
-        #expect(run.asksShown?.ask.id == "k4")
+        #expect(run.asksShown?.ask.id == "k4" && run.asksShown?.slid == -AsksLayout.width)
+        #expect(before < 0 && -before <= 120)
 
         let on = try Self.settling(run)
 
         #expect(on.allSatisfy { abs($0) <= AsksLayout.width } && run.asksShown?.slid == 0)
+    }
+
+    /// A flick back takes up the fingers' speed as it springs back: the first frame after the lift has moved toward its
+    /// place by about as far as the fingers went in a frame, never past it. Past the first ask, in the rubber band, it
+    /// springs back from rest, never further out first.
+    @Test func aFlickBackCarriesOnAtTheLiftAndTheRubberBandSpringsBackFromRest() throws {
+        let run = try Self.asksOpen(), setting = Self.setting(), onIt = try Self.onAsks(run, down: 70)
+
+        try Self.drag(run, 250, each: 10)
+        for _ in 0 ..< 4 {
+            try Self.swipe(run, .changed, along: -25)
+        }
+        try Self.swipe(run, .ended, along: 0)
+
+        let lifted = try #require(run.asksShown?.slid)
+
+        run.step(Self.at(run, onIt, setting))
+
+        let moved = lifted - (try #require(run.asksShown?.slid))
+
+        #expect(lifted == 150 && moved > 0.6 * 1.5 * Self.frameMS)
+        #expect(try Self.settling(run).allSatisfy { $0 >= 0 })
+
+        try Self.drag(run, -100, each: 20)
+
+        let band = try #require(run.asksShown?.slid)
+
+        try Self.swipe(run, .ended, along: 0)
+        run.step(Self.at(run, onIt, setting))
+
+        let back = try #require(run.asksShown?.slid)
+
+        #expect(band < 0 && back > band)
+    }
+
+    /// The ask beside leaving as the asks settle, its answer gone, stands the ask shown at its place: no other ask
+    /// slides out where it was, and no black shows.
+    @Test func theAskBesideLeavingInTheSettleStandsTheAskShownAtItsPlace() throws {
+        let run = try Self.asksOpen(Self.helpDesk, board: AsksBoard.board(withNotes: true)), setting = Self.setting()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, nil, setting))
+        try Self.drag(run, 60, each: 20)
+        try Self.swipe(run, .ended, along: 0)
+        #expect(run.asksShown?.ask.id == "k2" && run.asksShown?.beside?.ask.id == "k1")
+        run.heard(.went(Self.threaded), Self.at(run, try Self.onAsks(run, down: 70), setting))
+
+        let asks = try #require(run.asksShown)
+
+        #expect(asks.ask.id == "k2" && asks.slid == 0 && asks.beside == nil && !run.asking.isSliding)
+    }
+
+    /// The ask beside leaving mid-drag, its answer gone, stands the ask shown still under the fingers until they lift,
+    /// as the ask shown leaving does: no other ask slides in in its place.
+    @Test func theAskBesideLeavingMidDragStandsTheAskShownStillUntilTheLift() throws {
+        let run = try Self.asksOpen(Self.helpDesk, board: AsksBoard.board(withNotes: true)), setting = Self.setting()
+
+        try Self.drag(run, 100)
+        #expect(run.asksShown?.beside?.ask.id == "k2")
+        run.heard(.went(Self.approve), Self.at(run, try Self.onAsks(run, down: 70), setting))
+        #expect(run.asksShown?.slid == 0 && run.asksShown?.beside == nil)
+        try Self.swipe(run, .changed, along: 60)
+        #expect(run.asksShown?.slid == 0)
+        try Self.swipe(run, .ended, along: 0)
+        #expect(run.asksShown?.ask.id == "k1")
+    }
+
+    /// A wheel's scroll ends a swipe whose lift never came, its ask no longer following fingers that are gone, though
+    /// it goes too short a way to step; and lets go of a drag held still, then stepping as a wheel does.
+    @Test(arguments: [false, true])
+    func aWheelEndsASwipeWhoseLiftNeverCameOrADragHeldStill(held: Bool) throws {
+        let run = try Self.asksOpen(Self.helpDesk, board: AsksBoard.board(withNotes: true)), setting = Self.setting()
+
+        if held {
+            run.heard(Self.held(Self.threaded), Self.at(run, nil, setting))
+        }
+        try Self.drag(run, 150)
+        if held {
+            run.heard(.went(Self.threaded), Self.at(run, try Self.onAsks(run, down: 70), setting))
+        }
+        try Self.swipe(run, .wheel, along: held ? 16 : 4, after: AsksSwipe.wheelGap + 1)
+        #expect(!run.asking.isFollowing && !run.isSwiping)
+        #expect(run.asksShown?.ask.id == (held ? "k4" : "k1"))
+        _ = try Self.settling(run)
+        #expect(!run.needsFrames(at: run.time))
+    }
+
+    /// A gesture's first scroll on the list ends a swipe whose lift never came, and that scroll is the list's.
+    @Test func aGesturesFirstScrollOnTheListEndsAStuckSwipeAndScrollsTheList() throws {
+        let setting = Self.setting(stage: Self.short), run = try Self.asksOpen(Self.helpDesk, setting)
+        let list = try Self.words(Self.dataImport, run, setting)
+
+        try Self.drag(run, 100, setting)
+        try Self.swipe(run, .began, along: 0, down: 4, setting, at: list)
+        #expect(!run.asking.isFollowing && !run.isSwiping)
+        #expect(run.scroll == 4 && run.asksShown != nil)
     }
 
     /// A dot's click during another's settle slides from where the asks stand, never from more than one ask away,

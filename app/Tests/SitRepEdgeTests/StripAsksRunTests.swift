@@ -574,6 +574,20 @@ struct StripAsksRunTests {
         #expect(run.asksShown?.slid == 60)
     }
 
+    /// A wheel's scroll ends a swipe whose lift never came, though it goes too short a way to step: its ask springs
+    /// back, and the frames stop.
+    @Test func aWheelEndsASwipeWhoseLiftNeverCame() throws {
+        let run = try Self.asksOpen(), setting = Self.setting()
+
+        try Self.drag(run, 100)
+        run.scroll(Scroll(down: 0, along: 4), StripRun.Moment(
+            time: run.time + 400, pointer: try Self.onAsks(run), setting: setting
+        ))
+        #expect(!run.isSwiping && !run.asking.isFollowing && run.asksShown?.ask.id == "k1")
+        Self.frames(run, for: 1000, try Self.onAsks(run), setting) { !run.needsFrames }
+        #expect(!run.needsFrames)
+    }
+
     /// The asks panel closing mid-drag, its arrow pressed again, ends its swipe: no frames run for it.
     @Test func theAsksPanelClosingMidDragEndsItsSwipe() throws {
         let run = try Self.asksOpen(), setting = Self.setting(), arrow = try Self.arrow(run)

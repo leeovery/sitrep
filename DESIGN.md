@@ -6499,10 +6499,15 @@ with its ask.
     with the same two asks, a dot's settle across asks too; on its lift a
     flick the way its fingers went completes that way, so a second flick
     during the first's settle goes on to the ask after, as the Mac's
-    swipe between Spaces does (the review, 25 November 2026).
+    swipe between Spaces does (the review, 25 November 2026). One that
+    goes on before the slide has passed its place starts its ask from no
+    more than one ask away, as a dot's click does, so the ask going out
+    jumps the rest of the way to its place in a frame, 20 to 120 points
+    at a flick's pace (accepted in the second review, 25 November 2026).
   - **Past the first or the last ask** it rubber-bands: it moves a share
     of the fingers' travel, the share shrinking as they go, as a Mac
-    scroll view's edge does, and springs back on the lift. Nothing wraps.
+    scroll view's edge does, and springs back on the lift, from rest.
+    Nothing wraps.
   - The ask changes at the lift that completes it, and the 300ms beat
     starts there. During a drag or the settle nothing on it lights under
     the pointer, and a press lands on nothing, but for a dot during the
@@ -6514,14 +6519,17 @@ with its ask.
     pointer goes, as when the asks panel shrinks from under a still
     pointer as it slides to a shorter ask. A gesture whose lift never
     came, gone to another window all the same, ends at the next
-    gesture's first scroll, its ask springing back; the asks panel
-    closing ends its swipe (the review, 25 November 2026).
-  - **The slide is its ask's.** An ask before the one shown leaving or
-    coming moves nothing under the fingers: the slide goes on with the
-    same two asks. The ask shown leaving, its answer gone or the board
-    leaving it out, stands the ask that takes its place still, and the
-    rest of the gesture moves nothing until the fingers lift, so no ask
-    is skipped (the review, 25 November 2026).
+    gesture's first scroll, or a wheel's, its ask springing back and that
+    scroll going where the pointer is; the asks panel closing ends its swipe
+    (the review, 25 November 2026).
+  - **The slide is its two asks'**, the one shown and the one beside. Any
+    other ask leaving or coming moves nothing under the fingers: the
+    slide goes on with the same two asks. Either of them leaving, its
+    answer gone or the board leaving it out, stands the ask shown still
+    at its place, and the rest of the gesture moves nothing until the
+    fingers lift, so no ask is skipped and no other slides in where it
+    was (the review, 25 November 2026; the ask beside, the second
+    review).
 - **A mouse's horizontal scroll** has no lift to follow, as its wheel has
   no phases: it steps to the next ask or the previous one once it has gone
   12 points across, more across than down, one ask a gesture, its scrolls

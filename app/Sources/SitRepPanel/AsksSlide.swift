@@ -106,7 +106,8 @@ public struct AsksSlide: Sendable {
     /// beside past a third of the way to it, or on a flick toward it; a flick the other way springs back, however far
     /// it went. A flick the way the fingers went since they took hold completes that way, so a second flick during the
     /// settle of the first goes on to the ask after, as the Mac's swipe between Spaces does. Past the first or the last
-    /// ask, it springs back.
+    /// ask, it springs back. Either way it takes up the fingers' speed, but in the rubber band past the first or the
+    /// last ask, where it springs back from rest.
     public mutating func lift(at time: Double, page: Int, of pages: Int, reducesMotion: Bool) -> Int? {
         guard var drag else {
             return nil
@@ -120,12 +121,14 @@ public struct AsksSlide: Sendable {
         let way = flung ? speed : slid
         let completes = flung || (speed * (slid < 0 ? -1 : 1) >= -Self.flick && abs(slid) > Self.third)
 
-        guard completes, let to = beside(of: page, toward: way, of: pages) else {
+        let to = completes ? beside(of: page, toward: way, of: pages) : nil
+
+        if !reducesMotion, to != nil || Self.neighbour(of: page, toward: slid, of: pages) != nil {
+            spring.v = speed
+        }
+        guard let to else {
             settle(reducesMotion: reducesMotion)
             return nil
-        }
-        if !reducesMotion {
-            spring.v = speed
         }
         return to
     }
@@ -150,10 +153,9 @@ public struct AsksSlide: Sendable {
         settle(reducesMotion: reducesMotion)
     }
 
-    /// The asks moved this many pages along under it, as an ask before the one shown left or came: the ask beside
-    /// moves with them, so it slides on with the same two asks.
-    public mutating func shift(by pages: Int) {
-        beside = beside.map { $0 + pages }
+    /// The ask beside now at this page, as an ask before it left or came: it slides on with the same two asks.
+    public mutating func move(beside page: Int) {
+        beside = page
     }
 
     /// At rest in its place, nothing beside it.

@@ -8,11 +8,13 @@ import SitRepPanel
 /// asks it last laid out kept. It shows one session's asks, one at a time, in its row's order, while the panel or the
 /// tab is open; it closes as that goes in, as its row goes, or as its last ask does.
 struct AsksPanel {
-    /// Open beside a row, by its key, at an ask, by its id and its page.
+    /// Open beside a row, by its key, at an ask, by its id and its page, among its session's asks as last kept, by
+    /// their ids, which tell the ask beside as it slides by its page.
     private struct Open {
         let row: String
         var ask: String
         var page: Int
+        var asks: [String]
     }
 
     /// What it shows, for a press to tell a change of meaning by: beside which row, which holds its session, where on
@@ -125,7 +127,9 @@ struct AsksPanel {
             return close()
         }
 
-        open = asks(of: session, on: board).first.map { Open(row: key, ask: $0.id, page: 0) }
+        let asks = asks(of: session, on: board)
+
+        open = asks.first.map { Open(row: key, ask: $0.id, page: 0, asks: asks.map(\.id)) }
         slide.rest()
     }
 
@@ -156,9 +160,9 @@ struct AsksPanel {
     static let scrollMost = 10.0
 
     /// Kept to what shows: closed while the panel is not open, its row gone or none of its asks left; else at its
-    /// ask, or, where that left, the one that took its page, or the last. Its slide is its ask's: as asks before it
-    /// leave or come, it slides on, the ask beside moving with them; as its ask leaves, it stands still, under fingers
-    /// still on the trackpad until they lift.
+    /// ask, or, where that left, the one that took its page, or the last. Its slide is its two asks', the one shown
+    /// and the one beside: as other asks leave or come, it slides on with them; as either of them leaves, it stands
+    /// still, under fingers still on the trackpad until they lift.
     private mutating func keep(isOpen: Bool, _ rows: some AsksRows, _ board: PanelBoard) {
         guard let open else {
             return
@@ -167,15 +171,17 @@ struct AsksPanel {
             return close()
         }
 
-        let kept = asks.firstIndex { $0.id == open.ask }, page = kept ?? min(open.page, asks.count - 1)
+        let ids = asks.map(\.id), kept = ids.firstIndex(of: open.ask), page = kept ?? min(open.page, asks.count - 1)
+        let beside = slide.beside.flatMap { open.asks.indices.contains($0) ? open.asks[$0] : nil }
+        let besideKept = beside.flatMap { ids.firstIndex(of: $0) }
 
-        if kept == nil {
+        if kept == nil || (beside != nil && besideKept == nil) {
             isDragHeld = isDragHeld || slide.isFollowing
             slide.rest()
-        } else if page != open.page {
-            slide.shift(by: page - open.page)
+        } else if let besideKept {
+            slide.move(beside: besideKept)
         }
-        self.open = Open(row: open.row, ask: asks[page].id, page: page)
+        self.open = Open(row: open.row, ask: ids[page], page: page, asks: ids)
     }
 
     /// At the ask on this page of its row's session's, where it has one, sliding there (DESIGN, "Paging").
@@ -185,21 +191,24 @@ struct AsksPanel {
         }
 
         slide.slide(from: open.page, to: page, reducesMotion: reducesMotion)
-        self.open = Open(row: open.row, ask: asks[page].id, page: page)
+        self.open = Open(row: open.row, ask: asks[page].id, page: page, asks: asks.map(\.id))
     }
 
     /// Whether a scroll with the pointer here is its: on it, or in a swipe across it under way, which keeps every scroll
-    /// of its gesture. A gesture's first scroll is the asks panel's only on it, and ends a swipe whose lift never came,
-    /// as when the rest of its gesture went to another window: its ask springs back.
+    /// of its gesture. A gesture's first scroll, or a wheel's, is the asks panel's only on it, and ends a swipe whose
+    /// lift never came, as when the rest of its gesture went to another window: its ask springs back, and a drag held
+    /// still is let go.
     mutating func takes(_ scroll: Scroll, at pointer: CGPoint?, reducesMotion: Bool) -> Bool {
-        guard scroll.phase == .began else {
+        guard scroll.phase == .began || scroll.phase == .wheel else {
             return isOn(pointer) || isSwiping
         }
 
         if slide.isFollowing {
             slide.cancel(reducesMotion: reducesMotion)
         }
-        swipe = AsksSwipe()
+        if scroll.phase == .began || isSwiping || isDragHeld {
+            swipe = AsksSwipe()
+        }
         isDragHeld = false
         return isOn(pointer)
     }
