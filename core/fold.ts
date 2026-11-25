@@ -413,6 +413,24 @@ const reopen = (fold: Fold, item: Item, at: number) => {
   item.answer = undefined
 }
 
+/**
+ * An edit to an ask standing replied, Lee's comment Claude's to act on, is
+ * Claude rewording it, and hands it back: it waits on Lee again as a
+ * reopened ask does, afresh. It never closed, so nothing is history, and the
+ * comment stays its answer, what Lee said before. Any other ask's edit
+ * leaves it waiting on whom it waited on.
+ */
+const handBack = (fold: Fold, ask: Ask, at: number) => {
+  if (ask.state !== 'replied') {
+    return
+  }
+
+  endAskSnooze(fold.asleep, ask.id, at)
+  newNeed(fold.asleep, at)
+  ask.openedAt = at
+  ask.state = 'waiting'
+}
+
 const HANDLERS: { [T in Body['type']]: Handler<T> } = {
   status: (fold, { name, summary, now, next, at, by }) => {
     const status = { name, summary, now, next, at, by }
@@ -516,6 +534,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
     if (item.type === 'ask') {
       reshape(item, changes)
+      handBack(fold, item, at)
     }
 
     item.editedAt = at

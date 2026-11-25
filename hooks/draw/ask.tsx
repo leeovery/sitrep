@@ -24,6 +24,7 @@ import {
   replyOnItsWay,
   shownWords,
   snoozeChoicesAt,
+  standingComment,
   VERDICTS,
   waitsOnLee,
   wakeWords,
@@ -221,7 +222,7 @@ const drawAsleep = (d: Drawing, { at, key }: Standing, until: number) => {
 const branchesOf = (d: Drawing, ask: Ask, color: string, standing: Standing) => {
   const { queued, sent, isOpen, isAnswering, snoozedUntil } = standing
   const isAnswered = queued !== undefined || sent !== undefined
-  const commented = ask.state === 'replied' && !isAnswered ? ask.answer?.note : undefined
+  const commented = isAnswered ? undefined : standingComment(ask)
 
   return shown(
     isOpen && ask.needs !== undefined && { text: `needs: ${ask.needs}`, color: C.ask },

@@ -84,10 +84,27 @@ test("the board text lists the session's open items by id, for Claude to check a
       'Open asks:',
       '- k1 wants a yes (Approve), waiting on the user: Review round 1; where: In Paper: page "round 1"',
       '- k2 wants a choice, waiting on the user: Keep the ledger 400 days, or forever?; options: 400 days | Forever',
-      '- k3 wants a yes (It works), the user replied, yours to act on (comment: “It fails after the code”): Try it on the iPad',
+      '- k3 wants a yes (It works), the user replied, yours to act on, then resolve, or reword with edit to hand it back (comment: “It fails after the code”): Try it on the iPad',
       'Parked:',
       '- p1: A priority badge',
     ].join('\n'),
+  )
+})
+
+test("the board text has an ask the user commented on, once Claude's edit rewords it, waiting on the user again", () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k3', 'Try it on the iPad', 'It works')],
+        [T0 + MIN, reply('r1', 'k3', 'comment', { note: 'What does this need?' })],
+        [T0 + MIN, delivered('r1')],
+        [T0 + 2 * MIN, { type: 'edit', item: 'k3', changes: { title: 'Sign in on the iPad' } }],
+      ),
+    },
+  })
+
+  expect(boardText(session)).toContain(
+    '- k3 wants a yes (It works), waiting on the user: Sign in on the iPad',
   )
 })
 

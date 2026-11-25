@@ -28,6 +28,7 @@ import {
   closedByLee,
   droppedRecommendation,
   folderKey,
+  handsBack,
   itemTitle,
   metaText,
   newSessionId,
@@ -412,13 +413,20 @@ const onItem = <N extends string, B extends Body & { item: string }>(
   }
 }
 
-/** What an edit says it did: and where it left an ask without the option it recommended, that it recommends none now. */
+/** What an edit says it did: where it left an ask without the option it recommended, that it recommends none now; and where it handed an ask back, that it waits on Lee again. */
 const editedText = (body: EditBody, before: Session | undefined) => {
   const dropped = before === undefined ? undefined : droppedRecommendation(before, body)
+  const said = [
+    `Edited ${body.item}.`,
+    dropped === undefined
+      ? undefined
+      : `Its recommended option “${dropped}” is gone, so it recommends none now.`,
+    before !== undefined && handsBack(before, body)
+      ? `It waits on ${USER.name} again: put it to ${USER.name} in full after your last tool call.`
+      : undefined,
+  ]
 
-  return dropped === undefined
-    ? `Edited ${body.item}.`
-    : `Edited ${body.item}. Its recommended option “${dropped}” is gone, so it recommends none now.`
+  return said.filter(each => each !== undefined).join(' ')
 }
 
 /** A resolve of an item Lee closed already, an ask he answered or ignored, a parked item he picked up or dropped: nothing to write, and nothing refused. */
@@ -673,7 +681,7 @@ const TOOLS = [
   posting(
     spec(
       'ask',
-      `Post an ask: something only ${USER.name} can do or decide. Ask when you cannot go on without ${USER.name}, when ${USER.possessive} judgement changes what happens next, or when you leave ${USER.name} something to do, such as a release, a merge or a command to run; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes for a go, an approval, or word that it works or is done, its button the verb given (Go, Approve, Done); a choice for one of options, giving recommended whenever you lean toward one, never the word in an option; words for something written back, such as a command's output (needs says what). A reply from ${USER.name} arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice, an answer or an ignore closes it by itself, a comment going with a yes or a choice too; a comment alone leaves it open for you to act on, then resolve, unless an answer to it was sent apart from that message, which closes it. If ${USER.name} answers in the chat instead, resolve the ask yourself, saying so in the reason.`,
+      `Post an ask: something only ${USER.name} can do or decide. Ask when you cannot go on without ${USER.name}, when ${USER.possessive} judgement changes what happens next, or when you leave ${USER.name} something to do, such as a release, a merge or a command to run; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes for a go, an approval, or word that it works or is done, its button the verb given (Go, Approve, Done); a choice for one of options, giving recommended whenever you lean toward one, never the word in an option; words for something written back, such as a command's output (needs says what). A reply from ${USER.name} arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice, an answer or an ignore closes it by itself, a comment going with a yes or a choice too; a comment alone leaves it open for you to act on, then resolve, unless an answer to it was sent apart from that message, which closes it; rewording such an ask with edit instead hands it back, waiting on ${USER.name} again. If ${USER.name} answers in the chat instead, resolve the ask yourself, saying so in the reason.`,
       {
         wants: WANTS_BACK,
         yes: YES,
@@ -724,7 +732,7 @@ const TOOLS = [
   onItem(
     spec(
       'edit',
-      "Correct an item by its id, giving only the fields to change; a parked item another session of this project parked, with that session's id. An item's one line is its title or its text alike, an ask's or a parked item's. An ask changed to want a yes needs yes; to want a choice, options. An ask's recommended stays while its option is among the options.",
+      `Correct an item by its id, giving only the fields to change; a parked item another session of this project parked, with that session's id. An item's one line is its title or its text alike, an ask's or a parked item's. An ask changed to want a yes needs yes; to want a choice, options. An ask's recommended stays while its option is among the options. Editing an ask ${USER.name} commented on, yours to act on, hands it back: it waits on ${USER.name} again; resolve it instead once acted on.`,
       {
         item: ITEM,
         session: PARKED_BY,

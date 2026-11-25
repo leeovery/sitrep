@@ -183,7 +183,7 @@ export const reviewRounds = (count: number) =>
 export const CLOSES = '\n  This closes the ask: nothing more to do with it.'
 
 /** The line under a comment in Lee's message saying it left its ask open. */
-export const LEAVES_OPEN = '\n  This leaves the ask open: act on it, then resolve it.'
+export const LEAVES_OPEN = '\n  This leaves the ask open: act on it, then resolve it, or reword it with edit to hand it back to the user.'
 
 /** The section a row of each kind of line sits in. */
 export const SECTIONS: Record<RowKind, Row['section']> = {

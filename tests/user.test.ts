@@ -159,7 +159,9 @@ test("a board message's lines, each way it leaves an ask, name no person and gue
   expect(message).toContain(
     'An answer from the user to this ask, sent apart from this message, closes it.',
   )
-  expect(message).toContain('This leaves the ask open: act on it, then resolve it.')
+  expect(message).toContain(
+    'This leaves the ask open: act on it, then resolve it, or reword it with edit to hand it back to the user.',
+  )
   expect(message).not.toMatch(PERSON)
 })
 

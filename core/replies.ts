@@ -79,6 +79,9 @@ export const fits = (item: Item, reply: ReplyFields) =>
 
 export const isOpen = (ask: Ask) => ask.state === 'waiting' || ask.state === 'replied'
 
+/** The comment of Lee's an open ask stands with, delivered: Claude's to act on while it stands replied, what Lee said before once Claude's edit handed it back. */
+export const standingComment = (ask: Ask) => (isOpen(ask) ? ask.answer?.note : undefined)
+
 /** A yes ask's yes, the button's words, as Lee gives it; a bare `yes` where its line gave none. */
 export const yesOf = (ask: Pick<Ask, 'yes'>) => ask.yes ?? 'yes'
 
@@ -351,11 +354,11 @@ export const replyLine = (item: Ask | Parked, reply: ReplyFields, elsewhere?: st
     ? `- Pick up from parked${parkedBy(elsewhere)}: ${item.title}${reply.note ? `.${PICK_UP_NOTE(reply.note)}` : ''}`
     : `- ${item.title} → ${words(item, reply, IN_MESSAGE)}`
 
-/** What Claude is told a message leaves an ask as: closed, with nothing more to do; closed by an answer of Lee's sent apart from it; or open, Claude's to act on and resolve. */
+/** What Claude is told a message leaves an ask as: closed, with nothing more to do; closed by an answer of Lee's sent apart from it; or open, Claude's to act on and resolve, or to reword back to Lee. */
 const LEFT_AS = {
   closed: '  This closes the ask: nothing more to do with it.',
   apart: `  An answer from ${USER.name} to this ask, sent apart from this message, closes it.`,
-  open: '  This leaves the ask open: act on it, then resolve it.',
+  open: `  This leaves the ask open: act on it, then resolve it, or reword it with edit to hand it back to ${USER.name}.`,
 } as const
 
 /** Where a message leaves an ask, from every verdict it carries for it: closed by any answer among them, else by an answer on its way apart from it, else open. */

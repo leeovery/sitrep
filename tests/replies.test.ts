@@ -4,6 +4,7 @@ import {
   barredBy,
   boardMessage,
   checkEdit,
+  checkSnoozeAsk,
   deliveredMark,
   deliverer,
   deliveryOf,
@@ -13,6 +14,7 @@ import {
   replyState,
   sentLines,
   STALE_MS,
+  standingComment,
   takenOff,
   toDeliver,
   waitsOnLee,
@@ -40,6 +42,8 @@ import {
   reply,
   resolve,
   seen,
+  snooze,
+  snoozeSession,
   status,
   wordsAsk,
   yesAsk,
@@ -108,7 +112,7 @@ for (const [id, verdict, extra, after] of EFFECTS) {
 
     expect(lines?.at(-1)).toBe(
       says === 'open'
-        ? '  This leaves the ask open: act on it, then resolve it.'
+        ? '  This leaves the ask open: act on it, then resolve it, or reword it with edit to hand it back to the user.'
         : '  This closes the ask: nothing more to do with it.',
     )
   })
@@ -556,6 +560,147 @@ test('waiting counts open asks with no delivered reply since they were opened or
   expect(reopened?.closedAt).toBeUndefined()
 })
 
+/** Lee's comment on k3, the iPad sign-in, delivered: the ask stands replied, Claude's to act on. */
+const COMMENTED_ON: Line[] = sent(T0 + MIN, 'r1', 'k3', 'comment', { note: 'What does this need?' })
+
+/** An edit to k3 rewording its title. */
+const RETITLED_TRY: Body = {
+  type: 'edit',
+  item: 'k3',
+  changes: { title: 'Sign in on the iPad, then say' },
+}
+
+/** Every field Claude's edit can reword an ask by, each an edit to k3. */
+const REWORDINGS: Array<[string, Body]> = [
+  ['its title', RETITLED_TRY],
+  ['where to look', { type: 'edit', item: 'k3', changes: { where: 'On the iPad mini' } }],
+  ["its yes's words", { type: 'edit', item: 'k3', changes: { yes: 'Signed in' } }],
+  [
+    'what it wants, a choice',
+    { type: 'edit', item: 'k3', changes: { wants: 'choice', options: ['Works', 'Fails'] } },
+  ],
+  [
+    'what it wants, words, and what it needs',
+    { type: 'edit', item: 'k3', changes: { wants: 'words', needs: 'what the screen says' } },
+  ],
+]
+
+const k3Of = (session: Session) => session.asks.find(ask => ask.id === 'k3')
+
+for (const [what, edit] of REWORDINGS) {
+  test(`Claude's edit to ${what} of an ask Lee commented on hands it back: it waits on Lee again from the edit, the comment kept as what he said before`, () => {
+    const session = fold({ logs: { [W1]: file(...POSTED, ...COMMENTED_ON, [T0 + 2 * MIN, edit]) } })
+    const ask = k3Of(session)
+
+    expect(ask).toMatchObject({ state: 'waiting', openedAt: T0 + 2 * MIN })
+    expect(ask && waitsOnLee(ask)).toBe(true)
+    expect(session.waiting).toBe(4)
+    expect(ask && standingComment(ask)).toBe('What does this need?')
+    expect(ask && replyState(ask)).toBeUndefined()
+  })
+}
+
+test('an ask handed back takes a snooze of its own, refused while it stood replied', () => {
+  const lines: Line[] = [...POSTED, ...COMMENTED_ON]
+  const commented = fold({ logs: { [W1]: file(...lines) } })
+  const handedBack = fold({ logs: { [W1]: file(...lines, [T0 + 2 * MIN, RETITLED_TRY]) } })
+  const snoozed = fold({
+    logs: {
+      [W1]: file(...lines, [T0 + 2 * MIN, RETITLED_TRY], [T0 + 3 * MIN, snooze('k3', NOW + MIN)]),
+    },
+  })
+
+  expect(checkSnoozeAsk(commented, 'k3', NOW + MIN, NOW).ok).toBe(false)
+  expect(checkSnoozeAsk(handedBack, 'k3', NOW + MIN, NOW).ok).toBe(true)
+  expect(k3Of(snoozed)?.snoozedUntil).toBe(NOW + MIN)
+})
+
+test("an ask handed back wakes Lee's snooze of the session, as one reopened does, and it stays woken once he comments again", () => {
+  const snoozedThen: Line[] = [
+    ...POSTED,
+    ...COMMENTED_ON,
+    [T0 + 2 * MIN, snoozeSession(NOW + 60 * MIN, 'k1', 'k2', 'k4')],
+  ]
+  const asleep = fold({ logs: { [W1]: file(...snoozedThen) } })
+  const handedBack = fold({
+    logs: {
+      [W1]: file(
+        ...snoozedThen,
+        [T0 + 3 * MIN, RETITLED_TRY],
+        ...sent(T0 + 4 * MIN, 'r2', 'k3', 'comment', { note: 'Still unclear' }),
+      ),
+    },
+  })
+
+  expect(asleep.snooze).toBeDefined()
+  expect(handedBack.snooze).toBeUndefined()
+  expect(k3Of(handedBack)?.state).toBe('replied')
+})
+
+test('an edit hands back only an ask standing replied: one waiting stays as it was, its time from its posting; one closed or ignored stays closed or ignored', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        ...POSTED,
+        ...sent(T0 + MIN, 'r1', 'k2', 'choose', { option: 'Forever' }),
+        ...sent(T0 + MIN, 'r2', 'k4', 'ignore'),
+        ...sent(T0 + MIN, 'r3', 'k3', 'comment', { note: 'Fails after the code' }),
+        [T0 + 2 * MIN, resolve('k3')],
+        [T0 + 3 * MIN, { type: 'edit', item: 'k1', changes: { title: 'Review round 1' } }],
+        [T0 + 3 * MIN, { type: 'edit', item: 'k2', changes: { title: 'Keep the ledger forever' } }],
+        [T0 + 3 * MIN, { type: 'edit', item: 'k4', changes: { title: 'Run the apply' } }],
+        [T0 + 3 * MIN, RETITLED_TRY],
+      ),
+    },
+  })
+
+  expect(session.asks.map(ask => [ask.id, ask.state, ask.openedAt])).toEqual([
+    ['k1', 'waiting', T0],
+    ['k2', 'closed', T0],
+    ['k3', 'closed', T0],
+    ['k4', 'ignored', T0],
+  ])
+})
+
+test("Lee's comment still on its way as Claude edits the ask hands nothing back: the ask waits on the comment, and once delivered stands replied, Claude's to act on", () => {
+  const letters = {
+    [SENDER]: file([T0 + MIN, reply('r1', 'k3', 'comment', { note: 'What does this need?' })]),
+  }
+  const presence = { [W1]: seen(W1, NOW) }
+  const lines: Line[] = [...POSTED, [T0 + 2 * MIN, RETITLED_TRY]]
+  const edited = fold({ logs: { [W1]: file(...lines) }, inbox: letters, presence })
+  const marked = fold({
+    logs: { [W1]: file(...lines, [T0 + 3 * MIN, delivered('r1')]) },
+    inbox: letters,
+    presence,
+  })
+  const onItsWay = k3Of(edited)
+
+  expect(onItsWay).toMatchObject({ state: 'waiting', openedAt: T0 })
+  expect(onItsWay && waitsOnLee(onItsWay)).toBe(false)
+  expect(edited.replies).toMatchObject([{ id: 'r1', delivery: 'waiting' }])
+  expect(k3Of(marked)).toMatchObject({ state: 'replied', answer: { id: 'r1' } })
+})
+
+test("an ask handed back with Lee's second comment on its way waits on that comment, and stands replied again once it is delivered", () => {
+  const letters = {
+    [SENDER]: file([T0 + 2 * MIN, reply('r2', 'k3', 'comment', { note: 'Never mind' })]),
+  }
+  const presence = { [W1]: seen(W1, NOW) }
+  const lines: Line[] = [...POSTED, ...COMMENTED_ON, [T0 + 3 * MIN, RETITLED_TRY]]
+  const edited = fold({ logs: { [W1]: file(...lines) }, inbox: letters, presence })
+  const marked = fold({
+    logs: { [W1]: file(...lines, [T0 + 4 * MIN, delivered('r2')]) },
+    inbox: letters,
+    presence,
+  })
+  const onItsWay = k3Of(edited)
+
+  expect(onItsWay).toMatchObject({ state: 'waiting', openedAt: T0 + 3 * MIN })
+  expect(onItsWay && waitsOnLee(onItsWay)).toBe(false)
+  expect(k3Of(marked)).toMatchObject({ state: 'replied', answer: { id: 'r2', note: 'Never mind' } })
+})
+
 test('a reopened parked item is parked again', () => {
   const session = fold({
     logs: {
@@ -733,7 +878,7 @@ test('in one message, each ask says where the message leaves it alone: a yes clo
       '- Review Tickets & Replies, round 1 → Approve',
       '  This closes the ask: nothing more to do with it.',
       '- Try signing in on the iPad → comment: “It fails on the iPad mini”',
-      '  This leaves the ask open: act on it, then resolve it.',
+      '  This leaves the ask open: act on it, then resolve it, or reword it with edit to hand it back to the user.',
     ].join('\n'),
   )
 })

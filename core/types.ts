@@ -261,8 +261,9 @@ type Posted = {
 }
 
 /**
- * `waiting` on Lee; `replied`, a comment delivered and Claude to act on it;
- * `closed`; or `ignored`, closed by Lee's ignore.
+ * `waiting` on Lee; `replied`, a comment delivered and Claude to act on it,
+ * waiting on Lee again once Claude's edit rewords it; `closed`; or
+ * `ignored`, closed by Lee's ignore.
  */
 export type AskState = 'waiting' | 'replied' | 'closed' | 'ignored'
 
@@ -280,7 +281,7 @@ export type Ask = Posted & {
   recommended?: string
   needs?: string
   state: AskState
-  /** The delivered reply that last moved it, since it was opened or reopened. */
+  /** The delivered reply that last moved it, since it was opened or reopened: on one waiting, the comment it stood replied with before Claude's edit handed it back. */
   answer?: Reply
   /** Lee's answer on its way to it, which bars another: at most one, as a second starts void. A comment on its way is no answer. */
   answerOnItsWay?: Reply

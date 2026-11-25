@@ -317,6 +317,24 @@ test('edit changes what an ask wants back under the same checks: to a yes with i
   expect(w.state.board?.asks[0]?.options).toBeUndefined()
 })
 
+test("edit says an ask the user commented on waits on the user again, to put to the user in the chat; an edit to an ask waiting says nothing more", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const id = await asked(w, { wants: 'yes', yes: 'It works', title: 'Try it on the iPad' })
+
+  expect((await w.call('edit', { item: id, where: 'On the iPad mini' })).result).toBe(
+    `Edited ${id}.`,
+  )
+
+  w.writer(paths)(reply('r1', id, 'comment', { note: 'What does this need?' }), delivered('r1'))
+  await w.clock.advance(WATCH_MS)
+
+  expect((await w.call('edit', { item: id, title: 'Sign in on the iPad, then say' })).result).toBe(
+    `Edited ${id}. It waits on the user again: put it to the user in full after your last tool call.`,
+  )
+  expect(w.state.board?.asks[0]?.state).toBe('waiting')
+})
+
 test('edit gives a decide written before asks had options a new title, its options left as they were, though it still refuses options too few', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()

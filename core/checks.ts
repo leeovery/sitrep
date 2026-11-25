@@ -674,6 +674,13 @@ export const droppedRecommendation = (session: Session, { item, changes }: EditB
     : ask.recommended
 }
 
+/** Whether an edit hands its ask back to Lee, waiting on him again: one standing replied, his comment Claude's to act on. */
+export const handsBack = (session: Session, { item }: EditBody) => {
+  const ask = session.items.get(item)
+
+  return ask?.type === 'ask' && ask.state === 'replied'
+}
+
 /** The fields whose change reshapes an ask: what it wants back, and what goes with that, not the option it recommends. */
 const SHAPE_FIELDS: readonly ShapeField[] = ['wants', 'yes', 'options', 'needs']
 
