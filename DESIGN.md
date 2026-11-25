@@ -629,7 +629,7 @@ orchestrator decides what reaches the board.
 | `status` | set the name, summary, the list of what is under way, and what is next |
 | `ask` | post an ask: what it wants back (`wants`: a yes, a choice or words), its title, and where to look; a yes's button (`yes`: the verb Lee gives, `Go`, `Approve`, `It works`), a choice's `options` and the one Claude leans toward (`recommended`), or what a words ask's words are (`needs`: "the command's output"), each only on its own shape |
 | `park` | park something to come back to, on the attached session's project |
-| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up or dropped, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes for what it changes (see Storage); an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask, or a session of another project, is refused |
+| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up or dropped, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes for what it changes (see Storage); an empty `needs` or `recommended` clears it. An edit rewording an ask Lee commented on, standing replied, with no reply of his on its way, hands it back, waiting on Lee again (see "A reworded ask waits on Lee again"). An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask, or a session of another project, is refused |
 | `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; what it parked stays its project's and holds no finish back. The window stays attached, and joining it again reopens it |
 | `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused, saying a move there is the user's call, so to ask first. It never moves a session to another project: `move` does |
 | `move` | move the attached session, whole, to another project, at Lee's word: one on the board whose name matches, as `start` matches one, else a new one, with its directory once known; the project it is in already is refused. Every window holding it follows (17 November 2026; see "A session moves to another project at Lee's word") |
@@ -777,9 +777,10 @@ Wording rules, in the tool descriptions:
 **The user** (18 November 2026). Every text Claude reads names the person
 the board is for "the user", as Claude Code's own prompt does: the guide,
 the tool descriptions and their answers, the refusals, the board text
-(`waiting on the user`, `the user replied, yours to act on`, `snoozed by
-the user`), a board message's lines, the narration line, and the CLI's
-help and messages. Until then they said Lee, so a plugin installed on
+(`waiting on the user`, `the user replied, yours to act on, then
+resolve, or reword with edit to hand it back`, `snoozed by the user`), a
+board message's lines, the narration line, and the CLI's help and
+messages. Until then they said Lee, so a plugin installed on
 anyone else's Mac told its Claude the board was Lee's; it ships in the
 release after 0.7.0, so a 0.7.0 install still says Lee. Claude learns a
 person's name from their own CLAUDE.md or setup, where they gave it; the
@@ -810,7 +811,8 @@ a note had. So:
 - **A board answer says whether it closed the ask** (see "What Claude
   reads"): under each ask's last reply in Lee's message, a line says where
   the message leaves it, `This closes the ask: nothing more to do with it.`
-  or `This leaves the ask open: act on it, then resolve it.`, or, under a
+  or `This leaves the ask open: act on it, then resolve it, or reword it
+  with edit to hand it back to the user.` (from 25 November 2026), or, under a
   comment while an answer of Lee's is on its way apart, that the answer
   closes it. Before, the
   line gave the reply alone, and a choice sent with a comment read as if
@@ -1595,7 +1597,64 @@ shape is ever shown as a word:
   place, with no snooze.
 - **What a reply does once Claude has it:** a yes, a choice or an answer
   closes the ask; ignore drops it; a comment leaves it open, replied, for
-  Claude to act on.
+  Claude to act on: Claude resolves it once acted on, or rewords it, which
+  hands it back (below).
+- **A reworded ask waits on Lee again** (25 November 2026). Claude's edit
+  rewording an open ask standing replied puts it back to waiting: it waits
+  on Lee, counts wherever a waiting ask counts, and offers Snooze. Every
+  edit to what Lee reads rewords it: its title, where to look, what it
+  needs, what it wants, its yes, its options, the option it recommends, or
+  an old line's kind. An edit to its `ref` alone, Claude's own record,
+  rewords nothing, and leaves it replied: replayed over a session whose
+  snooze still runs, it would end that snooze for nothing Lee needs to see.
+  Live, Lee commented on an ask, "I don't understand what this needs…
+  repost it for tomorrow"; Claude explained in its chat, reworded the title
+  and said it had reposted it. An edit then left a replied ask replied, so
+  it sat on Claude's turn for good, with no Snooze and nothing saying why.
+  Lee's call: yes, a reworded ask waits on him again, with Snooze.
+  - **It comes back as a reopened ask does**, through the one step the
+    fold takes for both (`waitAfresh`): its time counts from the edit, so its row stands newest in Needs
+    you, and it is a new need, waking Lee's snooze of the session early
+    (see "Snooze"). Its key is the ask's, as a reopened ask's is, so
+    `watch` takes it as new only once its line has been gone more than a
+    day (`FORGET_MS`): within the day the notch lights, with no swell, no
+    banner and no sound, as for a reopened ask. The pane's pulse and toast
+    are for an ask the window never saw, so neither fires. The first try
+    keeps to a reopen's arrival, so the two never differ.
+  - **Lee's comment stays its history.** It stays the ask's answer, never
+    made history, since the ask never closed, and the ask, opened, still
+    shows the comment, said earlier, `you commented earlier: “…”`, with no
+    `Claude has it` over the buttons and Snooze; while it stands replied it
+    reads `you commented: “…”. Claude has it.` as before (core's
+    `standingComment` gives the pane the comment an open ask stands with).
+    Claude's board text has it `waiting on the user` again.
+  - **Only an ask standing replied is handed back.** An edit to an ask
+    waiting changes nothing about whom it waits on, and its time still
+    counts from when it last opened; a closed or ignored ask stays as it
+    is.
+  - **A reply of Lee's on its way hands nothing back.** An ask with a
+    comment on its way stands waiting, on that comment, so the edit has
+    nothing to hand back, and Claude has not seen the comment it would be
+    rewording; once delivered it leaves the ask replied. A replied ask
+    with any reply of Lee's on its way that it still takes as the edit
+    leaves it, a second comment, or a yes or a choice held in a send, stays
+    replied: the reply waits on Claude, not Lee, so nothing is handed back
+    and the session's snooze stands. Once delivered, a comment leaves it
+    replied, Claude's again, and an answer closes it. A reply the edit
+    leaves unfitting goes void, as "Which replies go in" says, and bars
+    nothing: a yes on its way to an ask Claude makes want words is void,
+    and the ask is handed back.
+  - **Claude learns it** from every text that says what a comment leaves:
+    the ask tool's description, the edit tool's, the line under a comment
+    in Lee's message, `This leaves the ask open: act on it, then resolve
+    it, or reword it with edit to hand it back to the user.`, and the board
+    text's `the user replied, yours to act on, then resolve, or reword with
+    edit to hand it back`. An edit that hands an ask back, in a session not
+    finished, answers `Edited k3. It waits on the user again: put it to the
+    user in full after your last tool call.`, worked out before the line is
+    written, from the ask as the edit will leave it (core's `handsBack`,
+    on the fold's own rule, `isHandedBack`); any other edit answers as
+    ever.
 
 **Lee writes in Claude Code's own prompt box**, where a paste works, and the
 words still wait in Ready to send with everything else, sent in one go. An
@@ -1713,7 +1772,7 @@ base64 in slices of up to 4 MiB, `next` going on.
   ```
   From the board:
   - Ship round 2, or redraw? → comment: “Frame 2 [image: /Users/me/.local/state/sitrep/media/k3x9m2qa7d0f8hzc.png]”
-    This leaves the ask open: act on it, then resolve it.
+    This leaves the ask open: act on it, then resolve it, or reword it with edit to hand it back to the user.
   Each [image: …] or [document: …] above is a file the user attached: open it with your Read tool.
   ```
 
@@ -1951,8 +2010,8 @@ it: a yes, a choice, words or an ignore closes it, and so does a yes or a
 choice with a comment riding along from Ready to send, `This closes the
 ask: nothing more to do with it.`, whatever else the message carries to it;
 a comment alone leaves it open, `This leaves the ask open: act on it, then
-resolve it.`, unless an answer of Lee's to it is on its way apart from the
-message, when the line says that answer closes it, `An answer from the
+resolve it, or reword it with edit to hand it back to the user.`, unless
+an answer of Lee's to it is on its way apart from the message, when the line says that answer closes it, `An answer from the
 user to this ask, sent apart from this message, closes it.`, saying nothing of
 where or when it arrives. That answer may be in another board's send to
 the inbox, or the CLI's; in a send already in flight from this window,
@@ -2709,7 +2768,10 @@ app (see "The menu bar").
     its way was its answer, edited to want a yes or a choice, has that
     comment on its way as a comment, barring nothing, and what it barred
     reaches the ask again. An edit to a closed item reads nothing again: a
-    comment Lee's close left on its way stays on its way, to go in.
+    comment Lee's close left on its way stays on its way, to go in. An edit
+    rewording an ask standing replied, with no reply of Lee's on its way
+    that it still takes, also hands it back, waiting on Lee (25 November
+    2026; see "A reworded ask waits on Lee again").
   - **Marks.** A reply void `answered`, `resolved` or `finished` that a mark
     names goes in, its message having crossed what voided it. One void
     `changed` stays void: Claude has it, and it settles nothing, its item
@@ -2756,7 +2818,9 @@ app (see "The menu bar").
 - The inbox message is the board's own, as this session's is: it takes no
   board-change context, and written through the hold its lines are lines
   Claude knows of (`postKnown`). The rest rides in with Lee's next prompt.
-- An ask's life: **open → replied → closed**. The board never closes an ask on
+- An ask's life: **open → replied → closed**, and replied back to open
+  where Claude rewords it (see "A reworded ask waits on Lee again", under
+  "Answering an ask"). The board never closes an ask on
   a press, only once Claude has been told: a delivered reply closes it, or
   Claude resolves it. An ask open past a day shows its age. Nothing ages an
   ask out: Claude keeps the board clean, and Lee may be
@@ -2954,7 +3018,8 @@ holds:
   window's message he sent while Claude worked, is not his to put off, and
   is not on the line.
 - **Something new that needs Lee, or is his, wakes it early** (13 November
-  2026): an `ask` posted; a `reopen` of an ask, Claude raising it again;
+  2026): an `ask` posted; a `reopen` of an ask, Claude raising it again, and
+  an `edit` handing back an ask Lee commented on (25 November 2026);
   Lee's reply to one of the asks it holds, as a reply line, in an inbox
   from the pane or `sitrep answer`, or in a window's file once it delivers
   one it carried, since Lee writing there has dealt with it; and Lee's own
@@ -3292,7 +3357,8 @@ rules, had Lee waking and snoozing twice for one thing he meant to put off.
 - **What wakes it early:** a new ask posted to the session after the
   snooze; Lee's own prompt submitted in its window; and, Lee writing to it,
   his reply to one of the asks it holds (see the fold, above). Claude
-  reopening an ask is a new ask in all but its id, and wakes it too; so,
+  reopening an ask is a new ask in all but its id, and wakes it too, as
+  does Claude rewording an ask Lee commented on, handing it back; so,
   while it waits, does an ask the snooze does not hold waiting on Lee
   again, its answer voided or taken back.
 - **What does not:** its turn ending on its own, as background agents

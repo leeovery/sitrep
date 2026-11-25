@@ -16,6 +16,7 @@ import {
   type ClosedBy,
   type DeliveredBody,
   type Delivery,
+  type EditBody,
   type Item,
   type Parked,
   type Reply,
@@ -79,12 +80,30 @@ export const fits = (item: Item, reply: ReplyFields) =>
 
 export const isOpen = (ask: Ask) => ask.state === 'waiting' || ask.state === 'replied'
 
+/** The comment of Lee's an open ask stands with, delivered: Claude's to act on while it stands replied, what Lee said before once Claude's edit handed it back. */
+export const standingComment = (ask: Ask) => (isOpen(ask) ? ask.answer?.note : undefined)
+
 /** A yes ask's yes, the button's words, as Lee gives it; a bare `yes` where its line gave none. */
 export const yesOf = (ask: Pick<Ask, 'yes'>) => ask.yes ?? 'yes'
 
 /** Whether a reply is on its way: neither delivered, nor void. */
 export const isPending = (reply: Reply) =>
   reply.delivery === 'waiting' || reply.delivery === 'closed'
+
+/** Whether an edit rewords its ask, changing what Lee reads of it: any field but `ref`, Claude's own record. */
+const isRewording = (changes: EditBody['changes']) =>
+  Object.entries(changes).some(([field, value]) => field !== 'ref' && value !== undefined)
+
+/**
+ * Whether an edit hands its ask back to Lee, read on the ask as the edit
+ * leaves it: one standing replied, his comment Claude's to act on, reworded,
+ * with no reply of his on its way that it still takes, so that once written
+ * it waits on him alone.
+ */
+export const isHandedBack = (edited: Ask, changes: EditBody['changes']) =>
+  edited.state === 'replied' &&
+  isRewording(changes) &&
+  !edited.replies.some(reply => isPending(reply) && fits(edited, reply))
 
 /**
  * Whether a verdict is Lee's answer to an item, which closes it once
@@ -351,11 +370,11 @@ export const replyLine = (item: Ask | Parked, reply: ReplyFields, elsewhere?: st
     ? `- Pick up from parked${parkedBy(elsewhere)}: ${item.title}${reply.note ? `.${PICK_UP_NOTE(reply.note)}` : ''}`
     : `- ${item.title} → ${words(item, reply, IN_MESSAGE)}`
 
-/** What Claude is told a message leaves an ask as: closed, with nothing more to do; closed by an answer of Lee's sent apart from it; or open, Claude's to act on and resolve. */
+/** What Claude is told a message leaves an ask as: closed, with nothing more to do; closed by an answer of Lee's sent apart from it; or open, Claude's to act on and resolve, or to reword back to Lee. */
 const LEFT_AS = {
   closed: '  This closes the ask: nothing more to do with it.',
   apart: `  An answer from ${USER.name} to this ask, sent apart from this message, closes it.`,
-  open: '  This leaves the ask open: act on it, then resolve it.',
+  open: `  This leaves the ask open: act on it, then resolve it, or reword it with edit to hand it back to ${USER.name}.`,
 } as const
 
 /** Where a message leaves an ask, from every verdict it carries for it: closed by any answer among them, else by an answer on its way apart from it, else open. */

@@ -13,9 +13,9 @@ import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable, type Project } from './project'
 import { offeredAs, readOptions, unmarked } from './recommended'
 import { needsReload } from './release'
-import { replyOnItsWay, snoozedUntilOf, waitingOnLee, waitsOnLee, yesOf } from './replies'
+import { isHandedBack, replyOnItsWay, snoozedUntilOf, waitingOnLee, waitsOnLee, yesOf } from './replies'
 import { turnEndOf } from './rows'
-import { WANTS } from './shapes'
+import { kindShape, WANTS } from './shapes'
 import type { StatusFields } from './status'
 import { inWords, oneLine } from './text'
 import {
@@ -672,6 +672,30 @@ export const droppedRecommendation = (session: Session, { item, changes }: EditB
   return wants === 'choice' && offeredAs(options, ask.recommended) !== undefined
     ? undefined
     : ask.recommended
+}
+
+/** What an ask wants back as an edit leaves it, which decides the replies it takes: as the edit says, else by its kind as written or as the edit gives it. */
+const shapedBy = (ask: Ask, { wants, kind, needs }: EditBody['changes']): Ask => {
+  if (wants !== undefined) {
+    return { ...ask, wants, kind: undefined }
+  }
+
+  const asKind = kind ?? ask.kind
+
+  return asKind === undefined
+    ? ask
+    : { ...ask, kind: asKind, ...kindShape(asKind, needs === undefined ? ask.needs : needs) }
+}
+
+/** Whether an edit leaves its ask waiting on Lee, handed back, in a session not finished: as the fold will read it once the edit is written. */
+export const handsBack = (session: Session, { item, changes }: EditBody) => {
+  const ask = session.items.get(item)
+
+  return (
+    ask?.type === 'ask' &&
+    session.finished === undefined &&
+    isHandedBack(shapedBy(ask, changes), changes)
+  )
 }
 
 /** The fields whose change reshapes an ask: what it wants back, and what goes with that, not the option it recommends. */

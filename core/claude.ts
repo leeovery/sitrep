@@ -23,7 +23,7 @@ import { summarise, type ProjectParked, type ProjectSummary, type SessionSummary
 /** Where an open ask stands, as Claude reads it. */
 const STANDING: Record<'waiting' | 'replied' | 'finished', string> = {
   waiting: `waiting on ${USER.name}`,
-  replied: `${USER.name} replied, yours to act on`,
+  replied: `${USER.name} replied, yours to act on, then resolve, or reword with edit to hand it back`,
   finished: "can't be answered (the session is finished)",
 }
 

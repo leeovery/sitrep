@@ -22,6 +22,7 @@ import {
   REPO,
   reviewRound,
   ROOT,
+  SENDER,
   T0,
   W1,
   W2,
@@ -315,6 +316,54 @@ test('edit changes what an ask wants back under the same checks: to a yes with i
   await w.call('edit', { item: id, wants: 'yes', yes: 'Go' })
   expect(w.state.board?.asks[0]).toMatchObject({ wants: 'yes', yes: 'Go' })
   expect(w.state.board?.asks[0]?.options).toBeUndefined()
+})
+
+test("edit says an ask the user commented on waits on the user again, to put to the user in the chat; an edit to an ask waiting says nothing more", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const id = await asked(w, { wants: 'yes', yes: 'It works', title: 'Try it on the iPad' })
+
+  expect((await w.call('edit', { item: id, where: 'On the iPad mini' })).result).toBe(
+    `Edited ${id}.`,
+  )
+
+  w.writer(paths)(reply('r1', id, 'comment', { note: 'What does this need?' }), delivered('r1'))
+  await w.clock.advance(WATCH_MS)
+
+  expect((await w.call('edit', { item: id, title: 'Sign in on the iPad, then say' })).result).toBe(
+    `Edited ${id}. It waits on the user again: put it to the user in full after your last tool call.`,
+  )
+  expect(w.state.board?.asks[0]?.state).toBe('waiting')
+})
+
+test("edit says nothing more where the ask won't wait on the user: an edit to its ref alone, the user's second comment on its way, or the session finished", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const id = await asked(w, { wants: 'yes', yes: 'It works', title: 'Try it on the iPad' })
+  const plain = `Edited ${id}.`
+
+  w.writer(paths)(reply('r1', id, 'comment', { note: 'What does this need?' }), delivered('r1'))
+  await w.clock.advance(WATCH_MS)
+
+  expect((await w.call('edit', { item: id, ref: 'sr-nw0001' })).result, 'its ref').toBe(plain)
+  expect(w.state.board?.asks[0]?.state).toBe('replied')
+
+  w.put(
+    paths.letters(SENDER),
+    file([w.clock.now(), reply('r2', id, 'comment', { note: 'Never mind' })]),
+  )
+  await w.clock.advance(WATCH_MS)
+
+  expect((await w.call('edit', { item: id, title: 'Sign in' })).result, 'a comment').toBe(plain)
+  expect(w.state.board?.asks[0]?.state).toBe('replied')
+
+  w.files.delete(paths.letters(SENDER))
+  await w.clock.advance(WATCH_MS)
+  await w.call('finish', { reason: 'Shipped' })
+
+  expect((await w.call('edit', { item: id, title: 'Sign in, then say' })).result, 'finished').toBe(
+    plain,
+  )
 })
 
 test('edit gives a decide written before asks had options a new title, its options left as they were, though it still refuses options too few', async ($, on) => {
