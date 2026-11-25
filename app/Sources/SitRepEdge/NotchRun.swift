@@ -44,13 +44,20 @@ public final class NotchRun: Framed {
         /// Whether Lee chose the notch to show the board: an arrival unfolds Needs you on its card. With the strip
         /// chosen, Needs you folded stays folded, its count on the strip flashing (14 November 2026).
         public var isChosen: Bool
+        /// Whether one ask's Snooze offers a time now, as Lee set them: the asks panel's foot shows Snooze ▾ only
+        /// while it does, as the pane shows its snooze button.
+        public var offersSnooze: Bool
 
-        public init(stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool) {
+        public init(
+            stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool,
+            offersSnooze: Bool = true
+        ) {
             self.stage = stage
             self.mirror = mirror
             self.style = style
             self.reducesMotion = reducesMotion
             self.isChosen = isChosen
+            self.offersSnooze = offersSnooze
         }
     }
 
@@ -118,7 +125,7 @@ public final class NotchRun: Framed {
     var asking = AsksPanel()
     /// How the drawing sets the asks panel's words, and the ask it last laid out.
     let measure: AsksMeasure
-    var laidOut: (ask: PanelAsk, layout: AsksLayout)?
+    var laidOut: (ask: PanelAsk, offersSnooze: Bool, layout: AsksLayout)?
 
     /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
     /// time zone, followed as it changes (`WakeTime.calendar`), and the asks panel's words as `measure` sets them.

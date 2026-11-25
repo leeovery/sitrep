@@ -8,7 +8,7 @@ public struct Banner: Equatable, Sendable {
         public enum Wants: Equatable, Sendable {
             /// One button, its yes.
             case yes(String)
-            /// A button for each option, in Claude's order.
+            /// A button for each option, Claude's pick first, as the board lists them.
             case choice([String])
             /// Reply, macOS's text field, with Send.
             case words

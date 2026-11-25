@@ -771,7 +771,7 @@ const answersOf = (ask: Ask): readonly string[] => {
 }
 
 /** A rule an ask Lee acts on from outside Claude Code keeps, broken where it says, with why. */
-type AskRule = readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string]
+type AskRule<Why = string> = readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => Why]
 
 /** What an ask needs to take an answer or a snooze: open still, neither closed nor ignored. */
 const OPEN_RULES: readonly AskRule[] = [[isClosed, ask => `${ask.id} is already ${ask.state}.`]]
@@ -783,7 +783,7 @@ const ANSWER_RULES: readonly AskRule[] = [
 ]
 
 /** Why the first rule any of the asks breaks refuses them, the rules in their order, then the asks in theirs; undefined while none does. */
-const brokenBy = (rules: readonly AskRule[], asks: readonly Ask[]) => {
+const brokenBy = <Why>(rules: readonly AskRule<Why>[], asks: readonly Ask[]) => {
   for (const [breaks, error] of rules) {
     const ask = asks.find(breaks)
 
@@ -1023,11 +1023,34 @@ export const checkSnooze = (
     : refuse(TIME_COME)
 }
 
+/** How a refusal of Lee's snooze of one ask is worded: to follow the pane's "Not snoozed: ", or as a sentence alone. */
+export type AskSnoozeWording = 'after' | 'alone'
+
+/** Why Lee's snooze of one ask is refused, both ways: alone as the CLI says it, and the app's "Not snoozed" banner shows it. */
+type AskSnoozeWhy = Readonly<Record<AskSnoozeWording, string>>
+
+const ASK_GONE: AskSnoozeWhy = { after: OFF_THE_BOARD, alone: 'That ask is no longer on the board.' }
+
 /** What Lee's snooze of one ask needs of it: open, and waiting on him as posted, neither his reply on its way to it nor his comment Claude's to act on. */
-const ASK_SNOOZE_RULES: readonly AskRule[] = [
-  [isClosed, ask => `it is ${ask.state} already.`],
-  [ask => replyOnItsWay(ask) !== undefined, () => 'your reply to it is on its way to Claude.'],
-  [ask => ask.state === 'replied', () => "it waits on Claude: your comment is Claude's to act on."],
+const ASK_SNOOZE_RULES: readonly AskRule<AskSnoozeWhy>[] = [
+  [
+    isClosed,
+    ask => ({ after: `it is ${ask.state} already.`, alone: `That ask is ${ask.state} already.` }),
+  ],
+  [
+    ask => replyOnItsWay(ask) !== undefined,
+    () => ({
+      after: 'your reply to it is on its way to Claude.',
+      alone: 'Your reply to that ask is on its way to Claude.',
+    }),
+  ],
+  [
+    ask => ask.state === 'replied',
+    () => ({
+      after: "it waits on Claude: your comment is Claude's to act on.",
+      alone: "That ask waits on Claude: your comment is Claude's to act on.",
+    }),
+  ],
 ]
 
 /**
@@ -1037,13 +1060,15 @@ const ASK_SNOOZE_RULES: readonly AskRule[] = [
  * with them too; a turn ending after it is his. Refused in a finished
  * session, for an ask gone or no longer waiting on him, and for a time
  * come already at `now`; one snoozed already is snoozed again, to the new
- * time.
+ * time. A refusal of the ask is worded to follow the pane's "Not snoozed: ",
+ * or alone.
  */
 export const checkSnoozeAsk = (
   session: Session,
   id: string,
   until: number,
   now: number,
+  wording: AskSnoozeWording = 'after',
 ): Checked<SnoozeBody> => {
   if (session.finished !== undefined) {
     return refuse(FINISHED)
@@ -1052,13 +1077,13 @@ export const checkSnoozeAsk = (
   const ask = session.items.get(id)
 
   if (ask?.type !== 'ask') {
-    return refuse(OFF_THE_BOARD)
+    return refuse(ASK_GONE[wording])
   }
 
   const broken = brokenBy(ASK_SNOOZE_RULES, [ask])
 
   if (broken !== undefined) {
-    return refuse(broken)
+    return refuse(broken[wording])
   }
 
   return until > now ? ok({ type: 'snooze', item: id, until }) : refuse(TIME_COME)
@@ -1067,8 +1092,9 @@ export const checkSnoozeAsk = (
 /**
  * Lee's snooze of one ask as the CLI gives it, for the asks panel: the ask
  * by its id (`item`) and its time, which it needs, as the pane offers only
- * times; then checked as the pane's is (`checkSnoozeAsk`). Refused where
- * it names the asks a row showed too, as a session's snooze does.
+ * times; then checked as the pane's is (`checkSnoozeAsk`), each refusal a
+ * sentence alone. Refused where it names the asks a row showed too, as a
+ * session's snooze does.
  */
 export const checkSnoozeOneAsk = (
   session: Session,
@@ -1085,7 +1111,7 @@ export const checkSnoozeOneAsk = (
 
   return until === undefined
     ? refuse('An ask snoozes until a time in milliseconds since the epoch.')
-    : checkSnoozeAsk(session, String(fields.item), until, now)
+    : checkSnoozeAsk(session, String(fields.item), until, now, 'alone')
 }
 
 /** Whether a snooze of Lee's stands on an ask: holding it, or run out at its time and not yet ended. */

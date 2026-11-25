@@ -2,12 +2,12 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// The asks panel in black (Paper's board F; DESIGN, "Answering from the panel"): the panel's black, 372 wide, its
-/// corners 24, a hairline round it and a submenu's shadow, over the list's front; its top line, the session's name and
-/// project and its page dots; the ask's title and its age; its answers' rows, numbered, none for an ask Lee answers in
-/// Claude; and its foot, Ignore, Snooze ▾ and Open in Claude, or, while an answer of its ask is held, the sending
-/// line, its ring counting down the two seconds and Undo. It appears at once, as a Mac submenu does, and is drawn again
-/// only as what it shows changes; a frame moves it with its row.
+/// The asks panel in black (Paper's boards F and H3; DESIGN, "Answering from the panel"): the panel's black, 372 wide,
+/// its corners 24, a hairline round it and a submenu's shadow, over the list's front; its top line, the session's name
+/// and project and its page dots; the ask's title and its age; its answers' rows, Claude's pick first in lilac, none
+/// for an ask Lee answers in Claude; and its foot, Ignore, Snooze ▾ and Open in Claude, or, while an answer of its ask
+/// is held, the sending line, its ring counting down the two seconds and Undo. It appears at once, as a Mac submenu
+/// does, and is drawn again only as what it shows changes; a frame moves it with its row.
 @MainActor
 final class AsksPanelLayer {
     let layer = CALayer()
@@ -105,59 +105,57 @@ final class AsksPanelLayer {
         return lines + [TextLine(asked, in: asks.layout.age)]
     }
 
-    /// An answer's row: filled and bordered, lifted under the pointer, white while it is the answer held. Its keycap
-    /// holds its number, or held, a check in its place; then its label, and "recommended" at its end for Claude's pick.
+    /// An answer's row (Paper's board H3): its words alone, on up to two lines, Claude's pick filled and bordered in
+    /// lilac with "Recommended" after its words, any other in the panel's greys; each lighter under the pointer; white
+    /// while it is the answer held, its words in ink and a check at its trailing end.
     private static func answer(_ index: Int, of asks: AsksShown) -> CALayer {
         let shows = AsksPanelParts.answerRow(index, of: asks)
         let row = rounded(asks.layout.answers[index], AsksLayout.answerRadius, fill: nil)
+        let ground = Self.ground(shows)
 
         row.borderWidth = 1
-        switch shows.ground {
-        case .held:
-            row.backgroundColor = EdgeStyle.ink
-            row.borderColor = EdgeStyle.ink
-        case .lifted:
-            row.backgroundColor = EdgeStyle.answerLifted
-            row.borderColor = EdgeStyle.answerLiftedBorder
-        case .filled:
-            row.backgroundColor = EdgeStyle.answer
-            row.borderColor = EdgeStyle.answerBorder
+        row.backgroundColor = ground.fill
+        row.borderColor = ground.border
+        for (line, box) in AsksPanelParts.answerLines(index, of: asks) {
+            row.addSublayer(Self.line(line, in: box, isHeld: shows.isHeld))
         }
-        row.addSublayer(shows.mark.map(keycap) ?? check())
-        labelled(row, AsksPanelParts.label(index, of: asks.ask), isHeld: shows.isHeld)
+        if shows.isHeld {
+            row.addSublayer(check(in: row.bounds.size))
+        }
         return row
     }
 
-    /// A row's label after its keycap, and its note at its end, the label cut short before it.
-    private static func labelled(_ row: CALayer, _ label: (words: String, note: String?), isHeld: Bool) {
-        let at = AsksPanelParts.labelBoxes(in: row.bounds.size, note: label.note)
-        let words = TextLine.text(
-            label.words, EdgeStyle.asksLabel, isHeld ? EdgeStyle.onWhite : EdgeStyle.ink,
-            kern: EdgeStyle.tightKern(EdgeStyle.asksLabel)
-        )
-
-        if let note = label.note, let box = at.note {
-            let colour = isHeld ? EdgeStyle.onWhite.copy(alpha: 0.5) ?? EdgeStyle.onWhite : EdgeStyle.ink3
-
-            row.addSublayer(TextLine(TextLine.text(note, EdgeStyle.asksNote, colour), in: box))
+    /// An answer's row's fill and border.
+    private static func ground(_ shows: AsksPanelParts.AnswerRow) -> (fill: CGColor, border: CGColor) {
+        switch (shows.ground, shows.isPick) {
+        case (.held, _): (EdgeStyle.ink, EdgeStyle.ink)
+        case (.lifted, true): (EdgeStyle.pickLifted, EdgeStyle.pickLiftedBorder)
+        case (.lifted, false): (EdgeStyle.answerLifted, EdgeStyle.answerLiftedBorder)
+        case (.filled, true): (EdgeStyle.pick, EdgeStyle.pickBorder)
+        case (.filled, false): (EdgeStyle.answer, EdgeStyle.answerBorder)
         }
-        row.addSublayer(TextLine(words, in: at.label))
     }
 
-    private static func keycap(_ mark: String) -> CALayer {
-        let cap = rounded(AsksLayout.keycap, AsksLayout.keycapRadius, fill: EdgeStyle.keycap)
-        let words = TextLine.text(mark, EdgeStyle.asksKeycap, EdgeStyle.ink2)
-        let width = TextLine.width(words), line = AsksLayout.textLine
+    /// One line of an answer's words, white, or ink on the held row, and its pick's tag after them in lilac, or in ink
+    /// at half on the held row; a tag on a line of its own on the words' baseline.
+    private static func line(_ line: AsksPanelParts.AnswerLine, in box: CGRect, isHeld: Bool) -> TextLine {
+        let text = AsksPanelParts.answerText(line.words, colour: isHeld ? EdgeStyle.onWhite : EdgeStyle.ink)
+        let tagColour = isHeld ? EdgeStyle.onWhite.copy(alpha: 0.5) ?? EdgeStyle.onWhite : EdgeStyle.pickTag
 
-        cap.addSublayer(TextLine(words, in: CGRect(
-            x: (cap.bounds.width - width) / 2, y: (cap.bounds.height - line) / 2, width: width, height: line
-        )))
-        return cap
+        guard let tag = line.tag else {
+            return TextLine(text, in: box)
+        }
+
+        text.append(TextLine.text(tag, EdgeStyle.asksNote, tagColour))
+        let drop = line.words.isEmpty
+            ? TextLine.drop(of: EdgeStyle.asksNote, to: EdgeStyle.asksLabel, lineHeight: box.height) : 0
+
+        return TextLine(text, in: box.offsetBy(dx: 0, dy: drop))
     }
 
-    /// The held answer's check, in its keycap's place.
-    private static func check() -> CALayer {
-        let check = AsksPanelParts.check()
+    /// The held answer's check, in ink, at its row's trailing end.
+    private static func check(in row: CGSize) -> CALayer {
+        let check = AsksPanelParts.check(in: row)
 
         return stroked(check.path, in: check.box, colour: EdgeStyle.onWhite, width: AsksPanelParts.checkWidth)
     }
@@ -171,10 +169,14 @@ final class AsksPanelLayer {
 
         let layout = asks.layout
         let ignore = footWords(AsksLayout.ignoreWords, in: layout.ignore, lit: asks.hover == .ignore)
-        let snooze = footWords(AsksLayout.snoozeWords, in: layout.snooze, lit: asks.hover == .snooze)
-        let open = openPill(layout.open, lit: asks.hover == .open)
+        let snooze = layout.snooze.map { box in
+            [
+                footWords(AsksLayout.snoozeWords, in: box, lit: asks.hover == .snooze),
+                snoozeChevron(in: box, lit: asks.hover == .snooze),
+            ]
+        } ?? []
 
-        return [ignore, snooze, snoozeChevron(in: layout.snooze, lit: asks.hover == .snooze), open]
+        return [ignore] + snooze + [openPill(layout.open, lit: asks.hover == .open)]
     }
 
     /// A foot button's words, soft, white under the pointer.

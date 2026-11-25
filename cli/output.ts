@@ -13,6 +13,7 @@ import {
   brief,
   isSameName,
   listedProjects,
+  pickFirst,
   projectAround,
   replyState,
   resolvedAsks,
@@ -148,14 +149,14 @@ const replyJson = (ask: Ask) => {
       }
 }
 
-/** An ask of a session, as `board --json` and `watch` list it. */
+/** An ask of a session, as `board --json` and `watch` list it: a choice's options with Claude's pick first, as every surface offers them. */
 const askJson = (session: SessionSummary, ask: Ask) => ({
   id: ask.id,
   wants: ask.wants,
   yes: ask.wants === 'yes' ? (ask.yes ?? null) : null,
   title: ask.title,
   where: ask.where ?? null,
-  options: ask.options ?? [],
+  options: pickFirst(ask.options ?? [], ask.recommended),
   recommended: ask.recommended ?? null,
   needs: ask.needs ?? null,
   ref: ask.ref ?? null,

@@ -55,7 +55,7 @@ extension NotchRun {
         )
 
         asking.keep(isOpen: notch.phase == .open, list, board)
-        asking.place(on: ground, pointer: seen, at: time, layout: layout)
+        asking.place(on: ground, pointer: seen, at: time) { self.layout($0, offersSnooze: setting.offersSnooze) }
     }
 
     func isOnAsks(_ point: CGPoint?) -> Bool {
@@ -126,15 +126,16 @@ extension NotchRun {
         return entry.item.key
     }
 
-    /// An ask laid out as the drawing sets its words, the last one kept, as a frame lays it out more than once.
-    func layout(_ ask: PanelAsk) -> AsksLayout {
-        if let laidOut, laidOut.ask == ask {
+    /// An ask laid out as the drawing sets its words, Snooze ▾ in its foot where Snooze offers a time, the last one
+    /// kept, as a frame lays it out more than once.
+    func layout(_ ask: PanelAsk, offersSnooze: Bool) -> AsksLayout {
+        if let laidOut, laidOut.ask == ask, laidOut.offersSnooze == offersSnooze {
             return laidOut.layout
         }
 
-        let layout = AsksLayout(ask, measure: measure)
+        let layout = AsksLayout(ask, measure: measure, offersSnooze: offersSnooze)
 
-        laidOut = (ask, layout)
+        laidOut = (ask, offersSnooze, layout)
         return layout
     }
 }

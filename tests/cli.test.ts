@@ -753,7 +753,7 @@ test("snooze --ask writes one line of the CLI's own, that ask's snooze until its
   expect(t.files.has(paths.letters(WRITER)), 'nothing goes to its inbox').toBe(false)
 
   expect(await t.run('snooze', '--ask', 'zz', '--until', String(WAKES), ...SESSION)).toEqual(
-    refused('it is no longer on the board.'),
+    refused('That ask is no longer on the board.'),
   )
   expect(await t.run('snooze', '--ask', 'k1', ...SESSION)).toEqual(
     refused('An ask snoozes until a time in milliseconds since the epoch.'),

@@ -35,6 +35,12 @@ enum GlassInk {
     static func colour(of need: Need) -> Color {
         need == .ask ? orange : blue
     }
+    /// Claude's pick's lilac on the glass: the black's, #B1B9F9, on the dark, and the board pane's darker #7178C7 on
+    /// the light, where the pale one would barely stand off the glass; its row filled and bordered at the black's
+    /// strengths (`GlassTint.Pick`), and its tag "Recommended" in the black's #9AA2EE on the dark, #7178C7 on the
+    /// light.
+    @MainActor static let pick = Self.appearing(dark: EdgeStyle.srgb(0xB1B9F9), light: EdgeStyle.pickOnLight)
+    @MainActor static let pickTag = Self.appearing(dark: EdgeStyle.pickTag, light: EdgeStyle.pickOnLight)
     /// The answer held: the primary label colour made opaque, white on the dark as the black's held row is, near black
     /// on the light; and what is set on it, the other of the two.
     @MainActor static let held = Self.appearing(dark: EdgeStyle.ink, light: EdgeStyle.onWhite)
@@ -55,7 +61,7 @@ enum GlassInk {
 /// The glass's tints: the primary label colour at these opacities, which the system's appearance turns light on the
 /// dark and dark on the light, in place of the black's greys.
 enum GlassTint {
-    /// A row's lift under the pointer; a keycap over its answer's row, and that row's border over its fill.
+    /// A row's lift under the pointer; an answer's row's border over its fill.
     static let hover = 0.08
     /// A step stronger: a row pressed in, a row's arrow lit, an answer's row, a pill under the pointer, and the border
     /// of an answer's row lifted.
@@ -66,6 +72,12 @@ enum GlassTint {
     static let outline = 0.18
     /// A page dot not current, as #3A3A40 is on the black.
     static let dot = 0.24
+    /// Claude's pick's row in its lilac (`GlassInk.pick`), as on the black: filled at 20%, bordered at 36%, and under
+    /// the pointer at 28% and 50%.
+    enum Pick {
+        static let fill = Double(0x33) / 255, border = Double(0x5C) / 255
+        static let lifted = Double(0x47) / 255, liftedBorder = Double(0x80) / 255
+    }
 }
 
 extension StrokeStyle {

@@ -195,7 +195,7 @@ struct SitRepCLITests {
 
     @Test(arguments: [
         "Tailspin is not snoozed.", "An ask waits on you that the snooze did not name: look at it, then snooze again.",
-        "it is closed already.",
+        "That ask is closed already.",
     ])
     func aSnoozeOrAWakeRefusedGivesTheCLIsWords(words: String) async {
         let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: \(words)\n"))

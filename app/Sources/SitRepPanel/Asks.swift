@@ -1,9 +1,10 @@
 import CoreGraphics
 import Foundation
 
-/// An ask as the asks panel answers it (DESIGN, "Answering from the panel"): its title, the answers it offers in
-/// Claude's order, a yes's one or a choice's options, and the one Claude recommends; none for a words ask, or a choice
-/// with no options, which Lee answers in Claude. Its time is its line's on the row: its posting, or its reopening.
+/// An ask as the asks panel answers it (DESIGN, "Answering from the panel"): its title, the answers it offers as the
+/// board lists them, a yes's one or a choice's options, Claude's pick first, and the one Claude recommends; none for a
+/// words ask, or a choice with no options, which Lee answers in Claude. Its time is its line's on the row: its
+/// posting, or its reopening.
 public struct PanelAsk: Equatable, Sendable {
     /// What it wants back, as the board says it, which its answer passes on, so one reshaped since is refused.
     public enum Wants: Sendable {
@@ -53,27 +54,37 @@ public enum AsksPart: Hashable, Sendable {
 }
 
 /// How the drawing sets the asks panel's words, which the layout leaves room for: the lines an ask's title wraps to
-/// across the asks panel, at most three, and how wide words are in its foot's type.
+/// across the asks panel, at most three; the lines an answer wraps to across its row, at most two, Claude's pick's
+/// with its tag after it; and how wide words are in its foot's type.
 public struct AsksMeasure: Sendable {
     public var titleLines: @Sendable (String) -> Int
+    public var answerLines: @Sendable (_ answer: String, _ isPick: Bool) -> Int
     public var footWidth: @Sendable (String) -> Double
 
-    public init(titleLines: @escaping @Sendable (String) -> Int, footWidth: @escaping @Sendable (String) -> Double) {
+    public init(
+        titleLines: @escaping @Sendable (String) -> Int,
+        answerLines: @escaping @Sendable (_ answer: String, _ isPick: Bool) -> Int = { _, _ in 1 },
+        footWidth: @escaping @Sendable (String) -> Double
+    ) {
         self.titleLines = titleLines
+        self.answerLines = answerLines
         self.footWidth = footWidth
     }
 
-    /// A rough measure, for a run that no drawing measures for: a title's line for each 40 characters, and 7 a
-    /// character in the foot.
+    /// A rough measure, for a run that no drawing measures for: a title's line for each 40 characters, an answer's for
+    /// each 45, its pick's tag counting 16, and 7 a character in the foot.
     public static let estimated = AsksMeasure(
-        titleLines: { min(AsksLayout.titleMost, max(1, ($0.count + 39) / 40)) }, footWidth: { Double($0.count) * 7 }
+        titleLines: { min(AsksLayout.titleMost, max(1, ($0.count + 39) / 40)) },
+        answerLines: { min(AsksLayout.answerMost, max(1, ($0.count + ($1 ? 16 : 0) + 44) / 45)) },
+        footWidth: { Double($0.count) * 7 }
     )
 }
 
-/// Where the asks panel lays out one ask, the same in black and in glass (Paper's board F): its top line, the session's
-/// name and project and its page dots; the ask's title and its age; its answers' rows, none for an ask Lee answers in
-/// Claude; and its foot, Ignore, Snooze ▾ and Open in Claude, which the sending line takes the place of while an
-/// answer is held. Every box is in the asks panel's own frame, from its top left, 372 wide.
+/// Where the asks panel lays out one ask, the same in black and in glass (Paper's boards F and H3): its top line, the
+/// session's name and project and its page dots; the ask's title and its age; its answers' rows, each as tall as the
+/// lines its words wrap to, none for an ask Lee answers in Claude; and its foot, Ignore, Snooze ▾ where Snooze offers
+/// a time, and Open in Claude, which the sending line takes the place of while an answer is held. Every box is in the
+/// asks panel's own frame, from its top left, 372 wide.
 public struct AsksLayout: Equatable, Sendable {
     public static let width = 372.0, radius = 24.0
     /// How far it overlaps the list's front, on top of it, and how far its top stands above its row's.
@@ -89,7 +100,12 @@ public struct AsksLayout: Equatable, Sendable {
     public static let textLine = 16.0
     public static let titleLine = 22.0, titleMost = 3
     static let ageGap = 4.0
+    /// An answer's row: at least 38 tall, its words 12 in from its sides and 9 from its top and bottom, on lines of 18,
+    /// two at most.
     public static let answerHeight = 38.0, answerRadius = 11.0
+    public static let answerPadSide = 12.0, answerPadTop = 9.0, answerLine = 18.0, answerMost = 2
+    /// How wide an answer's words are set across its row.
+    public static let answerWidth = inner - 2 * answerPadSide
     static let answerGap = 6.0
     static let footHeight = 28.0, footPadLeft = 2.0, footGap = 2.0
     /// A foot's button's room round its words; the outlined pills', Open in Claude's and Undo's.
@@ -112,23 +128,30 @@ public struct AsksLayout: Equatable, Sendable {
     public let age: CGRect
     /// Each answer's row; none for an ask Lee answers in Claude.
     public let answers: [CGRect]
+    /// The lines each answer's words wrap to on its row.
+    public let answerLines: [Int]
     public let foot: CGRect
-    public let ignore, snooze, open: CGRect
+    public let ignore, open: CGRect
+    /// None while Snooze offers no time, as Lee switched every one off, or each has passed for today.
+    public let snooze: CGRect?
     public let countdown: CGRect
     /// The sending line's words: "Sending" and the answer, or "Ignoring".
     public let sending: CGRect
     public let undo: CGRect
     public let height: Double
 
-    /// One ask laid out, its title and its foot's words set as `measure` measures them.
-    public init(_ ask: PanelAsk, measure: AsksMeasure) {
+    /// One ask laid out, its title, its answers and its foot's words set as `measure` measures them, Snooze ▾ in its
+    /// foot where it `offersSnooze`.
+    public init(_ ask: PanelAsk, measure: AsksMeasure, offersSnooze: Bool = true) {
         let side = Self.padSide, text = side + Self.textSide, textWidth = Self.inner - 2 * Self.textSide
         let lines = min(Self.titleMost, max(1, measure.titleLines(ask.title)))
         let askTop = Self.padTop + Self.topHeight + Self.between
-        let rows = ask.answers.count
         let answersTop = askTop + Double(lines) * Self.titleLine + Self.ageGap + Self.textLine + Self.between
-        let answersHeight = Double(rows) * Self.answerHeight + Double(max(0, rows - 1)) * Self.answerGap
-        let footTop = answersTop + (rows == 0 ? 0 : answersHeight + Self.between)
+        let answerLines = ask.answers.map { answer in
+            min(Self.answerMost, max(1, measure.answerLines(answer, answer == ask.recommended)))
+        }
+        let answers = Self.rows(answerLines, from: answersTop)
+        let footTop = answers.last.map { $0.maxY + Self.between } ?? answersTop
         let pillTop = footTop + (Self.footHeight - Self.pillHeight) / 2
         let right = side + Self.inner
         let word = { (words: String) in measure.footWidth(words) }
@@ -139,22 +162,18 @@ public struct AsksLayout: Equatable, Sendable {
         title = CGRect(x: text, y: askTop, width: textWidth, height: Double(lines) * Self.titleLine)
         titleLines = lines
         age = CGRect(x: text, y: title.maxY + Self.ageGap, width: textWidth, height: Self.textLine)
-        answers = (0 ..< rows).map { row in
-            CGRect(
-                x: side, y: answersTop + Double(row) * (Self.answerHeight + Self.answerGap), width: Self.inner,
-                height: Self.answerHeight
-            )
-        }
+        self.answers = answers
+        self.answerLines = answerLines
         foot = CGRect(x: side, y: footTop, width: Self.inner, height: Self.footHeight)
         ignore = CGRect(
             x: side + Self.footPadLeft, y: footTop, width: 2 * Self.buttonPad + word(Self.ignoreWords),
             height: Self.footHeight
         )
-        snooze = CGRect(
+        snooze = offersSnooze ? CGRect(
             x: ignore.maxX + Self.footGap, y: footTop,
             width: 2 * Self.buttonPad + word(Self.snoozeWords) + Self.wordsGap + Self.snoozeChevron.width,
             height: Self.footHeight
-        )
+        ) : nil
 
         let openWidth = 2 * Self.openPad + word(Self.openWords) + Self.wordsGap + word(Self.openMark)
         let undoWidth = 2 * Self.undoPad + word(Self.undoWords)
@@ -176,6 +195,20 @@ public struct AsksLayout: Equatable, Sendable {
 
     public var size: CGSize { CGSize(width: Self.width, height: height) }
 
+    /// The answers' rows from this far down, each as tall as its lines with their room above and below, 38 at least,
+    /// 6 apart.
+    private static func rows(_ lines: [Int], from top: Double) -> [CGRect] {
+        var y = top
+
+        return lines.map { lines in
+            let height = max(answerHeight, 2 * answerPadTop + Double(lines) * answerLine)
+            let row = CGRect(x: padSide, y: y, width: inner, height: height)
+
+            y = row.maxY + answerGap
+            return row
+        }
+    }
+
     /// What a click at a point in its own frame lands on, showing the ask at `page` of `pages`: a page dot, which
     /// pages whatever is held; while an answer of its ask is held, Undo alone.
     public func part(at point: CGPoint, sending: Bool, page: Int, of pages: Int) -> AsksPart? {
@@ -191,7 +224,7 @@ public struct AsksLayout: Equatable, Sendable {
         if ignore.contains(point) {
             return .ignore
         }
-        if snooze.contains(point) {
+        if snooze?.contains(point) == true {
             return .snooze
         }
         return open.contains(point) ? .open : nil
@@ -260,10 +293,28 @@ public struct AsksLayout: Equatable, Sendable {
     /// How far from the edge the asks panel and its shadow reach, beside the open panel: what its window must hold.
     public static let reach = Tuning.panelDepth - overlap + width + 40
 
-    /// An answer's row's keycap, its number or ↗ on it, and where its label and "recommended" go, in the row's frame.
-    public static let keycap = CGRect(x: 10, y: 9, width: 20, height: 20)
-    public static let keycapRadius = 6.0
-    public static let labelX = 40.0, labelLine = 18.0, rowSide = 10.0, recommendedGap = 10.0
+    /// Where an answer's lines go in a row this big, as many as it wraps to, on its middle.
+    public static func answerBoxes(in row: CGSize, lines: Int) -> [CGRect] {
+        let top = (row.height - Double(lines) * answerLine) / 2
+
+        return (0 ..< lines).map { line in
+            CGRect(
+                x: answerPadSide, y: top + Double(line) * answerLine, width: row.width - 2 * answerPadSide,
+                height: answerLine
+            )
+        }
+    }
+
+    /// The held answer's check, 11 across, at its row's trailing end on its middle, as a panel row's time is; and the
+    /// room its words leave it there.
+    public static let checkSide = 11.0, checkGap = 8.0
+
+    public static func check(in row: CGSize) -> CGRect {
+        CGRect(
+            x: row.width - answerPadSide - checkSide, y: (row.height - checkSide) / 2, width: checkSide,
+            height: checkSide
+        )
+    }
 }
 
 /// A Needs you row's arrow (DESIGN, "The row's arrow"): a button 40 by 26 at the row's right end, in its time's place,

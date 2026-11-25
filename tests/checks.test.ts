@@ -864,7 +864,7 @@ test("Lee's snooze of one ask is refused, the first refusal in order saying why:
   }
 })
 
-test("Lee's snooze of one ask as the CLI gives it, for the asks panel: the ask by its id and a time still to come, in digits or a number, checked as the pane's; refused with no time or none a Date holds, with the asks a row showed beside it, then as the pane's is", () => {
+test("Lee's snooze of one ask as the CLI gives it, for the asks panel: the ask by its id and a time still to come, in digits or a number, checked as the pane's; refused with no time or none a Date holds, with the asks a row showed beside it, then as the pane's is, each refusal a sentence of its own", () => {
   const oneOf = (fields: Record<string, unknown>, board = BOARD) =>
     checkSnoozeOneAsk(board, fields, NOW)
   const noTime = 'An ask snoozes until a time in milliseconds since the epoch.'
@@ -888,8 +888,19 @@ test("Lee's snooze of one ask as the CLI gives it, for the asks panel: the ask b
       'Snooze one ask with --ask, or the asks the row shows: not both.',
     ],
     ['finished', oneOf({ item: 'k1', until: LATER }, finished), FINISHED],
-    ['no item', oneOf({ item: 'zz', until: LATER }), 'it is no longer on the board.'],
-    ['closed', oneOf({ item: 'k5', until: LATER }), 'it is closed already.'],
+    ['no item', oneOf({ item: 'zz', until: LATER }), 'That ask is no longer on the board.'],
+    ['closed', oneOf({ item: 'k5', until: LATER }), 'That ask is closed already.'],
+    ['ignored', oneOf({ item: 'k4', until: LATER }), 'That ask is ignored already.'],
+    [
+      'an answer on its way',
+      oneOf({ item: 'k6', until: LATER }),
+      'Your reply to that ask is on its way to Claude.',
+    ],
+    [
+      'Claude has a comment',
+      oneOf({ item: 'k3', until: LATER }),
+      "That ask waits on Claude: your comment is Claude's to act on.",
+    ],
     ['come already', oneOf({ item: 'k1', until: NOW }), come],
   ] as const) {
     expect(refusal(refused), why).toBe(error)

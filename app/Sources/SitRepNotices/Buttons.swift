@@ -3,7 +3,7 @@ import SitRepRelay
 import UserNotifications
 
 /// A new ask's banner's buttons (DESIGN, "The menu bar", "Its buttons"), under a category of the banner's own: a yes's
-/// one button, a choice's options in Claude's order, or Reply with Send for a words ask. None brings an app forward,
+/// one button, a choice's options Claude's pick first, or Reply with Send for a words ask. None brings an app forward,
 /// and each asks for the Mac unlocked, so no answer goes from a locked screen. A response is read back by the button's
 /// place among the ask's answers, which the banner's userInfo carries, never by its title, which two options could
 /// share.

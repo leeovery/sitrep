@@ -10,10 +10,10 @@ You can answer a yes or a choice from the notch, without leaving the app you are
 
 ## What happens
 
-- **A click on the row itself still jumps.** Only the arrow opens the asks panel, and the arrow then turns to point back. Click the arrow again to close the asks panel, or another row's arrow to move it. A click anywhere else on the panel only closes the asks panel.
+- **A click on the row itself still jumps.** Only the arrow opens the asks panel, and it then turns to point back. Click the arrow again to close the asks panel, or another row's arrow to move it. A click anywhere else on the panel only closes the asks panel.
 - **The asks panel shows one ask at a time.** The session name and project come first, then the ask title and its age, such as "Asked 4m ago". If the session has several asks, dots at the top show which one you're on. Click a dot, or swipe sideways with two fingers, to see another ask. After an answer, the next ask shows.
-- **Each answer is a numbered row.** A yes has one row, in the verb Claude gave. A choice has a row for each option, and the option Claude recommends ends in "recommended". A words ask has no rows: **Open in Claude ↗**, at the foot of every ask, takes you to the window. The numbers are labels only: no key answers.
-- **You get two seconds to undo.** The row you click fills, with a check in place of its number, and the foot counts down two seconds beside **Undo**. **Ignore** waits the same two seconds, and the foot reads "Ignoring". Leaving the notch doesn't stop the answer.
+- **Each answer is a row of its words.** A yes has one row, in the verb Claude gave. A choice has a row for each option. The option Claude recommends comes first, filled in lilac and marked "Recommended". A long answer wraps to two lines. A words ask has no rows: **Open in Claude ↗**, at the foot, takes you to the window.
+- **You get two seconds to undo.** The row you click turns white, with a check at its end, and the foot counts down beside **Undo**. **Ignore** waits the same two seconds, and the foot reads "Ignoring". Leaving the notch doesn't stop the answer.
 - **The answer reaches Claude as your own message.** The answer goes into that session's inbox. The Claude Code window running that session sends it on, starting "From the board:". The ask leaves Needs you once the answer is on its way.
 
 ## Good to know
@@ -42,7 +42,7 @@ Point at a new ask's banner, and macOS shows its buttons.
 | Undo | For two seconds | None: it goes at once |
 | Snooze | This ask only | None |
 
-**Snooze ▾** puts off only the ask on screen, until a time you pick from the times the pane offers. The asks panel then closes. See [Putting a session off](snooze.md).
+**Snooze ▾** puts off only the ask on screen, until a time the pane offers. The asks panel then closes. With every Snooze time off, Snooze ▾ hides. See [Putting a session off](snooze.md).
 
 ## Related
 

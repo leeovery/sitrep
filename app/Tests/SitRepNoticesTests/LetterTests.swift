@@ -37,7 +37,7 @@ struct LetterTests {
         #expect(Self.carried(letter) == letter)
     }
 
-    /// A new ask's banner carries its ask whatever it wants: a yes's words, a choice's options in Claude's order, or
+    /// A new ask's banner carries its ask whatever it wants: a yes's words, a choice's options in the board's order, or
     /// words; its title and place among it, the title beside the banner's own.
     @Test(arguments: [
         NoticeAsk.Wants.yes("Go"), .choice(["Left, the notch's edge", "Right", "Both"]), .choice(["Only"]), .words,

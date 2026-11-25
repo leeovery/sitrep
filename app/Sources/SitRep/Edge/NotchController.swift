@@ -147,8 +147,17 @@ final class NotchController: NSObject, CalloutShape {
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> NotchRun.Moment {
         NotchRun.Moment(
             time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
-            isShown: isShown, setting: .on(edge, settings)
+            isShown: isShown, setting: setting
         )
+    }
+
+    /// What the run runs in: this edge as Lee set it, and whether one ask's Snooze offers a time now, as he set them.
+    private var setting: NotchRun.Setting {
+        var setting = NotchRun.Setting.on(edge, settings)
+
+        setting.offersSnooze = !SnoozeTime.offeredForAsk(at: Date(), in: run.calendar, settings: snoozeSettings())
+            .isEmpty
+        return setting
     }
 
     private func startLink(_ selector: Selector, rate: CAFrameRateRange? = nil) -> CADisplayLink {
@@ -199,7 +208,7 @@ final class NotchController: NSObject, CalloutShape {
     /// saved, the caption told the panel drained, and the clocks paced.
     private func draw() {
         let time = run.time, pointer = run.seen
-        let setting = NotchRun.Setting.on(edge, settings), shown = run.takeShown()
+        let setting = setting, shown = run.takeShown()
 
         if shown.swappedEdge, let crossing {
             self.crossing = nil
@@ -319,14 +328,14 @@ final class NotchController: NSObject, CalloutShape {
         took()
     }
 
-    /// The asks panel's Snooze ▾: the times one ask's Snooze offers, under the button, the card held open as the row's
-    /// menu holds it while it shows. A choice snoozes the ask it shows alone, and closes the asks panel.
+    /// The asks panel's Snooze ▾: the times one ask's Snooze offers, under the button, the card held open as the
+    /// row's menu holds it while it shows. A choice snoozes the ask it shows alone, and closes the asks panel.
     private func snooze(_ ask: String, of session: String, pressed: CGPoint) {
-        guard let asks = run.asksShown else {
+        guard let asks = run.asksShown, let button = asks.layout.snooze else {
             return
         }
 
-        let drawn = asks.frame.applying(edge.mirror(wide: isWide)), button = asks.layout.snooze
+        let drawn = asks.frame.applying(edge.mirror(wide: isWide))
         // the close drawn as the choice is made, whether AppKit performs it before `popUp` returns or after
         let menu = SnoozeMenu.forAsk(offering: snoozeSettings(), at: Date(), in: run.calendar) { [unowned self] until in
             onSnoozeAsk(session, ask, until)
@@ -358,7 +367,7 @@ final class NotchController: NSObject, CalloutShape {
     /// or wakes the row's session, a snooze naming the asks the row showed.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
-              let row = run.row(at: point, in: .on(edge, settings)), let session = row.session
+              let row = run.row(at: point, in: setting), let session = row.session
         else {
             return nil
         }

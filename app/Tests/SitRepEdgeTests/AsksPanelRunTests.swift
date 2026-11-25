@@ -109,7 +109,7 @@ struct AsksPanelRunTests {
         case let .answer(row): layout.answers[row]
         case let .page(page): layout.dots(page: asks.page, of: asks.pages)[page]
         case .ignore: layout.ignore
-        case .snooze: layout.snooze
+        case .snooze: try #require(layout.snooze)
         case .open: layout.open
         case .undo: layout.undo
         }
@@ -319,6 +319,25 @@ struct AsksPanelRunTests {
         #expect(run.press(Self.at(run, there, setting)) == .snooze(ask: "k2", of: AsksBoard.helpDesk, at: there))
         run.closeAsks(Self.at(run, there, setting))
         #expect(run.asksShown == nil)
+    }
+
+    /// While Snooze offers no time, its foot shows no Snooze ▾, and a press where it stood snoozes nothing; as Snooze
+    /// offers one again, the next moment lays it out again with Snooze ▾ back.
+    @Test func withNoSnoozeTimeOfferedTheAsksPanelHasNoSnooze() throws {
+        var none = Self.setting()
+
+        none.offersSnooze = false
+        let offered = try #require(try Self.asksOpen().asksShown?.layout.snooze)
+        let run = try Self.asksOpen(Self.helpDesk, none), asks = try #require(run.asksShown)
+        let stood = CGPoint(x: asks.frame.minX + offered.midX, y: asks.frame.minY + offered.midY)
+
+        #expect(asks.layout.snooze == nil)
+        Self.frames(run, for: AsksPanel.settle, stood, none)
+        #expect(run.press(Self.at(run, stood, none)) == nil)
+        #expect(run.asksShown?.row == Self.helpDesk)
+
+        run.step(Self.at(run, stood, Self.setting()))
+        #expect(run.asksShown?.layout.snooze == offered)
     }
 
     /// Held, the answer shows sending, its Undo taking a press at once; no other answer is taken meanwhile.

@@ -6,11 +6,13 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
-/// The row's arrow and the asks panel in black, as Paper's boards E2, F and A2 draw them: the arrow soft on the row's
-/// lift, lit #34343B with its chevron white, pointing away from the screen's edge, turned back while its asks panel is
-/// open, turning in 0.2 seconds or at once under Reduce motion; the asks panel's black, its hairline and its shadow,
-/// its page dots, its title and age, its answers' rows and keycaps, a words ask with none, its foot's Open in Claude
-/// for every ask; and while an answer is held, its row white, the countdown's arc half run out a second in, and Undo.
+/// The row's arrow and the asks panel in black, as Paper's boards E2, F, H3 and A2 draw them: the arrow soft on the
+/// row's lift, lit #34343B with its chevron white, pointing away from the screen's edge, turned back while its asks
+/// panel is open, turning in 0.2 seconds or at once under Reduce motion; the asks panel's black, its hairline and its
+/// shadow, its page dots, its title and age, its answers' rows, their words alone, Claude's pick in lilac with its tag
+/// after its words, each lighter under the pointer, a words ask with none, its foot's Open in Claude for every ask and
+/// Snooze ▾ only while Snooze offers a time; and while an answer is held, its row white with its check at its end, the
+/// countdown's arc half run out a second in, and Undo.
 @MainActor
 @Suite(.backstop)
 struct AsksPanelDrawnTests {
@@ -30,6 +32,17 @@ struct AsksPanelDrawnTests {
 
         return points.compactMap(drawn.stored).max { $0.lightness < $1.lightness }.map { isClose($0, hex, within) }
             ?? false
+    }
+
+    /// A colour at an alpha out of 255 laid over an opaque one, as Core Animation lays a fill over what is under it.
+    private static func over(_ hex: UInt32, _ alpha: UInt32, on base: UInt32) -> UInt32 {
+        let a = Double(alpha) / 255
+
+        return [16, 8, 0].reduce(0) { blended, shift in
+            let top = Double(hex >> shift & 0xFF), under = Double(base >> shift & 0xFF)
+
+            return blended | UInt32((a * top + (1 - a) * under).rounded()) << shift
+        }
     }
 
     private static func isClose(_ colour: NSColor, _ hex: UInt32, _ within: CGFloat = 3) -> Bool {
@@ -142,14 +155,23 @@ struct AsksPanelDrawnTests {
         since: 0
     )
     private static let words = PanelAsk(id: "k1", title: "Say what an empty rota should read", wants: .words, since: 0)
+    /// Claude's pick, long enough to wrap to a second line, its tag after its words there.
+    private static let longPick = PanelAsk(
+        id: "k1", title: "Thread replies, or keep them flat?", wants: .choice,
+        answers: ["Thread replies under the message they answer, folded after three", "Flat"],
+        recommended: "Thread replies under the message they answer, folded after three", since: 0
+    )
+    /// Claude's pick's lilac, #B1B9F9: its row's fill at 20% and border at 36% over the black, and lifted 28% and 50%.
+    private static let lilac: UInt32 = 0xB1B9F9, tag: UInt32 = 0x9AA2EE
     /// Where the asks panel stands in the picture, with room round it for its shadow.
     private static let margin = 40.0
 
     /// The asks panel drawn over grey, so its shadow shows, a second after `sending` was held where one is.
     private static func drawn(
-        _ ask: PanelAsk = choice, page: Int = 0, pages: Int = 2, sending: Sending? = nil, hover: AsksPart? = nil
+        _ ask: PanelAsk = choice, page: Int = 0, pages: Int = 2, sending: Sending? = nil, hover: AsksPart? = nil,
+        offersSnooze: Bool = true
     ) throws -> (Drawn, AsksShown) {
-        let layout = AsksLayout(ask, measure: AsksMeasure.drawn)
+        let layout = AsksLayout(ask, measure: AsksMeasure.drawn, offersSnooze: offersSnooze)
         let asks = AsksShown(
             row: "needs:sr-nw0001", session: helpDesk, ask: ask, page: page, pages: pages, layout: layout,
             frame: CGRect(origin: CGPoint(x: margin, y: margin), size: layout.size), sending: sending, hover: hover
@@ -221,27 +243,59 @@ struct AsksPanelDrawnTests {
         #expect(Self.brightest(Self.faint, in: Self.placed(asks.layout.age), of: drawn))
     }
 
-    /// Each answer's row filled and bordered, its keycap's grey round its number, its label white, Claude's pick's
-    /// "recommended" faint at its end.
-    @Test func itsAnswersAreNumberedRowsTheRecommendedOneSaysSo() throws {
+    /// Each answer's row its words alone, white from 12 in, no number before them: Claude's pick filled #B1B9F9 at 20%
+    /// and bordered at 36%, "  ·  Recommended" after its words in #9AA2EE; any other filled #1C1C1F, bordered #34343A.
+    @Test func itsAnswersAreTheirWordsAloneThePickInLilacItsTagAfterThem() throws {
         let (drawn, asks) = try Self.drawn()
         let first = Self.placed(asks.layout.answers[0]), second = Self.placed(asks.layout.answers[1])
-        let keycap = AsksLayout.keycap.offsetBy(dx: second.minX, dy: second.minY)
+        let words = TextLine.width(AsksPanelParts.answerText("Threaded", colour: EdgeStyle.ink))
+        let tag = CGRect(x: first.minX + 12 + words + 4, y: first.minY + 8, width: 100, height: 22)
 
+        #expect(Self.shows(Self.over(Self.lilac, 0x33, on: 0), at: CGPoint(x: first.maxX - 20, y: first.midY), in: drawn))
+        #expect(Self.shows(
+            Self.over(Self.lilac, 0x5C, on: Self.over(Self.lilac, 0x33, on: 0)),
+            at: CGPoint(x: first.midX, y: first.minY + 0.25), in: drawn
+        ))
+        #expect(Self.brightest(Self.tag, in: tag, of: drawn))
         #expect(Self.shows(0x1C1C1F, at: CGPoint(x: second.maxX - 20, y: second.midY), in: drawn))
         #expect(Self.shows(0x34343A, at: CGPoint(x: second.midX, y: second.minY + 0.25), in: drawn))
-        #expect(Self.shows(0x2C2C31, at: CGPoint(x: keycap.minX + 3, y: keycap.midY), in: drawn))
-        let label = CGRect(x: second.minX + 40, y: second.minY, width: 40, height: 38)
-        let recommended = CGRect(x: first.maxX - 70, y: first.minY + 8, width: 60, height: 22)
-
-        #expect(Self.brightest(Self.white, in: label, of: drawn))
-        #expect(Self.brightest(Self.faint, in: recommended, of: drawn))
+        #expect(Self.brightest(Self.white, in: CGRect(x: second.minX + 12, y: second.minY, width: 12, height: 38), of: drawn))
+        #expect(Self.shows(0x1C1C1F, at: CGPoint(x: second.minX + 8, y: second.midY), in: drawn))
     }
 
-    @Test func anAnswersRowLiftsUnderThePointer() throws {
-        let (drawn, asks) = try Self.drawn(hover: .answer(1)), second = Self.placed(asks.layout.answers[1])
+    /// Under the pointer, Claude's pick brightens to 28% filled and 50% bordered; any other lightens to #26262A,
+    /// bordered #46464D.
+    @Test(arguments: [0, 1])
+    func anAnswersRowLiftsUnderThePointer(row: Int) throws {
+        let (drawn, asks) = try Self.drawn(hover: .answer(row)), box = Self.placed(asks.layout.answers[row])
+        let fill = row == 0 ? Self.over(Self.lilac, 0x47, on: 0) : 0x26262A
+        let border = row == 0 ? Self.over(Self.lilac, 0x80, on: fill) : 0x46464D
 
-        #expect(Self.shows(0x26262A, at: CGPoint(x: second.maxX - 20, y: second.midY), in: drawn))
+        #expect(Self.shows(fill, at: CGPoint(x: box.maxX - 20, y: box.midY), in: drawn))
+        #expect(Self.shows(border, at: CGPoint(x: box.midX, y: box.minY + 0.25), in: drawn))
+    }
+
+    /// An answer past one line wraps to a second, its row grown to 54 round its two lines, both white, Claude's pick's
+    /// tag after its words on the second.
+    @Test func aLongAnswerWrapsToTwoLinesItsTagAfterItsWords() throws {
+        let (drawn, asks) = try Self.drawn(Self.longPick), row = Self.placed(asks.layout.answers[0])
+        let lines = AsksLayout.answerBoxes(in: row.size, lines: 2).map { $0.offsetBy(dx: row.minX, dy: row.minY) }
+        let shown = AsksPanelParts.answerLines(0, of: asks).map(\.line)
+
+        #expect(asks.layout.answerLines[0] == 2 && row.height == 54)
+        #expect(shown.map(\.tag) == [nil, AsksPanelParts.pickTag])
+        #expect(Self.brightest(Self.white, in: CGRect(x: lines[0].minX, y: lines[0].minY, width: 40, height: 18), of: drawn))
+        #expect(Self.brightest(Self.white, in: CGRect(x: lines[1].minX, y: lines[1].minY, width: 40, height: 18), of: drawn))
+        #expect(Self.brightest(Self.tag, in: CGRect(x: row.maxX - 140, y: lines[1].minY, width: 128, height: 18), of: drawn))
+    }
+
+    /// Lee switched every Snooze time off: the foot shows Ignore and Open in Claude, nothing between them.
+    @Test func withNoSnoozeTimeOfferedItsFootHasNoSnooze() throws {
+        let (offered, asks) = try Self.drawn(), (none, _) = try Self.drawn(offersSnooze: false)
+        let snooze = Self.placed(try #require(asks.layout.snooze))
+
+        #expect(Self.brightest(Self.soft, in: snooze, of: offered))
+        #expect(try #require(none.pixels(in: snooze).max { $0.lightness < $1.lightness }).lightness < 0.01)
     }
 
     /// A words ask draws no row between its age and its foot: only the black, and its foot's Open in Claude.
@@ -265,17 +319,19 @@ struct AsksPanelDrawnTests {
 
     // MARK: Sending
 
-    /// "Sending Threaded", a second into its two: its row white, its keycap a check in ink, the arc run halfway
-    /// round, from 12 o'clock to 6 down the right, the track bare on the left.
+    /// "Sending Threaded", a second into its two: its row white, its words and its check at its trailing end in ink,
+    /// the arc run halfway round, from 12 o'clock to 6 down the right, the track bare on the left.
     @Test func aHeldAnswersRowIsWhiteAndItsCountdownHalfRunOutASecondIn() throws {
         let held = Sending(row: 0, words: "Threaded", heldAt: 4 * 60_000, goesAt: 4 * 60_000 + 2000)
         let (drawn, asks) = try Self.drawn(sending: held)
         let row = Self.placed(asks.layout.answers[0]), ring = Self.placed(asks.layout.countdown)
-        let check = AsksLayout.keycap.offsetBy(dx: row.minX, dy: row.minY), undo = Self.placed(asks.layout.undo)
+        let check = AsksLayout.check(in: row.size).offsetBy(dx: row.minX, dy: row.minY)
+        let undo = Self.placed(asks.layout.undo)
         let right = CGRect(x: ring.midX + 3.5, y: ring.midY - 1, width: 2.5, height: 2)
         let left = CGRect(x: ring.midX - 6, y: ring.midY - 1, width: 2.5, height: 2)
 
         #expect(Self.shows(Self.white, at: CGPoint(x: row.minX + 36, y: row.minY + 4), in: drawn))
+        #expect(Self.shows(Self.white, at: CGPoint(x: check.minX - 4, y: check.midY), in: drawn))
         #expect(try #require(drawn.pixels(in: check).min { $0.lightness < $1.lightness }).lightness < 0.5)
         #expect(Self.brightest(Self.white, in: Self.placed(asks.layout.sending), of: drawn))
         #expect(Self.brightest(Self.soft, in: right, of: drawn))

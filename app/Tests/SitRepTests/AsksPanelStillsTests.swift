@@ -8,9 +8,9 @@ import SitRepTestSupport
 import Testing
 
 /// The row's arrow and the asks panel in black, and in glass dark and light, drawn by the real run into the real
-/// surface at the README desktop's left edge, to read beside Paper's boards E2, F and A2: the pointer on a Needs you
-/// row's words, then on its arrow; the asks panel on a session's choice, and on a words ask; and an answer sending, its
-/// countdown under way. Only when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing: black
+/// surface at the README desktop's left edge, to read beside Paper's boards E2, F, H3 and A2: the pointer on a Needs
+/// you row's words, then on its arrow; the asks panel on a session's choice, and on a words ask; and an answer sending,
+/// its countdown under way; and a choice whose pick wraps to two lines, the pointer off it and on it. Only when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing: black
 /// in it, glass in its `glass` and `glass-light` folders.
 @MainActor
 @Suite(.backstop, .enabled(if: stills != nil))
@@ -31,7 +31,9 @@ struct AsksPanelStillsTests {
         stage: edge.stage, mirror: edge.mirror(wide: true), style: settings.style, reducesMotion: false,
         isChosen: true
     )
-    private static let helpDesk = "needs:sr-nw0001", shifts = "needs:sr-ct0002"
+    private static let helpDesk = "needs:sr-nw0001", shifts = "needs:sr-ct0002", onboarding = "needs:sr-tw0006"
+    /// Onboarding flow's pick, long enough to wrap to a second line.
+    private static let pairing = "Pair each one with a lead for five shifts, then let them take tickets alone"
 
     @Test(arguments: Look.allCases)
     func thePointerOnARowsWords(look: Look) throws {
@@ -75,6 +77,22 @@ struct AsksPanelStillsTests {
             NotchRun.Moment(time: run.time + Self.frameMS, pointer: try Self.onTitle(run), setting: Self.setting)
         )
         try Self.shoot(run, pointer: try Self.onTitle(run), as: "5-sending", in: look)
+    }
+
+    @Test(arguments: Look.allCases)
+    func theAsksPanelOnATwoLinePick(look: Look) throws {
+        let run = try Self.opened()
+
+        try Self.open(Self.onboarding, run)
+        try Self.shoot(run, pointer: try Self.onTitle(run), as: "6-asks-pick", in: look)
+    }
+
+    @Test(arguments: Look.allCases)
+    func thePointerOnATwoLinePick(look: Look) throws {
+        let run = try Self.opened()
+
+        try Self.open(Self.onboarding, run)
+        try Self.shoot(run, pointer: try Self.onAnswer(0, run), as: "7-asks-pick-hover", in: look)
     }
 
     // MARK: The run
@@ -131,6 +149,13 @@ struct AsksPanelStillsTests {
         let asks = try #require(run.asksShown)
 
         return CGPoint(x: asks.frame.minX + asks.layout.title.midX, y: asks.frame.minY + asks.layout.title.midY)
+    }
+
+    /// On the middle of an answer's row.
+    private static func onAnswer(_ row: Int, _ run: NotchRun) throws -> CGPoint {
+        let asks = try #require(run.asksShown), box = asks.layout.answers[row]
+
+        return CGPoint(x: asks.frame.minX + box.midX, y: asks.frame.minY + box.midY)
     }
 
     /// What a still is drawn in, and the folder it goes in.
@@ -193,7 +218,8 @@ struct AsksPanelStillsTests {
     // MARK: The board
 
     /// Paper's: in Needs you, Help desk redesign of Northwind asking two, a choice and a yes; Shift schedules of
-    /// Contoso asking for words; Invoice ledger of Fabrikam stopped at a permission prompt; and two at work.
+    /// Contoso asking for words; Onboarding flow of Tailspin asking a choice whose pick, first as the CLI lists it,
+    /// wraps to two lines; Invoice ledger of Fabrikam stopped at a permission prompt; and two at work.
     private static func board() -> PanelBoard {
         let ago = { (minutes: Int) in Int(now) - minutes * minute }
         let rows = [
@@ -207,6 +233,10 @@ struct AsksPanelStillsTests {
             WatchLine.Row(
                 session: "sr-ct0002", name: "Shift schedules", projectName: "Contoso",
                 lines: [.init("ask:sr-ct0002:k1", .ask, ask: "k1", first: "Empty rota words", since: ago(7))]
+            ),
+            WatchLine.Row(
+                session: "sr-tw0006", name: "Onboarding flow", projectName: "Tailspin",
+                lines: [.init("ask:sr-tw0006:k1", .ask, ask: "k1", first: "First week for new agents?", since: ago(9))]
             ),
             WatchLine.Row(
                 session: "sr-fb0003", name: "Invoice ledger", projectName: "Fabrikam",
@@ -234,6 +264,17 @@ struct AsksPanelStillsTests {
             WatchLine.Project(name: "Contoso", sessions: [
                 WatchLine.Session(id: "sr-ct0002", name: "Shift schedules", state: .needsYou, asks: [
                     WatchLine.Ask(id: "k1", wants: .words, yes: nil, title: "Say what an empty rota should read"),
+                ]),
+            ]),
+            WatchLine.Project(name: "Tailspin", sessions: [
+                WatchLine.Session(id: "sr-tw0006", name: "Onboarding flow", state: .needsYou, asks: [
+                    WatchLine.Ask(
+                        id: "k1", wants: .choice, yes: nil, title: "How should a new agent's first week run?",
+                        options: [
+                            Self.pairing, "Shadow the queue for a day, then take tickets", "Straight onto the queue",
+                        ],
+                        recommended: Self.pairing, at: ago(9)
+                    ),
                 ]),
             ]),
         ]

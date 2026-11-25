@@ -122,7 +122,8 @@ public struct Board: Versioned, Sendable, Equatable {
         /// other ask.
         public let yes: String?
         public let title: String
-        /// A choice's options, in Claude's order; none for any other ask.
+        /// A choice's options as the watch line lists them, Claude's pick first and the rest in Claude's order; none
+        /// for any other ask.
         public let options: [String]
         /// The option Claude recommends; none from a CLI from before asks said it.
         public let recommended: String?

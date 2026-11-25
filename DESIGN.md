@@ -1497,7 +1497,16 @@ shape is ever shown as a word:
     reading of `recommended` against the options, so an edit re-sending
     the option stripped keeps it recommended; and the CLI's `answer`, which
     writes the option in its stored words.
-  - **Claude's order of options is kept**; nothing is reordered.
+  - **Claude's pick comes first** wherever SitRep offers the options to
+    press: the pane's buttons, the asks panel's rows and a banner's
+    buttons, the rest in Claude's order (Lee, 25 November 2026; until then
+    every surface kept Claude's order). Core's `pickFirst` orders them
+    once, for the pane's drawing and for `board --json` and `watch`,
+    whose ask carries its options so, which the app and its banners
+    follow. Every answer names its option by its words, never its place;
+    a banner reads a press back by its place among the options its
+    userInfo carries, which are the options as it showed them. Claude's
+    board text is no list of buttons, and keeps Claude's order.
   - **Drawn once, inside its option's button.** The pane ends the
     recommended option's label with the word, after a middle dot, in a
     darker lilac than the button's own (`[ Redraw · recommended ]` in the
@@ -3149,7 +3158,10 @@ sitrep wake [--session <id>]
   "Answering from the panel") snoozes that ask alone, as the pane's Snooze
   does (see "An ask snoozes in the pane"): Lee's `snooze` line, its `item`
   and `until`, in the CLI's own file, through core's `checkSnoozeAsk`, so
-  it refuses as the pane does, in its words. It needs `--until`, as the
+  it refuses what the pane refuses, each refusal a sentence of its own
+  (`That ask is closed already.`), where the pane's follow "Not snoozed:
+  " (`it is closed already.`); the app's banner "Not snoozed" reads
+  either. It needs `--until`, as the
   pane offers only times (`An ask snoozes until a time in milliseconds
   since the epoch.`), and takes no asks shown (`Snooze one ask with --ask,
   or the asks the row shows: not both.`). The app calls it with the ask
@@ -5472,8 +5484,8 @@ that takes Lee to the window a session is in.
     ask's banner answers the ask, with the buttons macOS draws, shown as
     the pointer reaches the banner, by the ask's shape:
     - a yes: one button, its yes, in the ask's words (`Go`);
-    - a choice: a button for each option, in Claude's order, which macOS
-      gathers under Options where there are several;
+    - a choice: a button for each option, Claude's pick first, which
+      macOS gathers under Options where there are several;
     - a words ask: Reply, macOS's text field in the banner, with Send.
 
     No banner offers Ignore: closing a banner is not ignoring its ask. A
@@ -6408,22 +6420,37 @@ first:
 - **The ask's title,** 17 semibold, letter-spacing -0.02em, its line 22;
   under it "Asked 4m ago", 12 in the faint grey, the age from the ask's
   posting or reopening, as its line on the row counts from.
-- **Its answers** as numbered rows, full width: 38 tall, radius 11, fill
-  #1C1C1F, border #34343A. A keycap, 20 × 20, radius 6, fill #2C2C31,
-  holds its number, 11 semibold in the soft grey; the label is 13 medium
-  in white. The recommended option's row ends in "recommended", 11 medium
-  in the faint grey. A yes has one row, its yes; a choice a row for each
-  option, in Claude's order.
+- **Its answers** as rows of their words alone, full width (Lee picked
+  board H3 of "H · The pick filled, four ways", 25 November 2026, after
+  his first live try; until then each row led with a numbered keycap).
+  A row pads its words 12 each side and 9 above and below, radius 11, a
+  1pt border, and is 38 tall at least. The words are 13 medium in white,
+  letter-spacing -0.01em, on lines of 18. They wrap to a second line
+  before they are cut, the row growing to fit and the asks panel with it;
+  past two lines the second ends in "…". A yes has one row, its yes; a
+  choice a row for each option, Claude's pick first (see "Answering an
+  ask", "The option Claude recommends").
+  - **Claude's pick** is filled in Claude Code's suggestion lilac, the
+    pane's primary button's: #B1B9F9 at 20%, its border at 36%. After its
+    words on their last line, "  ·  Recommended", 11 medium in #9AA2EE,
+    wraps with them: with no room after them it goes alone on the next
+    line, inside the two; past two lines the words are cut before it, so
+    it always shows.
+  - **Any other** is filled #1C1C1F, its border #34343A.
+  - **Under the pointer** the pick brightens to 28%, its border to 50%;
+    any other lightens to #26262A, its border #46464D.
 - **A words ask** has no answer rows: its title and its age, then the
   foot, whose Open in Claude ↗ jumps to the session's window. So has an ask
   with no options to choose from. Until 25 November 2026 it had one
   outlined row, its keycap holding ↗, reading "Answer in Claude", which
   jumped as Open in Claude ↗ does (Lee: it duplicated it).
 - **The foot:** Ignore and Snooze ▾, in the soft grey, and an outlined
-  "Open in Claude ↗" at its right, which jumps, for every ask.
+  "Open in Claude ↗" at its right, which jumps, for every ask. Snooze ▾
+  shows only while Snooze offers a time, as the pane's snooze button does:
+  with every time switched off, or each passed for today, it is gone.
 
-The numbers are labels only. No keys answer, only clicks (Lee, 24 November
-2026): the panel never takes the keyboard.
+No keys answer, only clicks (Lee, 24 November 2026): the panel never
+takes the keyboard, so the rows carry no numbers.
 
 **Opening and closing.** Another row's arrow moves the asks panel to that
 session; a click on the lit arrow again closes it. While it is open, a
@@ -6471,7 +6498,10 @@ held stays held, its Undo with its ask.
     pass with none.
 
 **Answering, with two seconds to undo.** A click on an answer row turns it
-white: a white fill, its label in ink, and a check in its keycap's place. A
+white: a white fill, its words in ink, Claude's pick's tag in ink at half,
+and an 11pt check in ink at its trailing end, 12 in, where a panel row's
+time goes. Its words keep the lines they had, set narrower for the check,
+so the row keeps its height. A
 line at the asks panel's foot reads "Sending Threaded", the answer's words
 after "Sending", with a countdown ring and an outlined Undo. After 2
 seconds SitRep runs `sitrep answer <ask> <answer>`. Ignore runs `sitrep
@@ -6519,11 +6549,15 @@ Snooze ▾ offered the row's Snooze and snoozed the session.
 
 **Black and Glass.** The asks panel draws in both Materials, as the panel
 does. In Glass it is the panel's glass, its words in the system's label
-colours, as the Glass rows are; its rows, keycaps and outlines keep their
-shapes, filled in the glass's tints in place of the black's greys, and its
-current page dot keeps Claude's orange. The answer held is white with ink
-in the dark appearance, as in Black, and near-black with light words in
-the light one, where white would barely stand off the glass. The asks
+colours, as the Glass rows are; its rows and outlines keep their shapes,
+filled in the glass's tints in place of the black's greys, and its
+current page dot keeps Claude's orange. Claude's pick keeps its lilac at
+the black's strengths: #B1B9F9 and its tag #9AA2EE in the dark
+appearance, and in the light one the pane's darker #7178C7 for both,
+where the pale lilac would barely stand off the glass. The answer held is
+white with ink in the dark appearance, as in Black, and near-black with
+light words in the light one, where white would barely stand off the
+glass; either stands apart from the lilac pick. The asks
 panel's edge is a hairline in the separator colour, the open Glass panel
 having no rim of its own.
 
