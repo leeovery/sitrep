@@ -22,7 +22,7 @@ You can answer a yes or a choice from the notch, without leaving the app you are
 - **Only the notch has the arrow.** The strip and the menu bar item have none.
 - **Permission prompts stay in Claude Code.** A row holding only permission prompts, or questions from Claude Code itself, has no arrow. Click the row to go to the window, and answer there.
 - **A banner answer goes at once.** A banner has no room for Undo, and no Ignore: closing a banner leaves the ask waiting. On a locked Mac, macOS asks you to unlock the Mac first. Banners for a new ask are off until you turn on **Notify me of a new ask**, in Settings › Notifications.
-- **A refused answer says so.** A banner titled "Not answered" says why, and nothing is sent. SitRep refuses an answer if:
+- **A refused answer says so.** A banner titled "Not answered" says why, and nothing is sent. For example, SitRep refuses an answer if:
   - the ask was answered or closed elsewhere;
   - the ask now wants something else, or no longer offers your answer;
   - for a banner, the ask has a new title since the banner showed.

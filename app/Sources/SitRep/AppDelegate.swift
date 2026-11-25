@@ -146,8 +146,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         works.show(last)
 
         Chime.due(last, preferences.app).map(sounds.play)
-        Notices.due(last, preferences.app).forEach(banners.post)
         last.asksLeft.union(last.asksChanged).forEach(banners.clear)
+        Notices.due(last, preferences.app).forEach(banners.post)
     }
 
     /// ⌘,, through the main menu: the Settings window.

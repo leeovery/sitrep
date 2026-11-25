@@ -5505,8 +5505,11 @@ that takes Lee to the window a session is in.
       `Go`. The CLI sees no title, so SitRep's check is the one that
       holds: a press on a banner whose title differs from the board's
       posts "Not answered", saying the ask changed after its banner
-      showed, and sends nothing. With no board yet, as for a press that
-      starts SitRep, the answer goes to the CLI.
+      showed, and sends nothing. Where the board doesn't hold the ask, as
+      for a press that starts SitRep or a line whose projects don't read,
+      the answer goes to the CLI, and so does a press in the second before
+      the edited line lands: rare, and accepted, since closing them would
+      take the title to the CLI.
     - **An ask edited while it waits** has its banners taken down, over
       `cleared`, as one that left: its title, its yes, its options or
       what it wants changed against the last line, the ask waiting on
@@ -5514,7 +5517,13 @@ that takes Lee to the window a session is in.
       read, against a last line whose projects read, and never on the
       first line SitRep hears. An edit the banner never shows, Claude's
       pick or what a words ask needs, leaves it up. The asks panel draws
-      the live ask, so it needs neither.
+      the live ask, so it needs neither; an answer already held there
+      when Claude retitles still goes, the new title drawn above its Undo.
+      Banners are taken down before new ones are posted, so an ask woken
+      on the line that edits it keeps its fresh banner.
+    - **An edited ask gets no fresh banner.** A banner announces a new
+      ask, and an edit is none: the ask stays lit in Needs you, and a
+      Reply being typed goes with its banner.
     - **A refusal names the ask as its banner showed it** where the board
       holds it no more, as for an ask answered in Claude while SitRep was
       off: never by its id.
