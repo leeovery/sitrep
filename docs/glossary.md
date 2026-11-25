@@ -12,7 +12,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **finished**: A session that is closed. Claude finishes one once nothing is left on it. You can finish one from the pane if no window runs it, and its open asks then stop counting. Its parked items stay with the project.
 
-**inbox**: Where a reply for another session waits until a window of that session sends it on to Claude. Each session has one.
+**inbox**: Where a reply waits until a window of its session sends it on to Claude. Replies for another session go there, and so do answers from the asks panel, a banner or `sitrep answer`. Each session has one.
 
 **item id**: The short id of an ask or a parked item, such as `xsaq`. The `sitrep` command prints an item id when it posts an ask or parks an item. Its other commands, such as `answer` and `snooze`, take the id.
 
@@ -60,7 +60,9 @@ Each word below means one thing on every page of these docs. The words are group
 
 ## In the Mac app
 
-**banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. A click on one takes you to the session. Both are off until you turn them on in Settings › Notifications. **Turn On…** in the welcome window also turns on the banner for a new ask. A failure banner, such as "SitRep could not jump" or "Not snoozed", shows even with both switches off.
+**asks panel**: What the arrow on a row opens, beside the panel: one session's asks, one at a time. A click answers a yes or a choice, with two seconds to undo. A words ask shows there too, and its one row takes you to Claude to answer it.
+
+**banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. A click on one takes you to the session, and the banner for a new ask has buttons to answer it. Both are off until you turn them on in Settings › Notifications. **Turn On…** in the welcome window also turns on the banner for a new ask. A failure banner, such as "SitRep could not jump" or "Not snoozed", shows even with both switches off.
 
 **dimmed session**: A session drawn dimmed, because it isn't open on the device you're looking from. In the panel and on the strip, that device is this Mac's screen, so a session you reach only over SSH is dimmed. In the terminal view, that device can be a phone or iPad over SSH, and a dimmed session in Needs you has a hollow dot. Its asks still count. While SitRep isn't running, the terminal view dims only a session no window runs.
 
@@ -77,6 +79,8 @@ Each word below means one thing on every page of these docs. The words are group
 **the pulse**: The notch swelling and flashing its light. By default it comes for a new ask, and when a window starts waiting at a permission prompt. For Claude stopping, you turn it on in Settings › Notifications.
 
 **row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines until you expand it. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing. In Snoozed, the second line holds the thing that wakes soonest instead, the oldest if several wake together.
+
+**row's arrow**: The button at the right end of a row in Needs you, in place of the row's time, that opens the asks panel. It shows only if the session has an ask: a yes, a choice or a words ask. It shows while the pointer is on the row, and stays lit while the asks panel for that row is open.
 
 **the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
 
