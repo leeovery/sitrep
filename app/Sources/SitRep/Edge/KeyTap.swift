@@ -11,8 +11,9 @@ protocol KeyTapping: AnyObject {
 }
 
 /// What the notch's keys read of the Mac and make on it (DESIGN, "Keys"): whether macOS gives SitRep the
-/// Accessibility leave, whether a window holds secure input, the tap, and the workspace's notifications, which say when
-/// the screens sleep or the session goes to another user. Given whole, so the tests make no tap.
+/// Accessibility leave, whether a window holds secure input, the tap, and the notifications that say when the screens
+/// sleep or the session goes to another user, the workspace's, and when the screen locks, the distributed centre's.
+/// Given whole, so the tests make no tap and hear only their own.
 @MainActor
 struct KeysMac {
     var isTrusted: () -> Bool
@@ -24,10 +25,12 @@ struct KeysMac {
         _ offForInput: @escaping @MainActor @Sendable () -> Void
     ) -> (any KeyTapping)?
     var workspace: NotificationCenter
+    var distributed: NotificationCenter
 
     static let real = KeysMac(
         isTrusted: { AXIsProcessTrusted() }, isSecure: { IsSecureEventInputEnabled() },
-        tap: { KeyTap(heard: $0, offForInput: $1) }, workspace: NSWorkspace.shared.notificationCenter
+        tap: { KeyTap(heard: $0, offForInput: $1) }, workspace: NSWorkspace.shared.notificationCenter,
+        distributed: DistributedNotificationCenter.default()
     )
 }
 

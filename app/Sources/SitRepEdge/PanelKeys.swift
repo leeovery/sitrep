@@ -123,7 +123,8 @@ public enum KeyVerdict: Equatable, Sendable {
 /// How the tap decides each key, on its own thread, from the snapshot the main thread last published (DESIGN, "Keys").
 /// A key taken is taken whole: its repeats and its key-up go as it went down, taken or rewritten, whatever the snapshot
 /// says by then. Only `↑` `↓`, `k` `j`, `←` and `→` act again as they repeat. A key the panel doesn't take ends its hold
-/// here at once, so the keys typed after it go through though the main thread has yet to hear of it.
+/// here at once, as `o` does, which jumps, so the keys typed after it go through though the main thread has yet to hear
+/// of it.
 public struct KeyReader: Sendable {
     /// How a key down went, which its repeats and its key-up follow.
     private enum Went: Sendable {
@@ -140,6 +141,11 @@ public struct KeyReader: Sendable {
 
     /// Whether a key it took or rewrote has yet to come up.
     var hasKeysDown: Bool { !down.isEmpty }
+
+    /// The keys it took or rewrote forgotten: their repeats and key-ups go through from now.
+    mutating func forgetKeysDown() {
+        down = [:]
+    }
 
     public mutating func read(_ key: TapKey, in snapshot: KeySnapshot) -> KeyVerdict {
         switch key.stroke {
@@ -192,6 +198,9 @@ public struct KeyReader: Sendable {
             guard let panelKey = key.panelKey else {
                 ended = hold
                 return .letGo(hold: hold)
+            }
+            if panelKey == .open {
+                ended = hold
             }
 
             return .take(.panel(panelKey))

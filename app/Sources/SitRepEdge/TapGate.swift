@@ -1,8 +1,10 @@
 /// The tap's own state, on its thread (DESIGN, "Keys"): whether the main thread means it on, what it decides each key
 /// by, the keys it took or rewrote that have yet to come up, and whether it is enabled. It listens while it is meant
 /// on, and after, until the last of those keys comes up, so a key taken is taken whole though the panel closed under
-/// it; meant off, it decides by nothing, so every new key goes through. Each change returns what becomes of the tap,
-/// which the tap applies under the same lock, so macOS turning it off meanwhile never leaves it on at rest.
+/// it; meant off, it decides by nothing, so every new key goes through, and a fresh key down forgets the keys it took,
+/// as macOS stops repeating a held key at the next, so a key-up it missed never leaves it listening at rest. Each change
+/// returns what becomes of the tap, which the tap applies under the same lock, so macOS turning it off meanwhile never
+/// leaves it on at rest.
 public struct TapGate: Sendable {
     private var reader = KeyReader()
     /// What it decides each new key by: nothing while it is meant off.
@@ -26,8 +28,12 @@ public struct TapGate: Sendable {
     }
 
     /// A key heard: what becomes of it, and of the tap, disabled once the last key it took comes up while it is meant
-    /// off.
+    /// off, or another key goes down.
     public mutating func read(_ key: TapKey) -> (verdict: KeyVerdict, enable: Bool?) {
+        if !isMeantOn, key.stroke == .down {
+            reader.forgetKeysDown()
+        }
+
         let verdict = reader.read(key, in: snapshot)
 
         return (verdict, settle())

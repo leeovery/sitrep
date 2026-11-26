@@ -95,6 +95,17 @@ struct KeyReaderTests {
         #expect(reader.read(Self.typing("o"), in: .panel(hold: 2)) == .take(.panel(.open)))
     }
 
+    /// `o` ends its hold as it is taken: it jumps, so a key typed after it, before the main thread has heard of it,
+    /// goes to the window jumped to.
+    @Test func oEndsItsHoldAsItIsTaken() {
+        var reader = KeyReader()
+
+        #expect(reader.read(Self.typing("o"), in: Self.holding) == .take(.panel(.open)))
+        #expect(reader.read(Self.code(KeyCode.enter), in: Self.holding) == .pass)
+        #expect(reader.read(Self.typing("o", [], .up), in: Self.holding) == .take(nil))
+        #expect(reader.read(Self.code(KeyCode.enter), in: .panel(hold: 2)) == .take(.panel(.enter)))
+    }
+
     @Test(arguments: [KeySnapshot.none, .menu(choices: nil)])
     func withNothingHoldingOrTheRowsMenuEveryKeyGoesThrough(_ snapshot: KeySnapshot) {
         var reader = KeyReader()

@@ -56,13 +56,19 @@ extension NotchRun {
     /// A key of the set while the panel holds the keys, open, acting on the lit row as its click would. While the asks
     /// panel is open, `↑` `↓` move the lit row and close it, `⏎` and `esc` close it, and every other key does nothing;
     /// otherwise each acts on the list (`listKey`). A key with no use at the moment does nothing, as does one heard
-    /// while a menu holds the card, the menu's.
+    /// while a menu holds the card, the menu's. `o` ends the hold whether or not it jumps, as the tap ended it as it
+    /// took `o` (`KeyReader`), so the keys typed after it go to the window in front.
     public func key(_ key: PanelKey, _ moment: Moment) -> Press? {
         upToNow(moment)
         guard hold.isOn, notch.phase == .open, menuAt == nil else {
             return nil
         }
-        defer { placeAsks(in: moment.setting) }
+        defer {
+            if key == .open {
+                endHold()
+            }
+            placeAsks(in: moment.setting)
+        }
 
         return asking.row == nil ? listKey(key, in: moment.setting) : asksKey(key, in: moment.setting)
     }

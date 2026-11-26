@@ -54,15 +54,58 @@ struct NotchKeysTests {
         #expect(world.taps.count == 2 && keys.tap === world.taps.last && keys.allowed)
     }
 
-    /// The screens sleeping, or the session going to another user, tells the notch to let go of the keys.
-    @Test func theScreensSleepingOrTheSessionGoingLetsGoOfTheKeys() {
+    /// The screens sleeping, the screen locking with the display awake, as at ⌃⌘Q, or the session going to another
+    /// user, tells the notch to let go of the keys.
+    @Test func theScreensSleepingTheScreenLockingOrTheSessionGoingLetsGoOfTheKeys() {
         let world = KeysWorld(), keys = NotchKeys(world.mac)
         var away = 0
 
         keys.onAway = { away += 1 }
         world.workspace.post(name: NSWorkspace.screensDidSleepNotification, object: nil)
         world.workspace.post(name: NSWorkspace.sessionDidResignActiveNotification, object: nil)
+        world.distributed.post(name: NotchKeys.screenIsLocked, object: nil)
+        #expect(away == 3)
+    }
+
+    /// Secure input turning on, as the lock screen's password field or a sudo prompt takes it, lets go of the keys,
+    /// read as the pointer moves or as macOS turns the tap off for it; on already, or on as the panel opens, where no
+    /// hold has begun, it lets go of nothing more.
+    @Test func secureInputTurningOnLetsGoOfTheKeys() throws {
+        let world = KeysWorld(), keys = NotchKeys(world.mac)
+        var away = 0
+
+        keys.onAway = { away += 1 }
+        world.isSecure = true
+        keys.follow(isOut: true, holding: .none)
+        keys.pointerMoved()
+        #expect(away == 0)
+
+        world.isSecure = false
+        keys.pointerMoved()
+        world.isSecure = true
+        keys.pointerMoved()
+        #expect(away == 1)
+
+        world.isSecure = false
+        keys.pointerMoved()
+        world.isSecure = true
+        try #require(world.taps.first).offForInput()
         #expect(away == 2)
+    }
+
+    /// Gone, the keys leave the centres they observed: the workspace's two and the distributed centre's lock.
+    @Test func goneTheKeysLeaveTheirCentres() {
+        let workspace = CountingCentre(), distributed = CountingCentre()
+        var mac = KeysWorld().mac
+
+        mac.workspace = workspace
+        mac.distributed = distributed
+
+        var keys: NotchKeys? = NotchKeys(mac)
+
+        #expect(keys != nil)
+        keys = nil
+        #expect(workspace.removed == 2 && distributed.removed == 1)
     }
 
     /// Without the leave there is no tap and the panel takes no keys; a leave given while SitRep runs works from the next
@@ -344,5 +387,15 @@ struct NotchKeysTests {
         #expect(menu.choiceItems.first?.keyEquivalent == "1")
         menu.choose(number: menu.choiceItems.count)
         #expect(snoozed.map(\.0) == ["sr-nw0001"] && snoozed.map(\.1) == [["k1"]] && snoozed.map(\.2) == [nil])
+    }
+}
+
+/// A centre counting the observers taken off it.
+private final class CountingCentre: NotificationCenter, @unchecked Sendable {
+    private(set) var removed = 0
+
+    override func removeObserver(_ observer: Any) {
+        removed += 1
+        super.removeObserver(observer)
     }
 }

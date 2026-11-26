@@ -6,14 +6,15 @@ import SitRepEdge
 /// or one of its menus is open, and only with the leave; whether the Mac lets the panel take keys, read as the panel
 /// opens, as the pointer moves on it, and as macOS turns the tap off for input it can't see; and what the tap decides
 /// each key by, told it as it changes. A snooze menu shown on its own takes its digits and `z` here; every other key the
-/// tap hands on goes to the panel.
+/// tap hands on goes to the panel. The screens sleeping, the screen locking, the session going to another user, or a
+/// window taking secure input, as the lock screen's password field and a sudo prompt do, let go of the keys.
 @MainActor
 final class NotchKeys {
     /// A key of the set while the panel holds the keys, and a key it doesn't take, in the hold of this number.
     var onKey: (PanelKey) -> Void = { _ in }
     var onLetGo: (Int) -> Void = { _ in }
-    /// The screens slept or the session went to another user: the panel is to hold the keys no more, so what is typed
-    /// after goes to the window in front.
+    /// The screens slept, the screen locked, the session went to another user, or a window took secure input: the
+    /// panel is to hold the keys no more, so what is typed after goes to the window in front.
     var onAway: () -> Void = {}
 
     private let mac: KeysMac
@@ -30,15 +31,26 @@ final class NotchKeys {
     private var menu: KeySnapshot?
     /// A snooze menu shown on its own, until it closes or a key chose from it or closed it.
     private var snoozeMenu: SnoozeMenu?
-    private var observers: [any NSObjectProtocol] = []
+    /// Held only so they leave their centres as the keys go.
+    private var observers: Observers?
+
+    /// What the distributed centre posts as the screen locks, which posts nothing to the workspace where the display
+    /// stays awake, as at ⌃⌘Q or a hot corner.
+    static let screenIsLocked = Notification.Name("com.apple.screenIsLocked")
 
     init(_ mac: KeysMac) {
         self.mac = mac
-        observers = [NSWorkspace.screensDidSleepNotification, NSWorkspace.sessionDidResignActiveNotification].map {
-            mac.workspace.addObserver(forName: $0, object: nil, queue: .main) { [weak self] _ in
+
+        let away = [
+            (mac.workspace, NSWorkspace.screensDidSleepNotification),
+            (mac.workspace, NSWorkspace.sessionDidResignActiveNotification), (mac.distributed, Self.screenIsLocked),
+        ]
+
+        observers = Observers(away.map { centre, name in
+            (centre, centre.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.onAway() }
-            }
-        }
+            })
+        })
     }
 
     /// Whether the Mac lets the panel take keys: the leave given as it opened, its tap made, and no window holding
@@ -88,8 +100,14 @@ final class NotchKeys {
         tell()
     }
 
+    /// Secure input read again: newly on, the keys let go.
     private func readSecureInput() {
+        let was = isSecure
+
         isSecure = mac.isSecure()
+        if isSecure, !was {
+            onAway()
+        }
     }
 
     /// The tap told whether it is on, only with the leave, and what it decides by: a menu's keys while one is open,
@@ -112,5 +130,20 @@ final class NotchKeys {
     private func takeSnoozeMenu() -> SnoozeMenu? {
         defer { snoozeMenu = nil }
         return snoozeMenu
+    }
+}
+
+/// Observers, each in its centre, which leave it as they go.
+private final class Observers {
+    private let observers: [(NotificationCenter, any NSObjectProtocol)]
+
+    init(_ observers: [(NotificationCenter, any NSObjectProtocol)]) {
+        self.observers = observers
+    }
+
+    deinit {
+        for (centre, observer) in observers {
+            centre.removeObserver(observer)
+        }
     }
 }

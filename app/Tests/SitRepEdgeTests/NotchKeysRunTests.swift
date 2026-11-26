@@ -415,6 +415,40 @@ struct NotchKeysRunTests {
         }
     }
 
+    /// `o` with no row lit jumps nowhere and still ends the hold, as the tap ended it as it took `o`; so does `o` with
+    /// the asks panel open, where it does nothing yet.
+    @Test(arguments: [false, true])
+    func oEndsTheHoldThoughItJumpsNowhere(asksOpen: Bool) throws {
+        let run = Self.opened(), setting = Self.setting(), eyebrow = run.list.content.laidFrame(0)
+        let pointer = try asksOpen
+            ? Self.words(Self.helpDesk, run, setting) : Self.onStage(60, eyebrow.midY, run, setting)
+
+        run.step(Self.at(run, pointer, setting))
+        if asksOpen {
+            Self.press(.enter, run, pointer)
+            try #require(run.asksShown != nil)
+        }
+        try #require(run.holdsKeys)
+        #expect(Self.press(.open, run, pointer) == nil)
+        #expect(!run.holdsKeys && run.keySnapshot == .none && run.phase == .open)
+    }
+
+    /// Once a jump has drained the panel, the panel opening again holds the keys again as the pointer moves on it.
+    @Test func aHoldStartsAgainOnceAJumpHasDrainedAndThePanelReopens() throws {
+        let (run, pointer) = try Self.holding(Self.shifts), setting = Self.setting()
+
+        try #require(Self.press(.open, run, pointer) != nil)
+        run.jumpAnswered(Self.at(run, pointer, setting))
+        Self.frames(run, for: 3000, Self.away, setting) { run.phase == .closed }
+        try #require(run.phase == .closed)
+
+        Self.frames(run, for: 3000, Self.onTheNotch, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open && run.frame.panel?.pressed == nil)
+        #expect(!run.holdsKeys)
+        run.step(Self.at(run, try Self.words(Self.helpDesk, run, setting), setting))
+        #expect(run.holdsKeys && run.keySnapshot == .panel(hold: 2))
+    }
+
     /// `z` on a Needs you row, of asks or of a turn alone, offers the row's Snooze beside the row, which stands where
     /// the list draws it, on either edge.
     @Test(arguments: [(Self.helpDesk, false), (Self.turn, false), (Self.helpDesk, true)])

@@ -3,8 +3,9 @@ import SitRepTestSupport
 import Testing
 
 /// When the tap listens (DESIGN, "Keys"): while it is meant on, and after, until the last key it took or rewrote comes
-/// up, so a key taken is taken whole though the panel closed under it; meant off, every new key goes through; and
-/// macOS turning it off turns it on again only while it listens, so it is never left on at rest.
+/// up, so a key taken is taken whole though the panel closed under it, or until another key goes down; meant off, every
+/// new key goes through; and macOS turning it off turns it on again only while it listens, so it is never left on at
+/// rest.
 @Suite(.backstop)
 struct TapGateTests {
     private static let holding = KeySnapshot.panel(hold: 1)
@@ -45,8 +46,8 @@ struct TapGateTests {
         #expect(gate.read(Self.k).verdict == .pass)
     }
 
-    /// Turned off with a taken key down, as the panel's grace closes it under a held `↓`: it stays enabled, a new key
-    /// going through, the held key's repeats and key-up going nowhere, and is disabled as that key comes up.
+    /// Turned off with a taken key down, as the panel's grace closes it under a held `↓`: it stays enabled, the held
+    /// key's repeats and key-up going nowhere, and is disabled as that key comes up.
     @Test func turnedOffWithATakenKeyDownItListensUntilThatKeyComesUp() {
         var gate = TapGate()
 
@@ -55,7 +56,6 @@ struct TapGateTests {
         #expect(gate.turn(on: false, deciding: Self.holding) == nil)
         #expect(gate.listens && gate.isEnabled)
 
-        #expect(gate.read(Self.k) == (.pass, nil))
         #expect(gate.read(Self.again(Self.down)) == (.take(nil), nil))
         #expect(gate.read(Self.up(Self.down)) == (.take(nil), false))
         #expect(!gate.listens && !gate.isEnabled)
@@ -80,6 +80,33 @@ struct TapGateTests {
         _ = gate.turn(on: false, deciding: .none)
         _ = gate.turn(on: true, deciding: .none)
         #expect(gate.read(Self.up(Self.down)).verdict == .take(nil))
+    }
+
+    /// A key-up it missed, as macOS turned it off meanwhile, leaves it listening at rest only until another key goes
+    /// down, at which macOS stops repeating the one held: that key goes through, and the tap goes off.
+    @Test func aMissedKeyUpLeavesItListeningOnlyUntilAnotherKeyGoesDown() {
+        var gate = TapGate()
+
+        _ = gate.turn(on: true, deciding: Self.holding)
+        _ = gate.read(Self.down)
+        _ = gate.turn(on: false, deciding: .none)
+        #expect(gate.listens)
+        #expect(gate.read(Self.k) == (.pass, false))
+        #expect(!gate.listens && !gate.isEnabled)
+    }
+
+    /// A hold a key let go of stays let go through the tap turning off and on: its keys go through, and the next hold
+    /// takes them.
+    @Test func aHoldLetGoOfStaysLetGoThroughOffAndOn() {
+        var gate = TapGate()
+
+        _ = gate.turn(on: true, deciding: Self.holding)
+        #expect(gate.read(TapKey(code: 0, typed: "a")).verdict == .letGo(hold: 1))
+        _ = gate.turn(on: false, deciding: .none)
+        _ = gate.turn(on: true, deciding: Self.holding)
+        #expect(gate.read(Self.k).verdict == .pass)
+        _ = gate.turn(on: true, deciding: .panel(hold: 2))
+        #expect(gate.read(Self.k).verdict == .take(.panel(.up)))
     }
 
     /// macOS turning it off, slow to answer or as input it can't see starts: on again while it is meant on, or a key

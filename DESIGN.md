@@ -6789,7 +6789,8 @@ though."
   `↑` `↓`, `k` `j`, `←` or `→` repeats, as a Mac menu's arrows do; any
   other key's repeats are dropped, so a held digit answers once. A panel
   closing under a key it took, as `esc` closes it, leaves the tap on,
-  taking no new key, until the last key it took comes up.
+  taking no new key, until the last key it took comes up, or another key
+  goes down, at which macOS stops repeating the one held.
 - macOS turns a tap off when it is slow to answer or as input it can't
   see starts; SitRep turns it on again as macOS tells it, for either,
   while it is on or a key it took is down.
@@ -6810,11 +6811,13 @@ the panel's, acting on the lit row, until:
   window in front, and the panel takes none until the pointer moves
   again, so typing into Ghostty with the pointer left on the panel goes
   on there from its first key the panel doesn't take;
-- a row jumps, by `o` or a click: what is typed next is for the window
-  jumped to, and no hold starts while the jump is under way;
-- the screens sleep, or the session goes to another user, so what is
-  typed on coming back goes to the window in front until the pointer
-  moves;
+- `o` is pressed, whether or not it jumps, or a click jumps: what is
+  typed next is for the window jumped to, and no hold starts while the
+  jump is under way;
+- the screens sleep, the screen locks, the session goes to another user,
+  or a window takes secure input, as the lock screen's password field and
+  a sudo prompt do, so what is typed on coming back goes to the window in
+  front until the pointer moves;
 - the panel closes.
 
 A panel that opens under a resting pointer holds nothing until the pointer
