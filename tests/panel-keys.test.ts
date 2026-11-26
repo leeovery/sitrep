@@ -1,5 +1,5 @@
 import { expect, test } from './kit'
-import { keysOf, type Key } from '../cli/panel/keys'
+import { keysOf, type Key, type Keys } from '../cli/panel/keys'
 import { NORDFOX } from './terminal'
 
 /** The kinds of the keys in the bytes, read whole. */
@@ -7,13 +7,16 @@ const kinds = (bytes: string, isQuiet = false) => keysOf(bytes, isQuiet).keys.ma
 
 const press = (kind: Exclude<Key['kind'], 'tap' | 'wheel'>): Key => ({ kind }) as Key
 
-/** The keys in the pieces, each read with what the one before left, and what the last leaves. */
-const readInPieces = (pieces: readonly string[]) =>
-  pieces.reduce<{ keys: Key[]; rest: string }>(
-    (sofar, piece) => {
-      const next = keysOf(sofar.rest + piece)
+/** Nothing more coming for 50 ms, between pieces: the quiet read the panel makes then. */
+const QUIET = Symbol('quiet')
 
-      return { keys: [...sofar.keys, ...next.keys], rest: next.rest }
+/** The keys in the pieces, each read with what the one before left, as the panel reads them, and what the last leaves. */
+const readInPieces = (pieces: readonly (string | typeof QUIET)[]) =>
+  pieces.reduce<Keys>(
+    (sofar, piece) => {
+      const next = piece === QUIET ? keysOf(sofar.rest, true, sofar.tail) : keysOf(sofar.rest + piece, false, sofar.tail)
+
+      return { keys: [...sofar.keys, ...next.keys], rest: next.rest, ...(next.tail === undefined ? {} : { tail: next.tail }) }
     },
     { keys: [], rest: '' },
   )
@@ -70,8 +73,8 @@ test('a sequence the bytes end inside is left to read with the next bytes, whole
 test('once nothing more has come, a lone ESC is esc, and the start of any other sequence is dropped', () => {
   expect(keysOf('\x1b', true)).toEqual({ keys: [press('esc')], rest: '' })
   expect(keysOf('j\x1b', true)).toEqual({ keys: [press('down'), press('esc')], rest: '' })
-  expect(keysOf('\x1b[', true)).toEqual({ keys: [], rest: '' })
-  expect(keysOf('\x1b]11;rgb:2e', true)).toEqual({ keys: [], rest: '' })
+  expect(keysOf('\x1b[', true)).toEqual({ keys: [], rest: '', tail: 'csi' })
+  expect(keysOf('\x1b]11;rgb:2e', true)).toEqual({ keys: [], rest: '', tail: 'string' })
 })
 
 test("a press of the mouse's first button is a tap at its cell, counted from 0; a release, another button, or a motion is nothing", () => {
@@ -98,6 +101,22 @@ test("an X10 mouse report, its three bytes after ESC [ M, is read as SGR's is, n
   expect(kinds("\x1b[M#%'\x1b[M!%'j"), 'a release and the second button').toEqual(['down'])
   expect(keysOf('\x1b[M q')).toEqual({ keys: [], rest: '\x1b[M q' })
   expect(readInPieces(['\x1b[M', ' ', 'q!', 'k']).keys).toEqual([{ kind: 'tap', x: 80, y: 0 }, press('up')])
+})
+
+test("a start dropped once nothing more came has its tail swallowed as it comes, however late and in however many pieces, so a cut report's digits are never keys", () => {
+  expect(readInPieces(['\x1b[<64;12', QUIET, ';5M', 'j'])).toEqual({ keys: [press('down')], rest: '' })
+  expect(readInPieces(['\x1b[1;', QUIET, '5A1']).keys, 'Ctrl+Up').toEqual([{ kind: 'digit', n: 1 }])
+  expect(readInPieces(['\x1b[<0;1', QUIET, '2', QUIET, ';5', 'M', 'k']).keys, 'a click').toEqual([press('up')])
+  expect(readInPieces(['\x1b[M ', QUIET, '%', "'", '3']).keys, 'X10').toEqual([{ kind: 'digit', n: 3 }])
+  expect(readInPieces(['\x1bO', QUIET, 'A', 'j']).keys, 'SS3').toEqual([press('down')])
+  expect(readInPieces(['\x1b]11;rgb:2e2e/', QUIET, '3434/4040\x07', 'k']).keys, 'a colour').toEqual([press('up')])
+  expect(readInPieces(['\x1b]11;rgb:2e', QUIET, '2e\x1b\\', 'k']).keys, 'ended by ST').toEqual([press('up')])
+})
+
+test("a byte a dropped start's tail can't hold ends it, and is read on its own; a lone ESC is still esc", () => {
+  expect(readInPieces(['\x1b[<64;12', QUIET, '\x03']).keys).toEqual([press('quit')])
+  expect(readInPieces(['\x1b]11;rgb', QUIET, 'j']).keys).toEqual([press('down')])
+  expect(readInPieces(['\x1b', QUIET, '1'])).toEqual({ keys: [press('esc'), { kind: 'digit', n: 1 }], rest: '' })
 })
 
 test('a paste is never keys, however many pieces it comes in, its end split among them; what it holds meanwhile stays short', () => {

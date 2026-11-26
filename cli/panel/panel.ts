@@ -72,7 +72,7 @@ import type { Size } from './cells'
 import { COLOUR_QUERY, paintOf } from './colours'
 import { ansi, draw } from './draw'
 import { handed, readied } from './edge'
-import { keysOf, type Key } from './keys'
+import { keysOf, type Key, type Tail } from './keys'
 import { levelOf, type Paint } from './paint'
 import { noticesOf } from './notices'
 import { reachOf } from './reach'
@@ -134,18 +134,20 @@ type Later = (ms: number, act: () => void) => () => void
 /**
  * The keys in bytes as they come: a sequence cut short held for the next
  * bytes, and read as all there is once ESC_MS pass with nothing more, so a
- * lone ESC is `esc`.
+ * lone ESC is `esc`, and the tail of any other swallowed as it comes.
  */
 const keyReader = (later: Later, pressed: (key: Key) => void) => {
   let rest = ''
+  let tail: Tail | undefined
   let letQuietGo = () => {}
 
   const read = (bytes: string, isQuiet: boolean) => {
     letQuietGo()
 
-    const found = keysOf(rest + bytes, isQuiet)
+    const found = keysOf(rest + bytes, isQuiet, tail)
 
     rest = found.rest
+    tail = found.tail
     letQuietGo = !isQuiet && rest !== '' ? later(ESC_MS, () => read('', true)) : () => {}
     found.keys.forEach(pressed)
   }
@@ -155,6 +157,7 @@ const keyReader = (later: Later, pressed: (key: Key) => void) => {
     stop: () => {
       letQuietGo()
       rest = ''
+      tail = undefined
     },
   }
 }

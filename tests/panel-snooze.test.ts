@@ -143,6 +143,23 @@ test(
 )
 
 test(
+  'with the menu open but drawn on no line, an answer filling the body, neither a digit nor ⏎ chooses: nothing is written, the menu stays',
+  inLondon(() => {
+    const open = pressed(onRow(read(board(), { width: 40, height: 8 }), 0), Z)
+    const crowded = stepped(open, { written: 'Something else now waits on you in Help desk redesign. '.repeat(8) })
+
+    expect(layoutIn(open).menu?.lines).toBeGreaterThan(0)
+    expect(layoutIn(crowded).menu?.lines ?? 0).toBe(0)
+
+    for (const key of [digit(1), ENTER]) {
+      const after = step(crowded, { key })
+
+      expect([after.write, after.state.menu], JSON.stringify(key)).toEqual([undefined, open.menu])
+    }
+  }),
+)
+
+test(
   'a digit chooses by its number wherever the menu is scrolled, its pick aside',
   inLondon(() => {
     const short = stepped(read(board(), { width: 39, height: 8 }), { snoozeSettings: WEEKEND })
