@@ -12,7 +12,7 @@ import Testing
 /// the pointer moving taking it back; and each row key does what its click does: `⏎` the arrow, `o` the words, `z` the
 /// row's Snooze or Wake now, `s` Snoozed's eyebrow, `esc` a click elsewhere. With the asks panel open, `↑` `↓` move
 /// and close it, `⏎` and `esc` close it, and closed by a key under the pointer, it holds the panel until the pointer
-/// moves.
+/// moves; its other keys are `AsksPanelKeysRunTests`'.
 @Suite(.backstop)
 struct NotchKeysRunTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
@@ -415,19 +415,12 @@ struct NotchKeysRunTests {
         }
     }
 
-    /// `o` with no row lit jumps nowhere and still ends the hold, as the tap ended it as it took `o`; so does `o` with
-    /// the asks panel open, where it does nothing yet.
-    @Test(arguments: [false, true])
-    func oEndsTheHoldThoughItJumpsNowhere(asksOpen: Bool) throws {
+    /// `o` with no row lit jumps nowhere and still ends the hold, as the tap ended it as it took `o`.
+    @Test func oEndsTheHoldThoughItJumpsNowhere() throws {
         let run = Self.opened(), setting = Self.setting(), eyebrow = run.list.content.laidFrame(0)
-        let pointer = try asksOpen
-            ? Self.words(Self.helpDesk, run, setting) : Self.onStage(60, eyebrow.midY, run, setting)
+        let pointer = try Self.onStage(60, eyebrow.midY, run, setting)
 
         run.step(Self.at(run, pointer, setting))
-        if asksOpen {
-            Self.press(.enter, run, pointer)
-            try #require(run.asksShown != nil)
-        }
         try #require(run.holdsKeys)
         #expect(Self.press(.open, run, pointer) == nil)
         #expect(!run.holdsKeys && run.keySnapshot == .none && run.phase == .open)
@@ -541,17 +534,6 @@ struct NotchKeysRunTests {
         #expect(run.asksShown == nil)
         Self.frames(run, for: 500, pointer, Self.setting())
         #expect(run.phase == .open)
-    }
-
-    @Test(arguments: [PanelKey.open, .snooze, .fold, .ignore, .left, .right, .digit(1)])
-    func withTheAsksPanelOpenEveryOtherKeyDoesNothing(_ key: PanelKey) throws {
-        let (run, pointer) = try Self.holding()
-
-        Self.press(.enter, run, pointer)
-        #expect(Self.press(key, run, pointer) == nil)
-        #expect(run.asksShown?.row == Self.helpDesk && run.asksShown?.page == 0)
-        #expect(!run.folded.sections.contains(.snoozed))
-        #expect(run.frame.panel?.pressed == nil)
     }
 
     /// Closed by a key with the pointer on it, the asks panel holds the panel as if the pointer rested there, until

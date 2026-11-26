@@ -11,8 +11,9 @@ import Testing
 /// to read beside Paper's boards E2, F, H3 and A2: the pointer on a Needs you row's words, then on its arrow; the asks
 /// panel on a session's choice, and on a words ask; and an answer sending, its countdown under way; a choice whose
 /// pick wraps to two lines, the pointer off it and on it; and a choice mid-swipe, the yes beside it sliding in. At the
-/// right edge, the pointer on a row's arrow at its left end, and the asks panel open from it. Only when
-/// `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing.
+/// right edge, the pointer on a row's arrow at its left end, and the asks panel open from it. While the panel holds the
+/// keys: the choice and the two-line pick with their keycaps, an answer sending with them gone, and the choice on the
+/// right edge. Only when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing.
 @MainActor
 @Suite(.backstop, .enabled(if: stills != nil))
 struct AsksPanelStillsTests {
@@ -36,10 +37,11 @@ struct AsksPanelStillsTests {
         )
     }
 
-    private static func setting(on edge: ScreenEdge) -> NotchRun.Setting {
+    /// What the run runs in on this edge, the Mac letting the panel take keys where it `takesKeys`.
+    private static func setting(on edge: ScreenEdge, takesKeys: Bool = false) -> NotchRun.Setting {
         NotchRun.Setting(
             stage: edge.stage, mirror: edge.mirror(wide: true), style: settings.style, reducesMotion: false,
-            isChosen: true
+            isChosen: true, takesKeys: takesKeys
         )
     }
     private static let helpDesk = "needs:sr-nw0001", shifts = "needs:sr-ct0002", onboarding = "needs:sr-tw0006"
@@ -141,6 +143,52 @@ struct AsksPanelStillsTests {
         try Self.shoot(run, pointer: try Self.onTitle(run, setting), as: "10-right-asks-choice", on: edge)
     }
 
+    // MARK: Keycaps
+
+    private static let keys = setting(on: edge, takesKeys: true)
+
+    @Test
+    func theKeycapsOnAChoice() throws {
+        let run = try Self.opened(Self.keys)
+
+        try Self.open(Self.helpDesk, run, Self.keys)
+        try #require(run.asksShown?.keycaps == true)
+        try Self.shoot(run, pointer: try Self.onTitle(run), as: "11-keys-choice", in: Self.keys)
+    }
+
+    @Test
+    func theKeycapsOnATwoLinePick() throws {
+        let run = try Self.opened(Self.keys)
+
+        try Self.open(Self.onboarding, run, Self.keys)
+        try Self.shoot(run, pointer: try Self.onTitle(run), as: "12-keys-pick", in: Self.keys)
+    }
+
+    /// "Sending" the two-line pick, held 800ms before, the panel holding the keys: the keycaps gone, the held row's
+    /// check in its keycap's room on its first line.
+    @Test
+    func anAnswerSendingWhileThePanelHoldsTheKeys() throws {
+        let run = try Self.opened(Self.keys), at = Date(timeIntervalSince1970: Self.now / 1000 - 0.8)
+        let pairing = Answering(.words(Self.pairing), to: "k1", of: "sr-tw0006", wanting: .choice)
+
+        try Self.open(Self.onboarding, run, Self.keys)
+        run.heard(
+            .held(HeldAnswer(answering: pairing, heldAt: at, goesAt: at.addingTimeInterval(2))),
+            NotchRun.Moment(time: run.time + Self.frameMS, pointer: try Self.onTitle(run), setting: Self.keys)
+        )
+        try #require(run.holdsKeys && run.asksShown?.keycaps == false)
+        try Self.shoot(run, pointer: try Self.onTitle(run), as: "13-keys-sending", in: Self.keys)
+    }
+
+    @Test
+    func onTheRightEdgeTheKeycapsOnAChoice() throws {
+        let edge = Self.edge(.right), setting = Self.setting(on: edge, takesKeys: true)
+        let run = try Self.opened(setting)
+
+        try Self.open(Self.helpDesk, run, setting)
+        try Self.shoot(run, pointer: try Self.onTitle(run, setting), as: "14-keys-right-choice", on: edge, in: setting)
+    }
+
     // MARK: The run
 
     /// The run over the board, its panel poured out and settled under the pointer held at the notch's home.
@@ -216,8 +264,10 @@ struct AsksPanelStillsTests {
 
     /// The run moved on a few frames with the pointer here, drawn, and shot from the screen's edge past the asks panel,
     /// over the panel's height and the asks panel's, with room round them.
-    private static func shoot(_ run: NotchRun, pointer: CGPoint, as name: String, on edge: ScreenEdge = edge) throws {
-        let folder = try #require(stills), surface = NotchSurface(), setting = setting(on: edge)
+    private static func shoot(
+        _ run: NotchRun, pointer: CGPoint, as name: String, on edge: ScreenEdge = edge, in setting: NotchRun.Setting? = nil
+    ) throws {
+        let folder = try #require(stills), surface = NotchSurface(), setting = setting ?? Self.setting(on: edge)
         let window = edge.window(wide: true).size, onRight = edge.edge == .right
 
         step(run, for: 6 * frameMS, pointer: pointer, setting)

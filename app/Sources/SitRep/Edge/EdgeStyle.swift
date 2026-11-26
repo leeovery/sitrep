@@ -67,12 +67,15 @@ enum EdgeStyle {
     static let pickTag = srgb(0x9AA2EE)
     static let dot = srgb(0x3A3A40)
     static let onWhite = srgb(0x111113)
+    /// An answer's keycap, while the panel holds the keys.
+    static let keycap = srgb(0x2C2C31)
     /// The asks panel's type: the session's name, the ask's title, an answer's words and its pick's "Recommended",
-    /// and the foot's words, medium and regular.
+    /// a keycap's number, and the foot's words, medium and regular.
     static let asksName = NSFont.systemFont(ofSize: 12, weight: .semibold)
     static let asksTitle = NSFont.systemFont(ofSize: 17, weight: .semibold)
     static let asksLabel = NSFont.systemFont(ofSize: 13, weight: .medium)
     static let asksNote = NSFont.systemFont(ofSize: 11, weight: .medium)
+    static let asksKeycap = NSFont.systemFont(ofSize: 11, weight: .semibold)
     static let asksFoot = NSFont.systemFont(ofSize: 12, weight: .medium)
     static let asksFootPlain = NSFont.systemFont(ofSize: 12, weight: .regular)
     /// The ask's title spaced at -0.02em.

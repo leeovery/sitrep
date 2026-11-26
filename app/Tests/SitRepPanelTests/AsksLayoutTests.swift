@@ -5,7 +5,9 @@ import Testing
 
 /// Where the asks panel lays out an ask, as Paper's boards F and H3 have it: 12 over its top line of 28, 14 between
 /// its parts, the title's lines of 22 and the age's 16 under it, answers' rows six apart, each 38 or as tall as its
-/// two lines of 18 with 9 above and below, the foot's 28 and 14 under it; a words ask's foot straight under its age;
+/// two lines of 18 with 9 above and below, their words 12 from the left and 40 from the right, the keycap's room, and
+/// the keycap there, the held answer's check in it, the foot's 28 and 14 under it; a words ask's foot straight under
+/// its age;
 /// Snooze ▾ only while Snooze offers a time; the page dots, following a slide, and the clicks each takes; what else
 /// takes a click; where it stands beside its row, kept on the screen, at the height a slide gives it; and the row's
 /// arrow.
@@ -49,18 +51,32 @@ struct AsksLayoutTests {
         #expect(layout.height == oneLine.height + 32)
     }
 
-    /// Its lines on the row's middle, 12 in from its sides; the held answer's check 11 across at its trailing end, 12
-    /// in, on the middle.
-    @Test func anAnswersLinesSitOnItsRowsMiddleItsCheckAtItsEnd() {
+    /// Its lines on the row's middle, 12 in from its left and 40 from its right, keycap or none, so its words wrap
+    /// alike as keycaps come and go.
+    @Test func anAnswersLinesSitOnItsRowsMiddleLeavingItsKeycapRoom() {
         let row = CGSize(width: 348, height: 54)
 
+        #expect(AsksLayout.answerWidth == 296)
         #expect(AsksLayout.answerBoxes(in: row, lines: 2) == [
-            CGRect(x: 12, y: 9, width: 324, height: 18), CGRect(x: 12, y: 27, width: 324, height: 18),
+            CGRect(x: 12, y: 9, width: 296, height: 18), CGRect(x: 12, y: 27, width: 296, height: 18),
         ])
         #expect(AsksLayout.answerBoxes(in: CGSize(width: 348, height: 38), lines: 1) == [
-            CGRect(x: 12, y: 10, width: 324, height: 18),
+            CGRect(x: 12, y: 10, width: 296, height: 18),
         ])
-        #expect(AsksLayout.check(in: row) == CGRect(x: 325, y: 21.5, width: 11, height: 11))
+    }
+
+    /// The keycap 20 across, 12 in from the row's right, centred on its first line, clear of the words' 40; the held
+    /// answer's check 11 across, centred in the keycap's room.
+    @Test func theKeycapEndsTheRowOnItsFirstLineAndTheCheckTakesItsRoom() {
+        let one = CGSize(width: 348, height: 38), two = CGSize(width: 348, height: 54)
+        let firstLine = AsksLayout.answerBoxes(in: two, lines: 2)[0]
+
+        #expect(AsksLayout.keycap(in: one, lines: 1) == CGRect(x: 316, y: 9, width: 20, height: 20))
+        #expect(AsksLayout.keycap(in: two, lines: 2) == CGRect(x: 316, y: 8, width: 20, height: 20))
+        #expect(AsksLayout.keycap(in: two, lines: 2).midY == firstLine.midY)
+        #expect(AsksLayout.keycap(in: one, lines: 1).minX >= 12 + AsksLayout.answerWidth)
+        #expect(AsksLayout.check(in: one, lines: 1) == CGRect(x: 320.5, y: 13.5, width: 11, height: 11))
+        #expect(AsksLayout.check(in: two, lines: 2) == CGRect(x: 320.5, y: 12.5, width: 11, height: 11))
     }
 
     /// Lee switched every Snooze time off, or each has passed for today: no Snooze ▾, and nothing takes a click where
@@ -115,6 +131,24 @@ struct AsksLayoutTests {
         #expect(part(layout.open, false) == .open)
         #expect(part(layout.answers[0], true) == nil)
         #expect(part(layout.undo, true) == .undo)
+    }
+
+    /// Where a key presses each part, the dots where a slide has brought them; none for a part it lacks.
+    @Test func eachPartHasTheBoxAKeyPresses() throws {
+        let layout = AsksLayout(Self.choice, measure: Self.measure)
+        let none = AsksLayout(Self.choice, measure: Self.measure, offersSnooze: false)
+
+        #expect(layout.box(of: .answer(1), progress: 0, of: 2) == layout.answers[1])
+        #expect(layout.box(of: .answer(2), progress: 0, of: 2) == nil)
+        #expect(layout.box(of: .ignore, progress: 0, of: 2) == layout.ignore)
+        #expect(layout.box(of: .snooze, progress: 0, of: 2) == layout.snooze)
+        #expect(none.box(of: .snooze, progress: 0, of: 2) == nil)
+        #expect(layout.box(of: .open, progress: 0, of: 2) == layout.open)
+        #expect(layout.box(of: .undo, progress: 0, of: 2) == layout.undo)
+        #expect(layout.box(of: .page(1), progress: 0.5, of: 2) == layout.dots(at: 0.5, of: 2)[1])
+        #expect(layout.box(of: .page(2), progress: 0, of: 2) == nil)
+        #expect(layout.box(of: .page(-1), progress: 0, of: 2) == nil)
+        #expect(layout.box(of: .page(0), progress: 0, of: 1) == nil)
     }
 
     /// At the top line's right, the current one 14 wide and orange, the others 5, 4 apart, ending where its words do;

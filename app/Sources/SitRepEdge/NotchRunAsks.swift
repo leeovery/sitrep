@@ -5,9 +5,17 @@ import SitRepPanel
 /// The asks panel in the notch's run (DESIGN, "Answering from the panel"): where it stands at each input, what a press
 /// is on there, the rows' arrows that open it, and what the notch is told of it.
 extension NotchRun {
-    /// The asks panel as the last frame or input placed it, beside its row, the part of it under the pointer lit; nil
-    /// while it is closed.
-    public var asksShown: AsksShown? { asking.shown }
+    /// The asks panel as the last frame or input placed it, beside its row, the part of it under the pointer lit, its
+    /// answers showing their keycaps while the panel holds the keys, no menu holds the card and no answer is held, when
+    /// the digits answer; nil while it is closed.
+    public var asksShown: AsksShown? {
+        asking.shown.map { shown in
+            var shown = shown
+
+            shown.keycaps = hold.isOn && menuAt == nil && !asking.isHolding
+            return shown
+        }
+    }
 
     /// The rows' arrows that show, by their rows' keys, each lit or not: the lit row's, where the asks panel answers an
     /// ask of its session, lit with the pointer on it; and, lit, the arrow of the row whose asks panel is open. None
@@ -76,10 +84,31 @@ extension NotchRun {
     /// A press on the asks panel (`AsksPanel.press`): Open in Claude jumps as the row does, closing it. Nowhere on it
     /// carries the notch.
     func pressAsks(at point: CGPoint, in setting: Setting) -> Press? {
-        let press = asking.press(
+        pressed(asking.press(
             at: point, panelRows, board, mirror: setting.mirror, reducesMotion: setting.reducesMotion, at: time
+        ))
+    }
+
+    /// A key pressing a part of the asks panel (`AsksPanel.key`), coming to what a press on the part does. Snooze ▾'s
+    /// menu opens from its foot at rest: its asks stop sliding first, so the menu stands under Snooze ▾ as drawn and
+    /// the card is held at its middle, on the asks panel, whatever height the slide had brought it to.
+    func keyAsks(_ part: AsksPart, in setting: Setting) -> Press? {
+        let press = asking.key(
+            part, panelRows, board, mirror: setting.mirror, reducesMotion: setting.reducesMotion, at: time
         )
 
+        guard case let .snooze(ask, of: session, at: _)? = press else {
+            return pressed(press)
+        }
+
+        asking.rest()
+        placeAsks(in: setting)
+        return asking.shown
+            .flatMap { shown in shown.middle(of: .snooze).map { shown.stagePoint($0, mirror: setting.mirror) } }
+            .map { .snooze(ask: ask, of: session, at: $0) }
+    }
+
+    private func pressed(_ press: AsksPress?) -> Press? {
         switch press {
         case .paged?: return .asks
         case let .answer(answering)?: return .answer(answering)

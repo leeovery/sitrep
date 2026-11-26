@@ -4,7 +4,7 @@ import SitRepPanel
 
 /// The asks panel as a frame shows it (DESIGN, "Answering from the panel"), for the drawing: beside which row, one ask
 /// of the row's session and its page among them, laid out, where it stands on the stage, the answer held for that ask,
-/// and what the pointer is on.
+/// what the pointer is on, and whether its answers show their keycaps.
 public struct AsksShown: Equatable, Sendable {
     /// The row it opened beside, by its key: lit, its arrow lit, while it is open.
     public let row: String
@@ -26,6 +26,9 @@ public struct AsksShown: Equatable, Sendable {
     /// The ask beside its own as it slides, sliding in or out on the side it is slid toward; nil at rest, or past the
     /// first or the last ask.
     public internal(set) var beside: Beside?
+    /// Whether its answers' rows show their numbers in keycaps: while the panel holds the keys, no menu holds the card
+    /// and no answer is held, when the digits answer (DESIGN, "Keys").
+    public internal(set) var keycaps = false
 
     /// An ask beside the one shown as the asks slide: its page among the session's, laid out, the answer held for it.
     public struct Beside: Equatable, Sendable {
@@ -50,7 +53,8 @@ public struct AsksShown: Equatable, Sendable {
         beside.map { beside in
             AsksShown(
                 row: row, session: session, ask: beside.ask, page: beside.page, pages: pages, layout: beside.layout,
-                frame: CGRect(origin: .zero, size: beside.layout.size), sending: beside.sending, hover: nil
+                frame: CGRect(origin: .zero, size: beside.layout.size), sending: beside.sending, hover: nil,
+                keycaps: keycaps
             )
         }
     }
@@ -76,6 +80,19 @@ public struct AsksShown: Equatable, Sendable {
     public func ownPoint(_ point: CGPoint, mirror: CGAffineTransform) -> CGPoint {
         let drawn = frame.applying(mirror), at = point.applying(mirror)
         return CGPoint(x: at.x - drawn.minX, y: at.y - drawn.minY)
+    }
+
+    /// The middle of a part in its own frame, its page dots where its slide has brought them; none where it has no such
+    /// part.
+    func middle(of part: AsksPart) -> CGPoint? {
+        layout.box(of: part, progress: progress, of: pages).map { CGPoint(x: $0.midX, y: $0.midY) }
+    }
+
+    /// A point in its own frame on the stage, as drawn through the edge's mirror: `ownPoint` the other way.
+    func stagePoint(_ own: CGPoint, mirror: CGAffineTransform) -> CGPoint {
+        let drawn = frame.applying(mirror)
+
+        return CGPoint(x: drawn.minX + own.x, y: drawn.minY + own.y).applying(mirror.inverted())
     }
 
     /// The same showing at the stage's corner at rest: what its parts draw, wherever it stands and however far it has
