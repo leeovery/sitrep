@@ -222,6 +222,53 @@ struct KeyReaderTests {
         #expect(reader.read(Self.typing("z", .maskCommand), in: Self.undoing) == .take(.panel(.undo)))
     }
 
+    // MARK: The shortcut's hold
+
+    private static let summoned = KeySnapshot.panel(hold: 1, takesAll: true)
+
+    /// The shortcut's hold takes every key pressed alone: a key of the set acts as under a hover's hold, and any other,
+    /// Shift's among them, is taken and does nothing, where a hover's hold lets it through.
+    @Test func theShortcutsHoldTakesAKeyOutsideTheSetAndDoesNothingWithIt() {
+        var reader = KeyReader()
+
+        #expect(reader.read(Self.typing("k"), in: Self.summoned) == .take(.panel(.up)))
+        #expect(reader.read(Self.typing("a"), in: Self.summoned) == .take(nil))
+        #expect(reader.read(Self.typing("0"), in: Self.summoned) == .take(nil))
+        #expect(reader.read(Self.typing("A", .maskShift), in: Self.summoned) == .take(nil))
+        #expect(reader.read(Self.code(KeyCode.down, flags: .maskShift), in: Self.summoned) == .take(nil))
+        #expect(reader.read(Self.typing("z"), in: Self.summoned) == .take(.panel(.snooze)))
+    }
+
+    /// Taken whole, as any key taken: its repeats and its key-up go nowhere.
+    @Test func aKeyTheShortcutsHoldTakesIsTakenWhole() {
+        var reader = KeyReader()
+
+        #expect(reader.read(Self.typing("a"), in: Self.summoned) == .take(nil))
+        #expect(reader.read(Self.typing("a", [], .again), in: Self.summoned) == .take(nil))
+        #expect(reader.read(Self.typing("a", [], .up), in: .none) == .take(nil))
+    }
+
+    /// A key with ⌘, ⌃ or ⌥ goes through and ends the hold, which closes the panel; the keys after it go through too,
+    /// though the main thread has yet to hear of it.
+    @Test(arguments: [CGEventFlags.maskCommand, .maskControl, .maskAlternate, [.maskCommand, .maskShift]])
+    func aKeyWithCommandControlOrOptionGoesThroughAndEndsTheShortcutsHold(_ modifier: CGEventFlags) {
+        var reader = KeyReader()
+
+        #expect(reader.read(Self.typing("t", modifier), in: Self.summoned) == .letGo(hold: 1))
+        #expect(reader.read(Self.typing("a"), in: Self.summoned) == .pass)
+        #expect(reader.read(Self.typing("k"), in: Self.summoned) == .pass)
+    }
+
+    /// `⌘Z` while an answer is sending is the panel's in the shortcut's hold too.
+    @Test func commandZWhileSendingIsThePanelsInTheShortcutsHold() {
+        var reader = KeyReader()
+
+        #expect(
+            reader.read(Self.typing("z", .maskCommand), in: .panel(hold: 1, undoes: true, takesAll: true))
+                == .take(.panel(.undo))
+        )
+    }
+
     // MARK: A snooze menu on its own
 
     @Test func inASnoozeMenuItsDigitsChooseUpToItsLastAndPastItDoNothing() {

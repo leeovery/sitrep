@@ -319,6 +319,22 @@ final class NotchController: NSObject, CalloutShape {
         took()
     }
 
+    /// The shortcut (DESIGN, "Keys"): while the notch shows, its panel opens, holding the keys where the Mac lets it,
+    /// read first so it holds them as it opens; or, out, it closes (`NotchRun.summon`). Whether the notch took it:
+    /// hidden, under Nothing or a full-screen app, it takes nothing.
+    func summon() -> Bool {
+        guard isShown else {
+            return false
+        }
+
+        if !run.isOut {
+            keys.willOpen()
+        }
+        run.summon(moment())
+        took()
+        return true
+    }
+
     /// A key of the set while the panel holds the keys: what it does, by the paths a click takes (`NotchRun.key`).
     /// Internal only for the tests, which give the pointer on the stage.
     func heard(_ key: PanelKey, pointer: CGPoint? = nil) {

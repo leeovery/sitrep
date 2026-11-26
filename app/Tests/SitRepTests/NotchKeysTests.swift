@@ -405,7 +405,7 @@ struct NotchKeysTests {
         notch.heard(.held(HeldAnswer(answering: ship, heldAt: now, goesAt: now.addingTimeInterval(2))))
         notch.step(at: next(), pointer: pointer)
         try #require(notch.run.asksShown?.sending != nil)
-        guard case .panel(_, undoes: true) = tap.snapshot else {
+        guard case .panel(_, undoes: true, _) = tap.snapshot else {
             Issue.record("the tap was not told the sending line undoes: \(tap.snapshot)")
             return
         }
@@ -415,7 +415,7 @@ struct NotchKeysTests {
 
         notch.heard(.undone(ship))
         notch.step(at: next(), pointer: pointer)
-        guard case let .panel(hold, undoes: false) = tap.snapshot else {
+        guard case let .panel(hold, undoes: false, _) = tap.snapshot else {
             Issue.record("the tap was still told the sending line undoes: \(tap.snapshot)")
             return
         }
@@ -439,6 +439,61 @@ struct NotchKeysTests {
 
         notch.menuWillOpen(menu)
         #expect(notch.surface.scene?.asks?.keycaps == false)
+    }
+
+    // MARK: The shortcut
+
+    /// A notch on the far-off display over the board, at rest closed, shown unless `isShown` says.
+    private static func closed(_ world: KeysWorld, isShown: Bool = true) -> NotchController {
+        let notch = NotchController(EdgeSettings(), on: display, folding: Folding(), keys: world.mac) { SnoozeSettings() }
+
+        notch.isShown = isShown
+        notch.show(board())
+        return notch
+    }
+
+    /// Hidden, as under Nothing or a full-screen app, the notch takes no shortcut, for the menu bar's menu to open.
+    @Test func hiddenTheNotchTakesNoShortcut() {
+        let world = KeysWorld(), notch = Self.closed(world, isShown: false)
+
+        defer { notch.window.close() }
+        #expect(!notch.summon())
+        #expect(notch.run.phase == .closed && world.taps.isEmpty)
+    }
+
+    /// The shortcut reads the leave and makes the tap before the panel opens, so the tap holds every key from the
+    /// shortcut on, before a frame draws; the shortcut again closes it and lets the keys go.
+    @Test func theShortcutOpensThePanelHoldingEveryKeyAtOnce() throws {
+        let world = KeysWorld(), notch = Self.closed(world)
+
+        defer { notch.window.close() }
+        #expect(notch.summon())
+        #expect(notch.run.phase == .opening)
+
+        let tap = try #require(world.taps.first)
+
+        #expect(tap.isOn && tap.snapshot == .panel(hold: 1, takesAll: true))
+        #expect(tap.read(TapKey(code: 0, typed: "a")) == .take(nil))
+        #expect(tap.read(TapKey(code: 0, typed: "a", stroke: .up)) == .take(nil))
+
+        #expect(notch.summon())
+        #expect(notch.run.phase == .closing && tap.snapshot == KeySnapshot.none)
+    }
+
+    /// Without the leave, or under secure input, the panel opens holding nothing, each key going to the window in front.
+    @Test(arguments: [(false, false), (true, true)])
+    func withoutTheLeaveOrUnderSecureInputTheShortcutsPanelHoldsNothing(isTrusted: Bool, isSecure: Bool) {
+        let world = KeysWorld()
+
+        world.isTrusted = isTrusted
+        world.isSecure = isSecure
+
+        let notch = Self.closed(world)
+
+        defer { notch.window.close() }
+        #expect(notch.summon())
+        #expect(notch.run.phase == .opening && !notch.run.holdsKeys)
+        #expect(world.taps.allSatisfy { $0.snapshot == KeySnapshot.none })
     }
 
     /// `z` on a Needs you row offers the row's Snooze times numbered, a choice snoozing its session, naming the asks the

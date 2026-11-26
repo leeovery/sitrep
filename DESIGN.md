@@ -6943,9 +6943,23 @@ anywhere, with no pointer:
   nothing, with no row lit, until the shortcut again, a click elsewhere,
   or the pointer coming onto it and leaving.
 - With Show set to Nothing, it opens the menu bar item's menu, whose keys
-  are AppKit's.
+  are AppKit's; so it does while a full-screen app hides the notch (the
+  build, 26 November 2026).
 - Only Lee opens it: SitRep never opens anything by itself (see
   "Answering from the panel").
+
+Settled in the build (26 November 2026):
+- The hold starts with the shortcut, so a key pressed as the panel still
+  pours is taken, and acts as it would on the open panel.
+- Shift held makes a key no chord: in the shortcut's hold, `A` is taken
+  and does nothing, as `a` is. Only ⌘, ⌃ or ⌥ close the panel.
+- `o` with no row to jump to closes the panel all the same.
+- A pointer resting where the panel pours has not come onto it: only a
+  move onto the panel or the notch counts.
+- Saved under "app" as `shortcut`, the key's code and Carbon's modifier
+  bits, `{"code":1,"modifiers":6144}` for ⌃⌥S; cleared,
+  `{"cleared":true}`, so a cleared shortcut never reads back as ⌃⌥S. A
+  value that is neither reads as ⌃⌥S.
 
 **The terminal view** keeps its keys (see "The board in a terminal") and
 adds `1`–`9` to its snooze menu, each choice drawn with its number before
@@ -6986,6 +7000,20 @@ window and About SitRep keep the Mac's (⌘, ⌘W ⌘[ ⌘]).
   controls being the system's. It refuses a shortcut with no ⌘ or ⌃,
   which macOS 15 refuses a hot key of ⌥ or ⌥⇧ alone, and a plain key
   would take from typing.
+  The build (26 November 2026) makes it of the system's parts: the
+  rounded text field, 150 wide, the shortcut centred in it in the Mac's
+  glyphs, ⌃⌥⇧⌘ in that order, then the key as the menus name it (⌃⌥S,
+  ⌘↩, ⌘Space, ⌃F5); the clear button, `xmark.circle.fill` in the
+  tertiary grey, inside its right end while a shortcut is set. Cleared,
+  it reads "Record shortcut" in the placeholder's grey. A click records:
+  the focus ring, "Type shortcut" in the placeholder's grey, and the
+  modifiers held shown in its place as they are pressed. The next key
+  with ⌘ or ⌃ is saved and ends it; ⌘W and ⌘Q are taken too, before the
+  menus see them. A key with neither leaves it recording, the row's line
+  "Use ⌘ or ⌃" until a key is taken or it stops. `esc` alone, a click
+  away, or the window going to the back cancels it. While it records,
+  the hot key is let go, so the shortcut set records rather than opening
+  the panel.
 
 **The build** (26 November 2026), a PR at a time, each reviewed and merged
 before the next that shares its code:

@@ -25,6 +25,10 @@ public protocol Notch: AnyObject {
     func jumpAnswered()
     /// A click anywhere off the panel and the notch closes it at once.
     func clickElsewhere()
+    /// The shortcut (DESIGN, "Keys"): the panel opens as a hover opens it, with no reach toward the pointer, and stays
+    /// open wherever the pointer is: only a click, a key, or the pointer coming onto it and leaving closes it, its
+    /// grace starting only then. Not while a drag has the notch, nor while the panel is out: whether it opened.
+    @discardableResult func summon() -> Bool
     /// A drag carries the notch, as the prototypes' does: the panel closes and the notch lifts off the edge.
     func carry()
     /// The drag has the notch's home this far down the stage: the notch follows it on a 50ms spring, inside the band.
@@ -92,6 +96,13 @@ protocol NotchModel: Notch, SimModel where TimerName: ClickTimers {
     /// The outline as last drawn, which a cross-fade fades out.
     var lastOutline: CGPath? { get }
 
+    /// Whether a drag leaves the notch free to open.
+    var isFree: Bool { get }
+    /// The shortcut opened the panel and the pointer has yet to come onto it: until it does, nothing starts the grace.
+    var awaitsPointer: Bool { get set }
+
+    /// The panel comes out, as a hover or the shortcut opens it.
+    func open()
     /// The panel goes in, as a click elsewhere or a jump sends it.
     func close()
 }
@@ -127,6 +138,17 @@ extension NotchModel {
         if isLive {
             close()
         }
+    }
+
+    @discardableResult
+    public func summon() -> Bool {
+        guard isFree, !isLive else {
+            return false
+        }
+
+        open()
+        awaitsPointer = true
+        return true
     }
 }
 

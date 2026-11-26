@@ -55,6 +55,7 @@ extension Card {
     /// seats in `updateMotion`. Under reduced motion it cross-fades to the notch.
     func close() {
         cancel(.dwell, .grace)
+        awaitsPointer = false
         // a pointer left sitting on the notch doesn't reopen it until it leaves
         contact.armed = false
         guard isLive else {
@@ -159,9 +160,10 @@ extension Card {
     }
 
     /// Open, once a frame: the pointer off the card starts the grace, shorter the faster it went; back on before it
-    /// ends, the grace is off. Not while a jump's row is pressed in: the jump drains it.
+    /// ends, the grace is off. Not while a jump's row is pressed in: the jump drains it; nor while the shortcut's panel
+    /// awaits the pointer.
     func updateLeave() {
-        guard phase == .open, jumping == nil else {
+        guard phase == .open, jumping == nil, !awaitsPointer else {
             return
         }
         guard !pointerInside() else {

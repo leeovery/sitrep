@@ -57,21 +57,27 @@ final class NotchKeys {
     /// secure input.
     var allowed: Bool { tap != nil && isTrusted && !isSecure }
 
-    /// The panel out or not, and what it holds: as it opens, the leave and secure input read, the tap made where the
-    /// leave is given and there is none yet, and let go where it is gone.
+    /// The panel out or not, and what it holds: as it opens, the Mac read (`willOpen`).
     func follow(isOut: Bool, holding held: KeySnapshot) {
         if isOut, !self.isOut {
-            isTrusted = mac.isTrusted()
-            isSecure = mac.isSecure()
-            if !isTrusted {
-                tap = nil
-            } else if tap == nil {
-                tap = mac.tap({ [weak self] in self?.heard($0) }, { [weak self] in self?.readSecureInput() })
-            }
+            willOpen()
         }
         self.isOut = isOut
         self.held = held
         tell()
+    }
+
+    /// The panel about to open: the leave and secure input read, the tap made where the leave is given and there is
+    /// none yet, and let go where it is gone. The shortcut reads them before the panel opens, so the panel knows as it
+    /// opens whether it may hold the keys.
+    func willOpen() {
+        isTrusted = mac.isTrusted()
+        isSecure = mac.isSecure()
+        if !isTrusted {
+            tap = nil
+        } else if tap == nil {
+            tap = mac.tap({ [weak self] in self?.heard($0) }, { [weak self] in self?.readSecureInput() })
+        }
     }
 
     /// The pointer moved while the panel is out: secure input read again.

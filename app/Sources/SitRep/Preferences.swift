@@ -19,6 +19,9 @@ final class Preferences {
             if app != oldValue {
                 savedApp.save(app)
             }
+            if app.shortcut != oldValue.shortcut {
+                onShortcut(app.shortcut.chord)
+            }
         }
     }
 
@@ -64,6 +67,8 @@ final class Preferences {
     @ObservationIgnored var onCallout: (CalloutSettings) -> Void = { _ in }
     /// The edge, told of each change Lee makes in the menu or Settings.
     @ObservationIgnored var onEdge: (EdgeSettings) -> Void = { _ in }
+    /// The shortcut's hot key, told as Lee sets the shortcut or clears it.
+    @ObservationIgnored var onShortcut: (KeyChord?) -> Void = { _ in }
     @ObservationIgnored private let savedEdge: SavedEdgeSettings
     @ObservationIgnored private let savedApp: SavedSettings<AppSettings>
     @ObservationIgnored private let savedSnooze: SavedSettings<SnoozeSettings>

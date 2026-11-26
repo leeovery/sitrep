@@ -92,6 +92,11 @@ final class Told: Notch {
 
     func jumpAnswered() { told.append("jumpAnswered") }
     func clickElsewhere() { told.append("clickElsewhere") }
+    func summon() -> Bool {
+        told.append("summon")
+        return false
+    }
+
     func carry() { told.append("carry") }
     func carried(to y: Double) { told.append("carried") }
     func drop(across: Bool) { told.append("drop") }

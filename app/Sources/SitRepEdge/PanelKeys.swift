@@ -68,6 +68,11 @@ public struct TapKey: Equatable, Sendable {
         return Self.byCode[code] ?? Self.byTyping[typed.lowercased()]
     }
 
+    /// Whether ⌘, ⌃ or ⌥ is held with it, which make it a chord for the window in front: Shift alone types.
+    var isChord: Bool {
+        !flags.isDisjoint(with: [.maskCommand, .maskControl, .maskAlternate])
+    }
+
     /// The key of the panel's set it is, `⌘Z` among them where the asks panel's sending line `undoes`: ⌘ alone held
     /// with the key that types z, Caps Lock aside.
     func panelKey(undoes: Bool) -> PanelKey? {
@@ -93,8 +98,9 @@ public enum KeySnapshot: Equatable, Sendable {
     /// Nothing holds the keys: each goes through.
     case none
     /// The panel holds them, in its hold of this number: every key of the set is its, `⌘Z` too while the asks panel's
-    /// sending line shows and so `undoes`, and any other ends the hold.
-    case panel(hold: Int, undoes: Bool = false)
+    /// sending line shows and so `undoes`, and any other ends the hold; but where it `takesAll`, as the shortcut's hold
+    /// does, any other is taken too, doing nothing, and only one with ⌘, ⌃ or ⌥ ends it, going through.
+    case panel(hold: Int, undoes: Bool = false, takesAll: Bool = false)
     /// One of the notch's menus is open: a snooze menu shown on its own, of this many choices, whose digits, `z`, `k`
     /// and `j` the tap takes; or, with none, the row's menu, which keeps AppKit's keys alone.
     case menu(choices: Int?)
@@ -104,7 +110,8 @@ public enum KeySnapshot: Equatable, Sendable {
 public enum KeyAction: Equatable, Sendable {
     /// A key of the set while the panel holds the keys.
     case panel(PanelKey)
-    /// A key the panel doesn't take, in the hold of this number: the panel holds none until the pointer moves again.
+    /// A key the panel doesn't take, in the hold of this number: the panel holds none until the pointer moves again,
+    /// or, the shortcut's hold, closes.
     case letGo(hold: Int)
     /// A snooze menu's choice of this number, from 1.
     case choose(Int)
@@ -136,6 +143,7 @@ public enum KeyVerdict: Equatable, Sendable {
 /// says by then. Only `↑` `↓`, `k` `j`, `←` and `→` act again as they repeat. A key the panel doesn't take ends its hold
 /// here at once, as `o` does, which jumps, so the keys typed after it go through though the main thread has yet to hear
 /// of it; but for `o` while the asks panel's sending line shows, where it can't jump, which leaves the hold its `⌘Z`.
+/// The shortcut's hold takes every key pressed alone, so only one with ⌘, ⌃ or ⌥ ends it.
 public struct KeyReader: Sendable {
     /// How a key down went, which its repeats and its key-up follow.
     private enum Went: Sendable {
@@ -202,11 +210,14 @@ public struct KeyReader: Sendable {
             return .pass
         case let .menu(choices?):
             return Self.menu(key, of: choices)
-        case let .panel(hold, undoes):
+        case let .panel(hold, undoes, takesAll):
             guard hold != ended else {
                 return .pass
             }
             guard let panelKey = key.panelKey(undoes: undoes) else {
+                if takesAll, !key.isChord {
+                    return .take(nil)
+                }
                 ended = hold
                 return .letGo(hold: hold)
             }
@@ -219,7 +230,7 @@ public struct KeyReader: Sendable {
     }
 
     private func holds(_ snapshot: KeySnapshot) -> Bool {
-        guard case let .panel(hold, _) = snapshot else {
+        guard case let .panel(hold, _, _) = snapshot else {
             return false
         }
 

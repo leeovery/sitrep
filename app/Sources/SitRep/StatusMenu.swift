@@ -87,6 +87,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         draw()
     }
 
+    /// The menu opened as a click on the item opens it, its keys AppKit's: the shortcut's, with the notch not showing.
+    func open() {
+        item.button?.performClick(nil)
+    }
+
     /// Show may have changed in Settings since it was drawn.
     func menuWillOpen(_ menu: NSMenu) {
         isOpen = true

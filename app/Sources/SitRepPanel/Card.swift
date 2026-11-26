@@ -25,6 +25,7 @@ public final class Card: Notch {
     var reveal = Reveal.none
     /// The row a click is jumping to, pressed in until the card is home.
     var jumping: String?
+    var awaitsPointer = false
     /// A drag has the card, ...
     var isCarried = false
     /// ... or let it go across the screen's middle, and it moves to the other edge once it is home, ...
@@ -101,7 +102,8 @@ public final class Card: Notch {
     }
 
     /// What happened since the last frame, before the sim clock moves on: the screen, the content, reduced motion, a
-    /// panel beside the open one, what needs Lee, and the pointer.
+    /// panel beside the open one, what needs Lee, and the pointer, which, moved onto the card, has come onto a panel
+    /// the shortcut opened.
     private func take(_ input: Input) {
         if input.stage != stage {
             stage = input.stage
@@ -125,6 +127,9 @@ public final class Card: Notch {
         sp = p
         if let p {
             trail.add(p, at: input.pointerTime)
+        }
+        if pointerInside() {
+            awaitsPointer = false
         }
     }
 

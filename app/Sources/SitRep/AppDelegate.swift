@@ -32,6 +32,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Window. A Mac long welcomed makes none until Lee asks for it.
     private var welcome: WelcomeWindow?
     private var quitOnSignal: QuitOnSignal?
+    /// The shortcut's hot key, registered as SitRep starts, from the shortcut Lee set.
+    private lazy var hotKey = HotKey(
+        CarbonHotKey { [unowned self] in shortcut() }, chord: preferences.app.shortcut.chord
+    )
 
     /// The notices helper is listened to before launching ends, so a click that starts the app is heard; and a SIGTERM
     /// quits as Quit SitRep does.
@@ -62,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.edge = edge
         self.menu = menu
+        preferences.onShortcut = { [hotKey] in hotKey.chord = $0 }
         plugin.start { [unowned self] in settled($0) }
         if WelcomeWindow.opensAtStart(preferences) {
             openWelcome()
@@ -145,6 +150,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Notices.due(last, preferences.app).forEach(banners.post)
     }
 
+    /// The shortcut (DESIGN, "Keys"): the notch's panel while the notch shows, else the menu bar item's menu.
+    private func shortcut() {
+        if edge?.summon() != true {
+            menu?.open()
+        }
+    }
+
     /// ⌘,, through the main menu: the Settings window.
     @objc func showSettings(_ sender: Any?) {
         settings.show()
@@ -170,7 +182,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             allowGhostty: { await Leaves.allowGhostty() },
             open: { Leaves.open($0) },
             keys: { Leaves.keys },
-            allowKeys: { Leaves.allowKeys() }
+            allowKeys: { Leaves.allowKeys() },
+            suspendShortcut: { [hotKey] in hotKey.isSuspended = $0 }
         )
     }
 }

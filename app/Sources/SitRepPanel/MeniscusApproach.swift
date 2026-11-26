@@ -26,7 +26,8 @@ extension Meniscus {
     }
 
     /// What the pointer is over, read again, and the grace started or cancelled as it changes: as the pointer moves,
-    /// or, under a still pointer, as the room beside the panel changes (`Input.beside`), the way to it expiring.
+    /// or, under a still pointer, as the room beside the panel changes (`Input.beside`), the way to it expiring. Onto
+    /// the notch or the panel, a panel the shortcut opened has had the pointer come onto it.
     func rehover() {
         let over = hoverOf(sp)
         guard over != hover else {
@@ -39,6 +40,7 @@ extension Meniscus {
             maybeClose(pointerSpeed())
         }
         if over != nil {
+            awaitsPointer = false
             cancel(.grace)
         }
     }

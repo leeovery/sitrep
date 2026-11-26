@@ -123,6 +123,33 @@ struct SettingsStillsTests {
         try Self.pane(.edge, settings, "edge-\(show.title.lowercased())")
     }
 
+    /// The Shortcut row's recorder as it stands: at rest on ⌃⌥S, recording with nothing held, with ⌃⌥ held, after a key
+    /// it refused, and cleared; at the notch and at Nothing, in light and dark.
+    @Test(arguments: ["rest", "recording", "holding", "refused", "cleared"], [ColorScheme.light, .dark])
+    func theShortcutRow(state: String, scheme: ColorScheme) async throws {
+        for show in EdgeSettings.Show.allCases {
+            let settings = await Self.settings(Self.preferences { $0.show = show }, windows: Self.current)
+
+            switch state {
+            case "recording":
+                settings.recordShortcut()
+            case "holding":
+                settings.recordShortcut()
+                settings.holdForShortcut([.control, .option])
+            case "refused":
+                settings.recordShortcut()
+                _ = settings.pressForShortcut(KeyChord(code: 0, modifiers: .option))
+            case "cleared":
+                settings.clearShortcut()
+            default:
+                break
+            }
+            let name = "edge-\(show.title.lowercased())-shortcut-\(state)-\(scheme == .dark ? "dark" : "light")"
+
+            try Self.pane(.edge, settings, name, scheme: scheme)
+        }
+    }
+
     /// A dot when it's fine, a button when it's Lee's: Ghostty not asked, opening at login waiting, banners off, the
     /// panel's keys not allowed, and windows on an older plugin.
     @Test(arguments: [SettingsPane.general, .edge, .notifications, .claudeCode])
