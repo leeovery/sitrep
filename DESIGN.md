@@ -6258,8 +6258,8 @@ does not read today, so neither the button nor the menu is offered to it.
   opens on hover alone.
 - **It never becomes the key window.** A click on it leaves Lee's typing
   where it was, in Ghostty, and moving away closes it. Since 26 November
-  2026 it takes keys through an event tap while a row is lit under the
-  pointer, every other key going on to Ghostty (see "Keys"); until then it
+  2026 it takes keys through an event tap while it holds them, every
+  other key going on to Ghostty (see "Keys"); until then it
   took none, so there was no Esc and no ⏎. There is no pin either. Lee,
   15 October 2026, on the display:
   - hovering opens the panel before the notch can be clicked, so a pin on
@@ -6640,9 +6640,9 @@ with its ask.
 
 **Answering, with two seconds to undo.** A click on an answer row turns it
 white: a white fill, its words in ink, Claude's pick's tag in ink at half,
-and an 11pt check in ink at its trailing end, 12 in, where a panel row's
-time goes. Its words keep the lines they had, set narrower for the check,
-so the row keeps its height. A
+and an 11pt check in ink centred in the keycap's room at its trailing end
+(see "Keys"; until 26 November 2026, 12 in, where a panel row's time
+goes). Its words keep the lines they had, so the row keeps its height. A
 line at the asks panel's foot reads "Sending Threaded", the answer's words
 after "Sending", with a countdown ring and an outlined Undo. After 2
 seconds SitRep runs `sitrep answer <ask> <answer>`. Ignore runs `sitrep
@@ -6779,7 +6779,7 @@ see "Answering from the panel").
 the screen by accident: Lee chose it over `⏎` jumping as a click does. `x`
 is the ✕ the pane draws on its ignore and its drop. A key is the panel's
 only pressed alone: Shift, ⌘, ⌃ or ⌥ held with it makes it another key,
-`⌘Z` aside.
+`⌘Z` aside while the asks panel's sending line shows.
 
 **An event tap reads them.** SitRep reads the panel's keys through a
 Quartz event tap, with macOS's Accessibility leave. A key the panel takes
@@ -6797,14 +6797,16 @@ though."
 - It is made as the panel opens, so a leave given while SitRep runs works
   from the next open, and is on only while the panel or one of its menus
   is open; at rest it hears nothing.
-- A key taken is taken whole: its repeats and its key-up go nowhere
-  either.
+- A key taken is taken whole: its key-up goes nowhere either. A held
+  `↑` `↓`, `k` `j`, `←` or `→` repeats, as a Mac menu's arrows do; any
+  other key's repeats are dropped, so a held digit answers once.
 - macOS turns a tap off when it is slow to answer or as input it can't
   see starts; SitRep turns it on again as macOS tells it, for either.
 - While a window holds secure input, as Ghostty does at a password
   prompt, macOS gives the tap no keys. The panel then holds nothing and
   shows no keycaps, as if the leave were missing: each key goes to the
-  window.
+  window. SitRep checks for it as the panel opens, as the pointer moves
+  on it, and as macOS turns the tap off for input it can't see.
 - Without the leave the panel takes no keys and shows no keycaps, and
   Settings says why (below, "In Settings"). The welcome window doesn't
   ask for it: its step 5 stays two things to allow.
@@ -6843,8 +6845,9 @@ working row or `⏎` on a row with no arrow, is taken and does nothing, so a
 - `esc` closes the panel, which stays closed until the pointer leaves the
   notch and comes back.
 
-**On the asks panel.** While it is open, every key but `↑` `↓` is its,
-wherever the pointer is on the panel, acting on the ask it shows:
+**On the asks panel.** While it is open and the panel holds the keys,
+every key of the set but `↑` `↓`, `k` `j` is its, wherever the pointer is
+on the panel, acting on the ask it shows; `s` does nothing there:
 - `1`–`9` answer with that answer row, as a click on it, the sending line
   and its two seconds with it; `1` is the first row, Claude's pick where
   Claude has one.
@@ -6854,13 +6857,14 @@ wherever the pointer is on the panel, acting on the ask it shows:
 - `x` is Ignore, `z` opens Snooze ▾'s menu, and `o` is Open in Claude ↗.
 - `→` shows the next ask and `←` the one before, as the dots lie, one ask
   a step, sliding as a dot's click does.
-- `⏎` and `esc` close it; `↑` `↓` move the lit row and close it, as a
-  menu's arrows close its submenu.
+- `⏎` and `esc` close it; `↑` `↓`, `k` `j` move the lit row and close
+  it, as a menu's arrows close its submenu.
 - A digit past its answers, or `z` with no Snooze ▾, does nothing.
-- The 300ms beat (see "Answering from the panel") holds a key as it holds
-  a click after a change the board or a send made, as a new ask taking
-  the place of one answered; after a change the keys made, paging among
-  them, a key acts at once.
+- The 300ms beat (see "Answering from the panel") holds keys as it holds
+  clicks: within it after a change the keys didn't make, the board's, a
+  send's or the pointer's paging, a key does nothing, as a press there
+  doesn't land. After a change the keys made, paging among them, a key
+  acts at once.
 - **Closed by a key** with the pointer on it, the asks panel holds the
   panel as if the pointer rested on its row, as an open menu does, until
   the pointer moves: a pointer leaving its place then starts the panel's
@@ -6881,20 +6885,22 @@ native menu, the right-click menu's `SnoozeMenu` shown on its own:
   `z` closes it, as in the terminal view.
 - Its digits choose its items in order, Until it moves among them, each
   shown as its item's key equivalent, in AppKit's column at the right,
-  after the time on its tab stop. The tap reads the digits, so AppKit
-  never sees them.
-- Only a snooze menu shown on its own carries digits: as the right-click
-  menu's submenu it carries none, since a submenu's key equivalents fire
-  from its menu.
+  after the time on its tab stop.
+- The tap reads the digits, `k` `j` and `z`, so AppKit never sees them: a
+  digit chooses its item, `k` `j` are posted to SitRep as `↑` `↓`, and
+  `z` ends the menu's tracking.
+- Only a snooze menu shown on its own takes these: as the right-click
+  menu's submenu it carries no digits, since a submenu's key equivalents
+  fire from its menu, and the right-click menu keeps AppKit's keys alone.
 - While any of SitRep's menus is open, the right-click menu and a clicked
   Snooze ▾'s among them, no key reaches the window in front: the menu
   has it.
 
 Whether AppKit's tracking takes the keyboard for a menu an inactive
-accessory app pops from a panel that is never key is unproven: the first
-step of the build proves it. If it doesn't, the tap takes those keys and
-posts them to SitRep (`CGEvent.postToPid`), where the menu's tracking
-reads them; the tap posts `k` `j` as `↑` `↓` either way.
+accessory app pops from a panel that is never key is unproven: build step
+4 proves it first. If it doesn't, the tap takes those keys and posts them
+to SitRep (`CGEvent.postToPid`), where the menu's tracking reads them;
+without the leave, the menu then has only the pointer.
 
 **The shortcut, ⌃⌥S by default,** opens the panel holding the keys, from
 anywhere, with no pointer:
@@ -6905,10 +6911,12 @@ anywhere, with no pointer:
 - Opened so, it holds every key until it closes: one it doesn't take
   does nothing, where a hover's hold lets it through. A key with ⌘, ⌃ or
   ⌥ closes it and goes through, `⌘Z` while an answer is sending aside. It
-  closes on `esc`, on the shortcut again, on `o`, on a click elsewhere, or
-  as the pointer, having come onto it, leaves.
+  closes on `esc` once nothing inside is open, on the shortcut again, on
+  `o`, on a click elsewhere, or as the pointer, having come onto it,
+  leaves.
 - Without the leave, or under secure input, it opens the panel holding
-  nothing, as a hover would.
+  nothing, with no row lit, until the shortcut again, a click elsewhere,
+  or the pointer coming onto it and leaving.
 - With Show set to Nothing, it opens the menu bar item's menu, whose keys
   are AppKit's.
 - Only Lee opens it: SitRep never opens anything by itself (see
