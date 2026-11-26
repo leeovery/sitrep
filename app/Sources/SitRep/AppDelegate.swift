@@ -168,7 +168,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             chooseLogin: { [banners] in Leaves.chooseLogin(banners) },
             ghostty: { await Leaves.ghostty() },
             allowGhostty: { await Leaves.allowGhostty() },
-            open: { Leaves.open($0) }
+            open: { Leaves.open($0) },
+            keys: { Leaves.keys },
+            allowKeys: { Leaves.allowKeys() }
         )
     }
 }

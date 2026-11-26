@@ -3,7 +3,8 @@ import SitRepPanel
 
 /// What Lee sets beyond the edge, saved beside its settings as one value and read as leniently: for a new ask and for
 /// his turn apart, whether it sends a notification, whether it plays a sound and which, and whether it pulses the
-/// notch; and how a window is opened for a session no terminal on this Mac shows, the terminal and the resume command.
+/// notch; how a window is opened for a session no terminal on this Mac shows, the terminal and the resume command; and
+/// whether SitRep has asked for the leave the panel's keys need.
 /// The keys from before his turn had its own (13 November 2026) are a new ask's still. A key another version saved, as
 /// the Settings pane it last showed, or a setting retired since, as "Your turn folds after" (4 November 2026) and the
 /// open command (13 November 2026), is passed over.
@@ -32,6 +33,9 @@ public struct AppSettings: SavedValue {
     /// as the default. Saved under a key of its own, `resume`: Settings saves every field, so the `resumeCommand` saved
     /// before it, empty where it was never set, is read only where it holds a command.
     public var resumeCommand: String?
+    /// Whether SitRep has asked macOS for the Accessibility leave the notch's panel takes keys with, as Settings' Allow…
+    /// does: macOS keeps no "not asked yet" for it, so SitRep keeps that it asked.
+    public var askedForKeys = false
 
     public init() {}
 
@@ -52,12 +56,14 @@ public struct AppSettings: SavedValue {
         pulsesTurns = given.value(.pulsesTurns, or: defaults.pulsesTurns)
         terminal = given.value(.terminal, or: defaults.terminal)
         resumeCommand = given.value(.resumeCommand, or: Self.retiredResumeCommand(in: decoder))
+        askedForKeys = given.value(.askedForKeys, or: defaults.askedForKeys)
     }
 
     private enum CodingKeys: String, CodingKey {
         case notifiesNewAsks, playsSound, sound, pulsesNewAsks, notifiesTurns, playsTurnSound, turnSound, pulsesTurns
         case terminal
         case resumeCommand = "resume"
+        case askedForKeys
     }
 
     /// What pulses the notch as it comes, as Lee set it.

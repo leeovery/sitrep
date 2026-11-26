@@ -182,7 +182,7 @@ public struct Frame {
         }
 
         /// A point in the content's own frame on the stage, the way back from `contentPoint`.
-        func stagePoint(_ point: CGPoint, mirror: CGAffineTransform, scroll: Double) -> CGPoint {
+        public func stagePoint(_ point: CGPoint, mirror: CGAffineTransform, scroll: Double) -> CGPoint {
             let drawn = drawn(mirror)
 
             return CGPoint(x: point.x + drawn.minX, y: point.y + drawn.minY - scroll).applying(mirror.inverted())

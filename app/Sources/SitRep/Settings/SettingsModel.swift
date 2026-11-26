@@ -28,6 +28,10 @@ struct SettingsServices {
     /// macOS's own prompt for the leave to control Ghostty, and what Lee chose.
     var allowGhostty: () async -> GhosttyLeave
     var open: (Leaves.Place) -> Void
+    /// Whether macOS gives the Accessibility leave the notch's panel takes keys with.
+    var keys: () -> Bool
+    /// macOS's own prompt for the Accessibility leave, and whether it is given now: macOS answers before Lee does.
+    var allowKeys: () -> Bool
 }
 
 /// What macOS says of SitRep's leaves, nil until it is read.
@@ -35,6 +39,7 @@ struct MacSays: Equatable {
     var notices: NoticeLeave?
     var login: LoginItem?
     var ghostty: GhosttyLeave?
+    var keys: Bool?
 }
 
 /// Settings as its window keeps it from one visit to the next: what Lee sets, the pane shown and the panes shown before
@@ -144,6 +149,7 @@ final class SettingsModel {
     /// What macOS says of SitRep's leaves, each row as its answer comes: the notices helper may take its time.
     func read() async {
         said.login = services.login()
+        said.keys = services.keys()
 
         async let notices: Void = readNotices()
         async let ghostty: Void = readGhostty()
@@ -200,14 +206,22 @@ final class SettingsModel {
         services.copy(ClaudeCodePane.command)
     }
 
-    /// A row's button pressed. Allow… is pressed once while its prompt is up.
+    /// A row's button pressed. Ghostty's Allow… is pressed once while its prompt is up.
     func fix(_ fix: SettingsRow.Fix) {
         switch fix {
         case .notifications: services.open(.notifications)
         case .automation: services.open(.automation)
         case .loginItems: services.open(.loginItems)
+        case .accessibility: services.open(.accessibility)
         case .allowGhostty: allowGhostty()
+        case .allowKeys: allowKeys()
         }
+    }
+
+    /// Keys' Allow…: macOS's prompt, kept as asked, so the row offers System Settings from now on.
+    private func allowKeys() {
+        preferences.app.askedForKeys = true
+        said.keys = services.allowKeys()
     }
 
     private func allowGhostty() {

@@ -32,7 +32,7 @@ struct EdgeMenusTests {
     /// weekend and Next week switched off since the menus were made.
     @Test func aRowsSnoozeOffersTheChoicesAsPreferencesHasThemAsItsMenuOpens() throws {
         let preferences = Preferences(MemoryDefaults())
-        let notch = Edge.notch(preferences, on: Self.display)
+        let notch = Edge.notch(preferences, on: Self.display, keys: .none)
 
         defer { notch.window.close() }
         for choice in [SnoozeChoice.inAnHour, .tonight, .thisWeekend, .nextWeek] {

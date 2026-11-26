@@ -2,11 +2,12 @@ import SitRepPanel
 
 /// Settings' Edge pane (DESIGN, "Settings"): under the Show row's card, the sections that apply to the choice, in
 /// their order. Notch holds the rows that tune it; Motion holds Reduce motion, as it is about how SitRep moves the
-/// notch. With Nothing there are none, and the Show row's line says what carries the board instead.
+/// notch; Keys says whether the notch's panel may take keys (DESIGN, "Keys"). With Nothing there are none, and the Show
+/// row's line says what carries the board instead.
 public enum EdgePane {
     /// A row of a section.
     public enum Row: Hashable, Sendable {
-        case edge, display, style, reduceMotion
+        case edge, display, style, reduceMotion, keys
     }
 
     /// A section: its header, and its card's rows.
@@ -17,11 +18,14 @@ public enum EdgePane {
 
     public static let menuCarries = "The menu carries the board."
 
-    /// The sections for what Lee set: Notch and Motion for the notch, none for Nothing.
+    /// The sections for what Lee set: Notch, Motion and Keys for the notch, none for Nothing.
     public static func sections(_ settings: EdgeSettings) -> [Section] {
         switch settings.show {
         case .notch:
-            [Section(name: "Notch", rows: [.edge, .display, .style]), Section(name: "Motion", rows: [.reduceMotion])]
+            [
+                Section(name: "Notch", rows: [.edge, .display, .style]), Section(name: "Motion", rows: [.reduceMotion]),
+                Section(name: "Keys", rows: [.keys]),
+            ]
         case .nothing: []
         }
     }

@@ -113,16 +113,29 @@ enum Leaves {
         }.value
     }
 
+    /// Whether macOS gives SitRep the Accessibility leave the notch's panel takes keys with.
+    static var keys: Bool {
+        AXIsProcessTrusted()
+    }
+
+    /// Allow…, for the Accessibility leave: macOS's own prompt, which leads to System Settings, and whether the leave
+    /// is given now, which macOS answers before Lee does.
+    static func allowKeys() -> Bool {
+        // the option by its name: `kAXTrustedCheckOptionPrompt` is a global var, which Swift 6 refuses to read
+        AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+    }
+
     /// System Settings, where Lee changes what macOS lets SitRep do: the notices helper's page in Notifications, which
-    /// it lists as SitRep, Automation, and Login Items, which macOS opens itself.
+    /// it lists as SitRep, Automation, Accessibility, and Login Items, which macOS opens itself.
     enum Place {
-        case notifications, automation, loginItems
+        case notifications, automation, accessibility, loginItems
     }
 
     static func open(_ place: Place) {
         switch place {
         case .notifications: open("x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(Banners.helper)")
         case .automation: open("x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")
+        case .accessibility: open("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
         case .loginItems: SMAppService.openSystemSettingsLoginItems()
         }
     }

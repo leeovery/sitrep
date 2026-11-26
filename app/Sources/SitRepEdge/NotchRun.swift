@@ -47,10 +47,13 @@ public final class NotchRun: Framed {
         /// Whether one ask's Snooze offers a time now, as Lee set them: the asks panel's foot shows Snooze ▾ only
         /// while it does, as the pane shows its snooze button.
         public var offersSnooze: Bool
+        /// Whether the Mac lets the panel take keys: macOS's Accessibility leave given, and no window holding secure
+        /// input (DESIGN, "Keys"). While it doesn't, the panel holds nothing.
+        public var takesKeys: Bool
 
         public init(
             stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool,
-            offersSnooze: Bool = true
+            offersSnooze: Bool = true, takesKeys: Bool = false
         ) {
             self.stage = stage
             self.mirror = mirror
@@ -58,6 +61,7 @@ public final class NotchRun: Framed {
             self.reducesMotion = reducesMotion
             self.isChosen = isChosen
             self.offersSnooze = offersSnooze
+            self.takesKeys = takesKeys
         }
     }
 
@@ -65,8 +69,7 @@ public final class NotchRun: Framed {
     public typealias Shown = RunShown
     public typealias Drop = RunDrop
 
-
-    /// What a press on the notch comes to.
+    /// What a press on the notch, or a key the panel holds, comes to.
     public enum Press: Equatable, Sendable {
         /// A row that jumps, pressed in: its session, the session to jump to, and which click it is.
         case jump(Session, to: String, click: Int)
@@ -84,6 +87,11 @@ public final class NotchRun: Framed {
         /// Snooze ▾ on the asks panel: the ask it shows, by its id, and its session's, to snooze from a menu at this
         /// point on the stage.
         case snooze(ask: String, of: String, at: CGPoint)
+        /// `z` on a Needs you row: its session, to snooze from a menu beside the row, which stands in this box on the
+        /// stage.
+        case snoozeRow(Session, row: CGRect)
+        /// `z` on a row in Snoozed: its session, to wake.
+        case wake(Session)
     }
 
     /// The model: every input to it comes through the run, and what is drawn from it is read here. Internal only for
@@ -95,10 +103,10 @@ public final class NotchRun: Framed {
     public private(set) var frame: Frame
     /// The pointer on the stage as the last frame saw it.
     public private(set) var seen: CGPoint?
-    /// While a row's menu is open, where it was opened (`menuOpened(at:)`).
-    private var menuAt: CGPoint?
+    /// While a row's menu or a snooze menu is open, where it was opened (`menuOpened(at:)`).
+    private(set) var menuAt: CGPoint?
     /// How far down the panel's content is scrolled.
-    public private(set) var scroll = 0.0
+    public internal(set) var scroll = 0.0
     /// A press off a row, which a move makes a drag, until it lets go.
     public private(set) var drag: NotchDrag?
     /// The sections Lee folded, as they change, by a click or an arrival unfolding Needs you.
@@ -123,6 +131,13 @@ public final class NotchRun: Framed {
     private var laid: Laid
     /// The asks panel: where it is open, the answer held, the asks answered, and how its words are set.
     var asking: AsksPanel
+    /// Whether the panel holds the keys, and which hold it is.
+    var hold = KeyHold()
+    /// The row the keys lit, by its key, until the pointer moves.
+    var keyLit: String?
+    /// The pointer as the moments last gave it, which the keys' hold tells a move by; a menu's place holding the
+    /// card is none.
+    var felt: CGPoint?
 
     /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
     /// time zone, followed as it changes (`WakeTime.calendar`), and the asks panel's words as `measure` sets them.
@@ -201,6 +216,7 @@ public final class NotchRun: Framed {
         asking.listShifted(by: scroll - was)
         asks.take(lastAsk: frame.light.lastAsk, simTime: frame.time, at: time)
         placeAsks(in: setting)
+        holdKeys(moment)
     }
 
     /// Hidden, the notch's time ran on: it is taken on to now (`Notch.runOn`), the pointer away, and the frame after
@@ -213,6 +229,7 @@ public final class NotchRun: Framed {
 
         frame = notch.runOn(from: from, to: to, input) { latch($1, at: $0) }
         placeAsks(in: moment.setting)
+        holdKeys(moment)
     }
 
     /// What a frame at this time showed, for the drawing: the edge swapped, and the panel going in for a click's jump.
@@ -403,9 +420,9 @@ public final class NotchRun: Framed {
         contentPoint(point, in: setting).flatMap(list.content.item(at:))
     }
 
-    /// A row's menu opened at a point on the stage: until it closes, the card holds open as if the pointer rested
-    /// there, wherever the pointer goes on the menu, and its grace starts only once the menu closes, so a choice made
-    /// on it finds its row still showing.
+    /// A row's menu, or a snooze menu, opened at a point on the stage: until it closes, the card holds open as if the
+    /// pointer rested there, wherever the pointer goes on the menu, and its grace starts only once the menu closes, so
+    /// a choice made on it finds its row still showing.
     public func menuOpened(at point: CGPoint) {
         menuAt = point
     }
@@ -440,7 +457,7 @@ public final class NotchRun: Framed {
     }
 
     /// A click on an item: an eyebrow folds its section or unfolds it, at once; a row jumps.
-    private func click(_ index: Int, in setting: Setting) -> Press? {
+    func click(_ index: Int, in setting: Setting) -> Press? {
         guard case let .eyebrow(eyebrow)? = list.item(index) else {
             return jump(index)
         }
@@ -450,6 +467,8 @@ public final class NotchRun: Framed {
         return .fold
     }
 
+    /// The row at this index, where it jumps, pressed in: its asks panel closed, and the keys' hold ended, so what is
+    /// typed next goes to the window jumped to.
     func jump(_ index: Int) -> Press? {
         let items = notch.items
 
@@ -458,6 +477,7 @@ public final class NotchRun: Framed {
         }
 
         asking.close()
+        endHold()
         return .jump(session, to: session.id, click: book.click())
     }
 

@@ -158,12 +158,13 @@ struct SettingsLayoutTests {
     /// card, its first 13 under the toolbar: a section's header's line of 16 and 10 over its card, the sections 26
     /// apart. General's Startup a row of 52, Terminal's a row of 38 and one of 52, Resume command's a row of 38, its
     /// caption's words in the 8 and four lines of 14 under it; Edge's the Show row's 86, then Notch's three, 52, 38 and
-    /// 52, then Motion's 52; Notifications' corner of 150 and the caption's row of 32, then Banners' three rows of 52,
-    /// Sound's 52 and 38 twice, a new ask's and Lee's turn's, and Notch's two rows of 52. What is shorter than a row is
-    /// a caption's words, and lies in its lines. Within a pixel at the screen's scale, which lays the pane out.
+    /// 52, then Motion's 52, then Keys' 38, allowed; Notifications' corner of 150 and the caption's row of 32, then
+    /// Banners' three rows of 52, Sound's 52 and 38 twice, a new ask's and Lee's turn's, and Notch's two rows of 52.
+    /// What is shorter than a row is a caption's words, and lies in its lines. Within a pixel at the screen's scale,
+    /// which lays the pane out.
     @Test(arguments: [
         (SettingsPane.general, [39 ... 91, 143 ... 233.5, 285.5 ... 323.5], [323.5 ... 389.5]),
-        (.edge, [13 ... 99, 151 ... 294, 346 ... 398], []),
+        (.edge, [13 ... 99, 151 ... 294, 346 ... 398, 450 ... 488], []),
         (.notifications, [13 ... 163, 247 ... 404, 456 ... 637.5, 689.5 ... 794], [163 ... 195]),
     ] as [(SettingsPane, [ClosedRange<CGFloat>], [ClosedRange<CGFloat>])])
     func eachPanesCardsStandAtTheirHeights(
@@ -244,14 +245,14 @@ struct SettingsLayoutTests {
         }
     }
 
-    /// Edge ends 20 under Motion's card, the notch's three rows in its card. Laid out at 2×, its hairlines 0.5 each,
-    /// as no window holds it to give it the screen's scale.
+    /// Edge ends 20 under Keys' card, the notch's three rows in its card and Keys allowed. Laid out at 2×, its
+    /// hairlines 0.5 each, as no window holds it to give it the screen's scale.
     @Test func edgeEnds20UnderItsLastCard() async {
         let settings = await Hosted.settings { $0.show = .notch }
         let pane = SettingsPaneContent(pane: .edge, settings: settings).environment(\.displayScale, 2)
         let size = NSHostingController(rootView: pane).sizeThatFits(in: CGSize(width: Self.drawingsPane, height: 10_000))
 
-        #expect(abs(size.height - 418) <= 0.5)
+        #expect(abs(size.height - 508) <= 0.5)
     }
 
     /// The desktop corner fills the column's width at its 150, whatever the width.
@@ -427,9 +428,12 @@ struct Hosted {
     }
 
 
-    static let allWell = MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed)
-    /// Every General row's widest want: Ghostty not allowed, opening at login waiting on Lee's approval.
-    static let needsLee = MacSays(notices: .allowed(.banners), login: LoginItem(.requiresApproval), ghostty: .denied)
+    static let allWell = MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed, keys: true)
+    /// Every General row's widest want: Ghostty not allowed, opening at login waiting on Lee's approval; and the
+    /// panel's keys not allowed.
+    static let needsLee = MacSays(
+        notices: .allowed(.banners), login: LoginItem(.requiresApproval), ghostty: .denied, keys: false
+    )
 
     /// The plugin running, its board printed, with two windows on it, on an older plugin or not.
     static func live(needsReload: Bool) -> LiveBoard {
@@ -463,7 +467,7 @@ struct Hosted {
             jump: { asked.jumps.append($0) }, sendTest: {}, copy: { asked.copies.append($0) },
             sounds: sounds, noticeLeave: { said.notices ?? .unasked }, askForNotices: {},
             login: { said.login ?? LoginItem(.notFound) }, chooseLogin: {}, ghostty: { said.ghostty ?? .unknown },
-            allowGhostty: { .allowed }, open: { _ in }
+            allowGhostty: { .allowed }, open: { _ in }, keys: { said.keys ?? false }, allowKeys: { said.keys ?? false }
         )
     }
 

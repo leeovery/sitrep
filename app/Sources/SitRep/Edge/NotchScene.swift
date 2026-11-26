@@ -5,7 +5,7 @@ import SitRepPanel
 /// One frame as the notch draws it.
 struct NotchScene {
     let frame: Frame
-    /// The row under the pointer, by its index among the items.
+    /// The row lit, the keys' or the one under the pointer, by its index among the items.
     let hover: Int?
     /// How far down the content is scrolled.
     let scroll: Double

@@ -24,17 +24,18 @@ struct EdgePaneChangeTests {
         }
 
         /// The cards once changed: the Show row's 86, then the notch's section, its header's 16 and 10 over its card,
-        /// and Motion's, 26 apart, the notch's three rows with their hairlines; at Nothing, the Show row's card alone.
+        /// Motion's and Keys', 26 apart, the notch's three rows with their hairlines, and Keys allowed; at Nothing, the
+        /// Show row's card alone.
         var cards: [ClosedRange<CGFloat>] {
             switch self {
             case .notchToNothing: [13 ... 99]
-            case .nothingToNotch: [13 ... 99, 151 ... 294, 346 ... 398]
+            case .nothingToNotch: [13 ... 99, 151 ... 294, 346 ... 398, 450 ... 488]
             }
         }
 
         /// The last card's foot before the change, past which what the pane held is read for what is left of it.
         var footBefore: CGFloat {
-            self == .notchToNothing ? 398 : 99
+            self == .notchToNothing ? 488 : 99
         }
     }
 
