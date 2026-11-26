@@ -29,15 +29,13 @@ What stands at the edge of your screen. See [The edge of your screen](notch.md).
 
 | Control | Choices | Default | What it does |
 |---|---|---|---|
-| Show | Notch, Strip, Nothing | Notch | What shows at the edge |
+| Show | Notch, Nothing | Notch | What shows at the edge |
 | Edge | Left, Right | Left | The side it stands on |
 | Display | Main display, or another | Main display | The screen it shows on |
 | Style | Meniscus, Card | Meniscus | How the notch opens |
-| Length | Grows, Full | Grows | How long the strip is |
-| Max | A slider | Full | How far the strip grows |
 | Reduce motion | On, off | Off | Less movement at the edge |
 
-The pane shows only the settings for your choice under Show. Style is for the notch only. Length and Max are for the strip only, and Max shows only at Grows. With Nothing, the menu bar item carries the board, and the pane holds only Show.
+The pane shows the rows under Show only while Show is Notch. With Nothing, the menu bar item carries the board, and the pane holds only Show.
 
 ## Notifications
 

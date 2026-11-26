@@ -60,13 +60,11 @@ Each word below means one thing on every page of these docs. The words are group
 
 ## In the Mac app
 
-**asks panel**: What the arrow on a row opens, beside the panel or the tab on the strip: one session's asks, one at a time. A click answers a yes or a choice, with two seconds to undo. A words ask shows there too, with **Open in Claude ↗** to answer it in Claude.
+**asks panel**: What the arrow on a row opens, beside the panel: one session's asks, one at a time. A click answers a yes or a choice, with two seconds to undo. A words ask shows there too, with **Open in Claude ↗** to answer it in Claude.
 
 **banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. A click on one takes you to the session. Both are off until you turn them on in Settings › Notifications. **Turn On…** in the welcome window also turns on the banner for a new ask. A failure banner, such as "SitRep could not jump", "Not snoozed" or "Not answered", shows even with both switches off.
 
-**dimmed session**: A session drawn dimmed, because it isn't open on the device you're looking from. In the panel and on the strip, that device is this Mac's screen, so a session you reach only over SSH is dimmed. In the terminal view, that device can be a phone or iPad over SSH, and a dimmed session in Needs you has a hollow dot. Its asks still count. While SitRep isn't running, the terminal view dims only a session no window runs.
-
-**mark**: A session on the strip: a ring holding two letters of its project. The colour of the ring says where the session stands.
+**dimmed session**: A session drawn dimmed, because it isn't open on the device you're looking from. In the panel, that device is this Mac's screen, so a session you reach only over SSH is dimmed. In the terminal view, that device can be a phone or iPad over SSH, and a dimmed session in Needs you has a hollow dot. Its asks still count. While SitRep isn't running, the terminal view dims only a session no window runs.
 
 **the menu bar item**: The SitRep icon in the menu bar, and its menu. The menu lists your sessions under one total, such as "3 need you". The icon lights the same way the notch does. SitRep has no Dock icon, so this is where you reach it.
 
@@ -80,9 +78,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines until you expand it. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing. In Snoozed, the second line holds the thing that wakes soonest instead, the oldest if several wake together.
 
-**row's arrow**: The button on a row in Needs you that opens the asks panel. It sits at the end of the row nearer the middle of the screen. At the left edge it takes the place of the time, and at the right edge the place of the dot. It shows only if the session has an ask: a yes, a choice or a words ask. It shows while the pointer is on the row, and stays lit while the asks panel for that row is open. A tab on the strip shows it at that end too.
-
-**the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
+**row's arrow**: The button on a row in Needs you that opens the asks panel. It sits at the end of the row nearer the middle of the screen. At the left edge it takes the place of the time, and at the right edge the place of the dot. It shows only if the session has an ask: a yes, a choice or a words ask. It shows while the pointer is on the row, and stays lit while the asks panel for that row is open.
 
 **the welcome window**: The window SitRep opens at its first start. It shows what SitRep does, and sets your first choices, such as the sound. The first time, it also turns on Open at login. It also asks macOS for banners and control of Ghostty, both optional. Show Welcome Window, in the menu, opens it again.
 

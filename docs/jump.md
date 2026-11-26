@@ -10,7 +10,6 @@ With several Claude Code windows open, finding the one that needs you takes time
 
 A click works the same from other places:
 
-- a mark on the strip;
 - a session in the menu bar item;
 - a banner;
 - **Jump to the window**, in the menu that opens when you right-click a session.
