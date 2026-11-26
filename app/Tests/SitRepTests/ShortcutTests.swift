@@ -115,25 +115,104 @@ struct HotKeyTests {
     }
 }
 
-/// What the shortcut opens, as SitRep routes it: the notch's panel while the notch shows, which is only at Notch with
-/// no full-screen app on its display; else the menu bar item's menu.
+/// The shortcut joined to what it opens, as SitRep joins it: each press routed to the notch's panel while the notch
+/// shows, which is only at Notch with no full-screen app on its display, else to the menu bar item's menu, and with
+/// the menu open, closing it alone; the panel closed as the menu opens; and the panel's hold told the chord macOS holds,
+/// none while Settings records, it is cleared or macOS refused it.
 @MainActor
 @Suite(.backstop)
-struct ShortcutOpensTests {
+struct ShortcutWiringTests {
+    /// The menu as the test keeps it.
+    final class MenuDouble: ShortcutMenu {
+        var isOpen = false
+        var onOpen: () -> Void = {}
+        private(set) var opened = 0, closed = 0
+
+        func open() {
+            opened += 1
+            isOpen = true
+            onOpen()
+        }
+
+        func close() {
+            closed += 1
+            isOpen = false
+        }
+    }
+
+    private static let snapshot = KeySnapshot.panel(hold: 1, takesAll: true)
+
+    /// A notch over a Mac of its own, shown as `isShown` says, joined to a hot key on ⌃⌥S and a menu of the test's.
+    private static func wired(
+        isShown: Bool = true
+    ) -> (ShortcutWiring, NotchController, MenuDouble, HotKey, HotKeyTests.CarbonDouble, KeysWorld) {
+        let world = KeysWorld(), carbon = HotKeyTests.CarbonDouble(), menu = MenuDouble()
+        let notch = NotchController(
+            EdgeSettings(), on: NotchAsksWindowTests.display, folding: Folding(), keys: world.mac
+        ) { SnoozeSettings() }
+        let hotKey = HotKey(carbon, chord: .controlOptionS)
+
+        notch.isShown = isShown
+        return (ShortcutWiring(hotKey, notch: notch, menu: menu), notch, menu, hotKey, carbon, world)
+    }
+
     @Test(arguments: [
         (EdgeSettings.Show.notch, false, false), (.notch, true, true), (.nothing, false, true), (.nothing, true, true),
     ])
     func theMenuOpensUnlessTheNotchShows(show: EdgeSettings.Show, underFullScreen: Bool, opensMenu: Bool) {
-        let notch = NotchController(
-            EdgeSettings(), on: NotchAsksWindowTests.display, folding: Folding(), keys: KeysWorld().mac
-        ) { SnoozeSettings() }
-        var menus = 0
+        let (wiring, notch, menu, _, _, _) = Self.wired(isShown: Edge.showsNotch(show, underFullScreen: underFullScreen))
 
         defer { notch.window.close() }
-        notch.isShown = Edge.showsNotch(show, underFullScreen: underFullScreen)
-        Shortcut.press(notch: notch.summon, menu: { menus += 1 })
-        #expect(menus == (opensMenu ? 1 : 0))
+        wiring.press()
+        #expect(menu.opened == (opensMenu ? 1 : 0))
         #expect(notch.run.isOut == !opensMenu)
+    }
+
+    /// With the menu open, the shortcut closes it and does nothing else.
+    @Test func withTheMenuOpenTheShortcutClosesIt() {
+        let (wiring, notch, menu, _, _, _) = Self.wired()
+
+        defer { notch.window.close() }
+        menu.isOpen = true
+        wiring.press()
+        #expect(menu.closed == 1 && menu.opened == 0 && !notch.run.isOut)
+    }
+
+    /// The menu opening closes the panel and lets its keys go: the menu has them.
+    @Test func theMenuOpeningClosesThePanel() {
+        let (wiring, notch, menu, _, _, _) = Self.wired()
+
+        defer { notch.window.close() }
+        wiring.press()
+        #expect(notch.run.isOut && notch.run.holdsKeys)
+        menu.open()
+        #expect(notch.run.phase == .closing && !notch.run.holdsKeys)
+    }
+
+    /// The panel's hold lets the chord macOS holds through; suspended while Settings records, cleared, or refused by
+    /// macOS, it lets none through.
+    @Test func theHoldLetsThroughOnlyTheChordMacOSHolds() throws {
+        let (wiring, notch, _, hotKey, carbon, world) = Self.wired()
+        let chord = KeyChord.controlOptionS.tapChord
+
+        defer { notch.window.close() }
+        wiring.press()
+
+        let tap = try #require(world.taps.first)
+
+        #expect(tap.snapshot == Self.snapshot.passing(chord))
+        hotKey.isSuspended = true
+        #expect(tap.snapshot == Self.snapshot)
+        hotKey.isSuspended = false
+        #expect(tap.snapshot == Self.snapshot.passing(chord))
+        carbon.refuses = true
+        hotKey.chord = KeyChord(code: 40, modifiers: .command)
+        #expect(hotKey.isRefused && tap.snapshot == Self.snapshot)
+        carbon.refuses = false
+        hotKey.chord = .controlOptionS
+        #expect(tap.snapshot == Self.snapshot.passing(chord))
+        hotKey.chord = nil
+        #expect(tap.snapshot == Self.snapshot)
     }
 }
 

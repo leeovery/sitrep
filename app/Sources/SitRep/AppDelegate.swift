@@ -34,8 +34,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var quitOnSignal: QuitOnSignal?
     /// The shortcut's hot key, registered as SitRep starts, from the shortcut Lee set.
     private lazy var hotKey = HotKey(
-        CarbonHotKey { [unowned self] in shortcut() }, chord: preferences.app.shortcut.chord
+        CarbonHotKey { [unowned self] in shortcutWiring?.press() }, chord: preferences.app.shortcut.chord
     )
+    /// What the shortcut opens, joined as SitRep starts.
+    private var shortcutWiring: ShortcutWiring?
 
     /// The notices helper is listened to before launching ends, so a click that starts the app is heard; and a SIGTERM
     /// quits as Quit SitRep does.
@@ -66,9 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.edge = edge
         self.menu = menu
-        menu.onOpen = { [weak edge] in edge?.closePanel() }
-        edge.hotKey(hotKey.registered)
-        hotKey.onRegistered = { [weak edge] in edge?.hotKey($0) }
+        shortcutWiring = ShortcutWiring(hotKey, notch: edge, menu: menu)
         preferences.onShortcut = { [hotKey] in hotKey.chord = $0 }
         plugin.start { [unowned self] in settled($0) }
         if WelcomeWindow.opensAtStart(preferences) {
@@ -151,11 +151,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Chime.due(last, preferences.app).map(sounds.play)
         last.asksLeft.forEach(banners.clear)
         Notices.due(last, preferences.app).forEach(banners.post)
-    }
-
-    /// The shortcut (DESIGN, "Keys"): the notch's panel while the notch shows, else the menu bar item's menu.
-    private func shortcut() {
-        Shortcut.press(notch: { [edge] in edge?.summon() ?? false }, menu: { [menu] in menu?.open() })
     }
 
     /// ⌘,, through the main menu: the Settings window.

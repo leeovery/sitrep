@@ -6955,15 +6955,19 @@ Settled in the build (26 November 2026):
   and does nothing, as `a` is. A chord closes the panel and goes
   through: ⌘, ⌃, ⌥ or Fn held, Fn but for the keys that carry it of
   themselves (the arrows, Home, End, Page Up, Page Down, Forward
-  Delete), or a function key, F1 to F20, alone. Fn held makes a letter
+  Delete) and those read by their codes (Return, keypad Enter, which
+  fn-Return sends on a laptop's keyboard, and `esc`), or a function
+  key, F1 to F20, alone. Fn held makes a letter
   another key under a hover's hold too.
 - The tap lets the shortcut's own chord through, ending no hold, so the
   hot key alone acts on it; and the shortcut does nothing while the panel
-  closes, so pressed again it never reopens it.
+  closes, so pressed again it never reopens it. With the menu bar item's
+  menu open, it closes the menu and does nothing else.
 - `o` with no row to jump to closes the panel all the same.
 - A pointer resting where the panel pours has not come onto it: only the
   pointer's own move onto the panel or the notch counts, never a menu
-  holding the panel at a row, nor the asks panel opening under it.
+  holding the panel at a row, nor the pointer found where it rested as
+  that menu closes, nor the asks panel opening under it.
 - The notch hiding, as Show goes to Nothing or a full-screen app takes
   its display, closes the panel, so it never shows again by itself. A
   click in another of SitRep's windows closes it, as a click in another

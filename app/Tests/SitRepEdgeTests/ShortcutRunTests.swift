@@ -171,19 +171,22 @@ struct ShortcutRunTests {
     }
 
     /// A menu's held place is no move of the pointer's: `z` opens the row's snooze menu, which holds the panel at the
-    /// row as it shows, and closed, the panel stays open, the pointer away.
-    @Test(arguments: [NotchStyle.meniscus, .card])
-    func aMenuHoldingThePanelIsNoPointerComingOntoIt(style: NotchStyle) throws {
-        let setting = Self.setting(style), run = try Self.summoned(setting)
+    /// row as it shows, and closed, the pointer is where it was, which is no move either. The panel stays open as the
+    /// pointer, away or resting on the panel, then moves off.
+    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
+    func aMenuHoldingThePanelIsNoPointerComingOntoIt(style: NotchStyle, resting: Bool) throws {
+        let setting = Self.setting(style)
+        let (run, pointer) = resting ? try Self.summonedUnder(setting) : (try Self.summoned(setting), Self.away)
 
-        guard case let .snoozeRow(_, row: row)? = Self.press(.snooze, run, Self.away, setting) else {
+        guard case let .snoozeRow(_, row: row)? = Self.press(.snooze, run, pointer, setting) else {
             Issue.record("z offered no snooze menu")
             return
         }
 
         run.menuOpened(at: CGPoint(x: row.midX, y: row.midY))
-        Self.frames(run, for: 500, Self.away, setting)
+        Self.frames(run, for: 500, pointer, setting)
         run.menuClosed()
+        Self.frames(run, for: 500, pointer, setting)
         Self.frames(run, for: 2000, Self.away, setting)
         #expect(run.phase == .open)
     }
@@ -200,20 +203,11 @@ struct ShortcutRunTests {
 
     /// A pointer left resting on the panel, as `esc` closed it under it, comes onto the panel the shortcut opens only
     /// as it moves; then leaving it closes it, with motion or without.
-    @Test(arguments: [(NotchStyle.meniscus, false), (.meniscus, true), (.card, false)])
+    @Test(arguments: [(NotchStyle.meniscus, false), (.meniscus, true), (.card, false), (.card, true)])
     func aPointerRestingOnThePanelComesOntoItOnlyAsItMoves(style: NotchStyle, reducesMotion: Bool) throws {
-        let setting = Self.setting(style, reducesMotion: reducesMotion), run = Self.closed(setting)
+        let setting = Self.setting(style, reducesMotion: reducesMotion)
+        let (run, resting) = try Self.summonedUnder(setting)
 
-        Self.frames(run, for: 3000, Self.onTheNotch, setting) { run.phase == .open && !run.frame.isMoving }
-        try #require(run.phase == .open)
-
-        let resting = try Self.words(Self.helpDesk, run)
-
-        run.step(Self.at(run, resting, setting))
-        Self.press(.escape, run, resting, setting)
-        #expect(Self.closes(run, at: resting, setting))
-
-        run.summon(Self.at(run, resting, setting))
         Self.frames(run, for: 2000, resting, setting)
         #expect(run.phase == .open)
         Self.frames(run, for: 2000, Self.elsewhere, setting)
@@ -221,6 +215,25 @@ struct ShortcutRunTests {
 
         run.step(Self.at(run, CGPoint(x: resting.x, y: resting.y + 2), setting))
         #expect(Self.closes(run, at: Self.away, setting))
+    }
+
+    /// The panel the shortcut opened, at rest, under a pointer left resting on its first row's words, as `esc` closed
+    /// the panel the pointer had opened under it.
+    private static func summonedUnder(_ setting: NotchRun.Setting) throws -> (NotchRun, CGPoint) {
+        let run = closed(setting)
+
+        frames(run, for: 3000, onTheNotch, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open)
+
+        let resting = try words(helpDesk, run)
+
+        run.step(at(run, resting, setting))
+        press(.escape, run, resting, setting)
+        try #require(closes(run, at: resting, setting))
+        run.summon(at(run, resting, setting))
+        frames(run, for: 3000, resting, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open)
+        return (run, resting)
     }
 
     // MARK: What closes it

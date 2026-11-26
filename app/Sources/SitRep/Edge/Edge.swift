@@ -1,7 +1,6 @@
 import AppKit
 import SitRepCore
 import SitRepEdge
-import SitRepMenu
 import SitRepPanel
 
 /// What shows at the screen's edge, as Lee set it: the notch on the chosen display, or nothing, following each change
@@ -9,7 +8,7 @@ import SitRepPanel
 /// over a full-screen app. The notch takes every board, hidden or not, so it shows the latest once Lee chooses it, and
 /// shows the callout a welcome's Done leaves until Lee first points at it.
 @MainActor
-final class Edge {
+final class Edge: ShortcutNotch {
     private let preferences: Preferences
     private var settings: EdgeSettings
     private let notch: NotchController
@@ -138,8 +137,8 @@ final class Edge {
     }
 
     /// The shortcut as macOS holds it, which the panel's hold lets through, so pressed again it closes the panel.
-    func hotKey(_ chord: KeyChord?) {
-        notch.hotKey(chord?.tapChord)
+    func hotKey(_ chord: TapChord?) {
+        notch.hotKey(chord)
     }
 
     /// The panel closed, as the menu bar item's menu opens: the menu has the keys.

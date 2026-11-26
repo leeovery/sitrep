@@ -46,6 +46,7 @@ public final class Meniscus: Notch {
     /// The row a click is jumping to, pressed in until the panel has drained.
     var jumping: String?
     var awaitsPointer = false
+    var ownPointer: Vec?
     /// A drag has the notch, ...
     var isCarried = false
     /// ... or let it go across the screen's middle, and it is draining into this edge to grow out of the other ...

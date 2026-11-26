@@ -97,9 +97,10 @@ public struct TapKey: Equatable, Sendable {
         code == chord.code && flags.intersection(Self.modifiers) == chord.flags
     }
 
-    /// Fn held with a key that doesn't carry it of itself, as the arrows and the keys over them do.
+    /// Fn held with a key that doesn't carry it of itself, as the arrows and the keys over them do, and that isn't read
+    /// by its code: fn-Return on a laptop's keyboard sends keypad Enter with Fn, and is Return still.
     private var holdsFn: Bool {
-        flags.contains(.maskSecondaryFn) && !KeyCode.carriesFn.contains(code)
+        flags.contains(.maskSecondaryFn) && !KeyCode.carriesFn.contains(code) && Self.byCode[code] == nil
     }
 
     /// The key of the panel's set it is, `⌘Z` among them where the asks panel's sending line `undoes`: ⌘ alone held

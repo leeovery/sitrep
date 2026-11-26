@@ -100,6 +100,8 @@ protocol NotchModel: Notch, SimModel where TimerName: ClickTimers {
     var isFree: Bool { get }
     /// The shortcut opened the panel and the pointer has yet to come onto it: until it does, nothing starts the grace.
     var awaitsPointer: Bool { get set }
+    /// The pointer as last seen of itself, not a menu's held place.
+    var ownPointer: Vec? { get set }
 
     /// The panel comes out, as a hover or the shortcut opens it.
     func open()
@@ -138,6 +140,17 @@ extension NotchModel {
         if isLive {
             close()
         }
+    }
+
+    /// Whether the pointer at `p` moved of itself: not a menu's held place (`isHeld`), and elsewhere than it last was
+    /// of itself, so a menu closing, which hands the model the pointer again where it rested, is no move. Noted.
+    func movedOfItself(to p: Vec?, isHeld: Bool) -> Bool {
+        guard !isHeld else {
+            return false
+        }
+
+        defer { ownPointer = p }
+        return p != ownPointer
     }
 
     @discardableResult

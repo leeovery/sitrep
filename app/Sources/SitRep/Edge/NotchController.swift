@@ -12,7 +12,7 @@ import SitRepPanel
 /// panel's times, drawn again as they change. Whatever comes between frames, a board, Lee's hand or a key the panel
 /// holds, goes to the run, which brings the notch up to now first; each is drawn, and frames show what it did.
 @MainActor
-final class NotchController: NSObject, CalloutShape {
+final class NotchController: NSObject, CalloutShape, ShortcutNotch {
     /// A click on a row: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
     /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen, or until it moves.

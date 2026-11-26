@@ -3,17 +3,6 @@ import os
 import SitRepCore
 import SitRepMenu
 
-extension Shortcut {
-    /// The shortcut pressed (DESIGN, "Keys"): the notch's panel, where the notch takes it while it shows; else the menu
-    /// bar item's menu, as under Nothing or with a full-screen app hiding the notch.
-    @MainActor
-    static func press(notch: () -> Bool, menu: () -> Void) {
-        if !notch() {
-            menu()
-        }
-    }
-}
-
 /// Carbon's hot key, as the shortcut's hot key registers it and lets it go: given whole, so the tests register none.
 @MainActor
 protocol HotKeyCarbon: AnyObject {

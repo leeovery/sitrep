@@ -13,9 +13,11 @@ extension Meniscus {
     /// The pointer since the last frame, read at this time, as the prototype's pointer events give it: a move adds to
     /// its trail, and entering or leaving the notch or the panel, as they were last drawn, cancels the grace or may
     /// start it. A still pointer gets no enter or leave as the shape pours under it. The pointer's own move onto a
-    /// panel the shortcut opened, not a menu's held place (`isHeld`), is its coming onto it: what it was over is
-    /// forgotten, so the move enters it, and leaving it starts the grace.
+    /// panel the shortcut opened (`movedOfItself`) is its coming onto it: what it was over is forgotten, so the move
+    /// enters it, and leaving it starts the grace.
     func pointerMoved(_ p: Vec?, at time: Double, isHeld: Bool = false) {
+        let isOwnMove = movedOfItself(to: p, isHeld: isHeld)
+
         guard p != sp else {
             return
         }
@@ -24,7 +26,7 @@ extension Meniscus {
         if let p {
             trail.add(p, at: time)
         }
-        if awaitsPointer, !isHeld, hoverOf(p) != nil {
+        if awaitsPointer, isOwnMove, hoverOf(p) != nil {
             awaitsPointer = false
             hover = nil
         }

@@ -270,6 +270,18 @@ struct KeyReaderTests {
         #expect(arrow.read(TapKey(code: 115, flags: .maskSecondaryFn), in: Self.summoned) == .take(nil))
     }
 
+    /// A key read by its code is itself with Fn held: fn-Return on a laptop's keyboard sends keypad Enter with Fn, and
+    /// looks closer under either hold, as `esc` with Fn closes.
+    @Test(arguments: [KeyCode.keypadEnter, KeyCode.enter, KeyCode.escape], [Self.holding, Self.summoned])
+    func aKeyReadByItsCodeIsItselfWithFnHeld(code: UInt16, snapshot: KeySnapshot) {
+        var reader = KeyReader()
+
+        #expect(
+            reader.read(TapKey(code: code, flags: .maskSecondaryFn), in: snapshot)
+                == .take(.panel(code == KeyCode.escape ? .escape : .enter))
+        )
+    }
+
     /// Fn held makes a letter another key under a hover's hold too.
     @Test func fnHeldMakesALetterAnotherKey() {
         var reader = KeyReader()
