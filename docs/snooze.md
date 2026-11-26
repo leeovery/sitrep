@@ -8,7 +8,7 @@ Some asks can wait until tomorrow. Snooze puts them off until a time you pick, a
 2. Choose **Snooze**, then **Tomorrow**.
 3. The session leaves Needs you. Unfold Snoozed at the foot of the panel, and its row says when it wakes, such as `tomorrow 09:00`.
 
-In the terminal view, choose the row and press `z`, then pick Tomorrow. To put off only one ask, press `snooze` on it in the Claude Code pane, or use **Snooze ▾** in the asks panel.
+On the notch or in the terminal view, choose the row and press `z`, then pick Tomorrow. To put off only one ask, press `snooze` on it in the Claude Code pane, or use **Snooze ▾** in the asks panel.
 
 ## What happens
 
@@ -20,13 +20,13 @@ In the terminal view, choose the row and press `z`, then pick Tomorrow. To put o
   - a new ask in the session;
   - your reply to one of its asks;
   - your prompt in the Claude Code window running that session.
-- **You can wake it yourself.** Right-click its row under Snoozed and choose **Wake now**, or press `wake now` in the pane. In the terminal view, press `z` on its row under Snoozed.
+- **You can wake it yourself.** Right-click its row under Snoozed and choose **Wake now**, or press `wake now` in the pane. On the notch or in the terminal view, press `z` on its row under Snoozed.
 
 ## Good to know
 
 - **Only you snooze.** Claude has no tool for it, and leaves snoozed asks until they wake.
 - **A permission prompt never snoozes.** A Claude Code window waiting at one stays in Needs you, though its session is snoozed.
-- **Until it moves has no time.** It wakes the session when Claude next ends a turn there, or for any of the reasons above. Only the right-click menus and the terminal view offer it.
+- **Until it moves has no time.** It wakes the session when Claude next ends a turn there, or for any of the reasons above. Only the Snooze menu offers it.
 - **Something new never wakes one ask snoozed alone.** Its time wakes it, and so do waking it yourself, answering it, or Claude asking it again.
 
 ## Reference

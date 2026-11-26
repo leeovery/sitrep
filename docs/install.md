@@ -22,7 +22,7 @@ The install leaves SitRep stopped, so open it from Applications. Then, in each C
 /reload-plugins
 ```
 
-A window keeps the plugins it loaded until you reload them. A window you open later loads sitrep by itself.
+A window you open later loads sitrep by itself.
 
 ## What the first start does
 
@@ -46,6 +46,7 @@ Apart from opening the app, SitRep works without any of these.
 |---|---|---|
 | Opening an app from the internet | The first time you open SitRep | Not kept: asked once |
 | Control Ghostty | Your first click that goes to Ghostty, or **Allow…** | Privacy & Security › Automation |
+| Accessibility | **Allow…** in Settings › Edge | Privacy & Security › Accessibility |
 | Notifications | When you turn a banner on | Notifications, in the SitRep entry |
 | Open at login | During the first welcome window | General › Login Items |
 
@@ -89,7 +90,7 @@ claude plugin marketplace remove sitrep
 | `~/Library/Application Support/sitrep` | `--zap` only |
 | `~/.local/state/sitrep`, the board | Nothing: delete it yourself |
 
-No command here touches the board. Your sessions, asks and parked items stay in it until you delete the folder. A zap also leaves what macOS keeps in System Settings: the leave to control Ghostty, and the SitRep row in Notifications.
+No command here touches the board. Your sessions, asks and parked items stay in it until you delete the folder. A zap also leaves what macOS keeps in System Settings: the leave to control Ghostty, and the SitRep rows in Accessibility and Notifications.
 
 ## When something's wrong
 

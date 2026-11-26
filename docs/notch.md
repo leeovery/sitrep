@@ -22,7 +22,7 @@ SitRep shows the board at the edge of your Mac's screen, whatever app you are in
 
 ## Good to know
 
-- **It never takes the keyboard.** Your typing stays in the app you were in. There is no Esc: move the pointer away and the panel closes.
+- **Keys work once you point.** With the pointer on a row, `o` jumps, `z` snoozes and `esc` closes the panel. The first key that isn't one of the panel's keys goes to the app you were in, so your typing stays there. Press ⌃⌥S to open the panel from the keyboard. See [Same keys, wherever the board shows](keys.md).
 - **Dimmed rows still work.** SitRep dims a session that no terminal on this Mac shows. A click on one resumes the session: see [A click takes you there](jump.md).
 - **Full-screen apps come first.** While one has the display, the notch leaves that display. It comes back when the app leaves full screen.
 - **The menu speaks up first.** Above the sessions, it says when the plugin is in trouble. Under "Needs /reload-plugins", it lists each window on an older plugin, until you run `/reload-plugins` there. A click on one takes you to it. If the board stops updating, the menu says "SitRep can't read the board" and why.
@@ -36,6 +36,8 @@ SitRep shows the board at the edge of your Mac's screen, whatever app you are in
 | Display | The main display, or another |
 | Style | Meniscus pours open, Card slides open |
 | Reduce motion | Less movement; the Mac's own setting counts too |
+| Accessibility | **Allow…** in Settings |
+| Shortcut | ⌃⌥S, another, or none |
 
 Each is in Settings › Edge, and Show is in the menu too. See [Settings, pane by pane](settings.md).
 
