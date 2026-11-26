@@ -32,10 +32,11 @@
  *   as the band moves to another, or as the row can no longer be snoozed.
  * - In the menu `↑↓` pick a choice, every one reachable, the menu scrolled
  *   the least that keeps the pick drawn where it has no room for all; ⏎,
- *   or a tap on a drawn choice, asks to snooze the session to it, naming
- *   the asks the row showed as the menu opened; `esc`, `z` or a tap
- *   anywhere else closes it; any other key but the loop's does nothing. A
- *   write that fails sets its answer.
+ *   a tap on a drawn choice, or the digit of a choice, asks to snooze the
+ *   session to it, naming the asks the row showed as the menu opened; a
+ *   digit past its choices does nothing; `esc`, `z` or a tap anywhere else
+ *   closes it; any other key but the loop's does nothing. A write that
+ *   fails sets its answer. With no menu a digit does nothing.
  * - `top` is kept as the layout clamps it, so scrolling past the end piles
  *   nothing up.
  * - The sessions SitRep's file dims move behind those drawn filled, the
@@ -360,15 +361,23 @@ const tappedMenu = (state: PanelState, menu: Menu, { x, y }: Tap, drawn: PanelSt
   return at === -1 ? { state: closed(state) } : chosen(state, menu, at)
 }
 
+/** Whether the menu, as `drawn` lays it out, draws a line. */
+const isMenuDrawn = (drawn: PanelState) => (layoutIn(drawn).menu?.lines ?? 0) > 0
+
 /** ⏎ with the menu open: the pick made, which the layout always draws while the menu has a line; with none, nothing. */
 const enteredMenu = (state: PanelState, menu: Menu, drawn: PanelState): Stepped =>
-  (layoutIn(drawn).menu?.lines ?? 0) > 0 ? chosen(state, menu, menu.at) : only(state)
+  isMenuDrawn(drawn) ? chosen(state, menu, menu.at) : only(state)
+
+/** A digit with the menu open: the choice of its number made, as ⏎ on it; past the choices, or with no line drawn, nothing. */
+const numberedMenu = (state: PanelState, menu: Menu, n: number, drawn: PanelState): Stepped =>
+  n <= menu.options.length && isMenuDrawn(drawn) ? chosen(state, menu, n - 1) : only(state)
 
 /** What each key does with the menu open, its answer already dropped; any other does nothing, the loop's own aside. */
 const MENU_KEY: { [K in Key['kind']]?: (state: PanelState, menu: Menu, key: Extract<Key, { kind: K }>, drawn: PanelState) => Stepped } = {
   up: (state, menu) => only(pickedBy(state, menu, -1)),
   down: (state, menu) => only(pickedBy(state, menu, 1)),
   enter: (state, menu, _, drawn) => enteredMenu(state, menu, drawn),
+  digit: (state, menu, { n }, drawn) => numberedMenu(state, menu, n, drawn),
   tap: tappedMenu,
   esc: state => only(closed(state)),
   snooze: state => only(closed(state)),
@@ -389,6 +398,7 @@ const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind
   snooze: snoozing,
   tap: (state, key, drawn) => only(tapped(state, key, drawn)),
   wheel: (state, { by }) => only(settled({ ...state, top: layoutIn(state).top + by })),
+  digit: only,
   quit: only,
   suspend: only,
 }

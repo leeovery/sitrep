@@ -6,6 +6,7 @@
  *   application cursor mode doesn't matter, and Home and End the same. PgUp
  *   and PgDn come as `ESC [ 5 ~` and `ESC [ 6 ~`.
  * - `j` and `k` move as `↓` and `↑`; `q` and Ctrl-C both leave.
+ * - `1` to `9` each carry their number; `0` is nothing.
  * - A mouse report, in SGR's form or in the old X10 form a terminal without
  *   SGR's sends, its three bytes after `ESC [ M`: a press of the first
  *   button is a tap, the wheel scrolls; a release, or any other button, is
@@ -32,6 +33,8 @@ export type Key =
   | { kind: 'tap'; x: number; y: number }
   /** A notch of the wheel: up by -1, down by 1. */
   | { kind: 'wheel'; by: number }
+  /** A digit, `1` to `9`: the choice of its number in what is open. */
+  | { kind: 'digit'; n: number }
 
 /** The keys in some bytes, and what is left of them: the start of a sequence they end inside, to read with the next. */
 export type Keys = { keys: Key[]; rest: string }
@@ -90,6 +93,9 @@ const WHEEL: Readonly<Record<number, number>> = { 64: -1, 65: 1 }
 
 /** How far X10 shifts each of its bytes: a button by 32, a cell by 33, counted from 0. */
 const X10 = { button: 32, cell: 33 }
+
+/** `1` to `9`; `0` chooses nothing. */
+const DIGIT = /^[1-9]$/
 
 const pressOf = (kind: Press | undefined): Key | undefined => (kind === undefined ? undefined : { kind })
 
@@ -228,10 +234,13 @@ const escapeAt = (bytes: string, at: number): Read => {
   return STRING_STARTS.has(second) ? stringAt(bytes, at) : taken(2)
 }
 
+/** A byte on its own: a digit carrying its number, or a plain key. */
+const plainOf = (byte: string): Key | undefined => (DIGIT.test(byte) ? { kind: 'digit', n: Number(byte) } : pressOf(PLAIN[byte]))
+
 const readAt = (bytes: string, at: number): Read => {
   const byte = bytes[at] ?? ''
 
-  return byte === ESC ? escapeAt(bytes, at) : taken(1, pressOf(PLAIN[byte]))
+  return byte === ESC ? escapeAt(bytes, at) : taken(1, plainOf(byte))
 }
 
 /** The start of a sequence the bytes end inside, read as all there is: a lone `ESC` is `esc`; any other start is dropped. */

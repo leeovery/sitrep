@@ -14,8 +14,9 @@
  * - The chosen row expanded cuts nothing: its words wrap over the lines the
  *   layout gives it (expand.ts), the band over them all.
  * - An empty board, and one not yet read, stand centred in the body's place.
- * - The snooze menu stands under the chosen row, a choice a line, the band
- *   on the choice picked rather than on the row.
+ * - The snooze menu stands under the chosen row, a choice a line, each of
+ *   the first nine after its number, the band on the choice picked rather
+ *   than on the row.
  * - The key line drops whole hints from the right, `q quit` last, or in the
  *   menu `esc cancel`.
  * - There is no title: row 0 is blank, and gives way first, short of room
@@ -288,20 +289,33 @@ const markOf = ({ pens }: Frame, row: PanelRow, dimmed: Inking) => {
   return { glyph: row.isAway ? mark.away : mark.here, pen: pens.of(mark.style) }
 }
 
+/** The most choices the snooze menu numbers: a digit's, `1` to `9`. */
+const NUMBERED = 9
+
+/** Where a snooze choice's name starts: past its number and a space. */
+const CHOICE = NAME + 2
+
 /**
- * The snooze menu under its row, a choice a line: its name from the names'
- * column, in the terminal's ink, and its time at the right in grey, where
- * both fit; the band on the choice picked, its name bold.
+ * The snooze menu under its row, a choice a line: its number in the names'
+ * column, in grey, as the key line's words, for the first nine; its name
+ * after it, in the terminal's ink, numbered or not; and its time at the
+ * right in grey, where both fit. The band on the choice picked, its name
+ * bold.
  */
 const menuAt = ({ grid, layout, pens }: Frame, menu: NonNullable<PanelView['menu']>) => {
-  const room = layout.width - 1 - NAME
+  const room = layout.width - 1 - CHOICE
   const { y, lines, first } = layout.menu ?? { y: 0, lines: 0, first: 0 }
 
   menu.options.slice(first, first + lines).forEach((option, at) => {
-    const isPicked = first + at === menu.at
+    const index = first + at
+    const isPicked = index === menu.at
     const time = widthOf(option.title) + 2 + widthOf(option.time) <= room ? option.time : ''
 
-    put(grid, NAME, y + at, cut(option.title, room), pens.of({ tone: 'ink', bold: isPicked }))
+    if (index < NUMBERED) {
+      put(grid, NAME, y + at, String(index + 1), pens.of(STYLE.meta))
+    }
+
+    put(grid, CHOICE, y + at, cut(option.title, room), pens.of({ tone: 'ink', bold: isPicked }))
     putRight(grid, layout.width - 1, y + at, time, pens.of(STYLE.meta))
 
     if (isPicked) {

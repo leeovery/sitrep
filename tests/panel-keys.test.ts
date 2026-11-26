@@ -30,6 +30,12 @@ test('j and k move as ↓ and ↑; o opens; z snoozes; s is Snoozed; q and Ctrl-
   expect(kinds('\r\n\x1bOM')).toEqual(['enter', 'enter', 'enter'])
 })
 
+test('1 to 9 each carry their number; 0 is nothing, and a digit inside a paste is never a key', () => {
+  expect(keysOf('123456789').keys).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => ({ kind: 'digit', n })))
+  expect(kinds('0')).toEqual([])
+  expect(keysOf('\x1b[200~12\x1b[201~3').keys).toEqual([{ kind: 'digit', n: 3 }])
+})
+
 test('PgUp, PgDn, Home and End, in each form terminals send them', () => {
   expect(kinds('\x1b[5~\x1b[6~')).toEqual(['pageUp', 'pageDown'])
   expect(kinds('\x1b[H\x1bOH\x1b[1~\x1b[7~')).toEqual(['home', 'home', 'home', 'home'])

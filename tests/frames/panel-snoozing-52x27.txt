@@ -2,12 +2,12 @@
  NEEDS YOU ●3 ●1 ──────────────────────────────── ▿
  ● Help desk redesign 2                          4m
    Northwind · Thread replies, or keep them flat?
-   In an hour                                 15:00
-   Later today                                17:00
-   Tonight                                    18:00
-   Tomorrow                                   09:00
-   Next week                              Mon 09:00
-   Until it moves
+   1 In an hour                               15:00
+   2 Later today                              17:00
+   3 Tonight                                  18:00
+   4 Tomorrow                                 09:00
+   5 Next week                            Mon 09:00
+   6 Until it moves
  ○ Data import                                   2h
    Litware · Keep the old CSV columns?
  ● Shift schedules                              31m
