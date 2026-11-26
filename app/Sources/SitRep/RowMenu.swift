@@ -64,9 +64,7 @@ extension RowMenu.Row {
     /// A row on the card: in Needs you, its asks', none on its turn's; in Snoozed, to wake; none on a row of stops alone
     /// or a working one.
     init(_ session: Session) {
-        let offers = session.isSnoozed || session.isTurn || !session.asks.isEmpty
-
-        self.init(asks: offers ? session.asks : nil, isSnoozed: session.isSnoozed)
+        self.init(asks: session.snoozes ? session.asks : nil, isSnoozed: session.isSnoozed)
     }
 }
 
@@ -75,32 +73,44 @@ extension RowMenu.Row {
 /// Until it moves after a separator, with no time, or alone where Lee switched every time off. The menu is its own
 /// delegate, to brighten the time highlighted. Each time is worked out once, as the menu opens: chosen, it hands on
 /// the time it shows, none for Until it moves, so what is snoozed to is what Lee saw, though the clock or the zone
-/// moved while the menu stood open.
+/// moved while the menu stood open. Shown on its own, its choices are numbered 1 to 9 in order, each its key
+/// equivalent pressed alone, after its time in AppKit's column (DESIGN, "Keys"); as the row's menu's Snooze, they are
+/// not, as a submenu's key equivalents fire from its menu.
 @MainActor
 final class SnoozeMenu: NSMenu, NSMenuDelegate {
     private let choices: [SnoozeTime]
     private let times: [String]
 
-    /// The times `settings` offer at `now`, then Until it moves: a row's.
+    /// The times `settings` offer at `now`, then Until it moves: the row's menu's Snooze.
     convenience init(
         offering settings: SnoozeSettings, at now: Date, in calendar: Calendar, choose: @escaping (Date?) -> Void
     ) {
         let times = SnoozeTime.offered(at: now, in: calendar, settings: settings)
 
-        self.init(times, settings, at: now, in: calendar, choose)
+        self.init(times, settings, at: now, in: calendar, numbered: false, choose)
     }
 
-    /// The times `settings` offer at `now` alone: one ask's, as the pane offers them, each snoozing until its time.
+    /// The row's times on their own, numbered: what `z` offers on a row.
+    static func forRow(
+        offering settings: SnoozeSettings, at now: Date, in calendar: Calendar, choose: @escaping (Date?) -> Void
+    ) -> SnoozeMenu {
+        let times = SnoozeTime.offered(at: now, in: calendar, settings: settings)
+
+        return SnoozeMenu(times, settings, at: now, in: calendar, numbered: true, choose)
+    }
+
+    /// The times `settings` offer at `now` alone, numbered: one ask's, as the pane offers them, each snoozing until its
+    /// time.
     static func forAsk(
         offering settings: SnoozeSettings, at now: Date, in calendar: Calendar, choose: @escaping (Date) -> Void
     ) -> SnoozeMenu {
         let times = SnoozeTime.offeredForAsk(at: now, in: calendar, settings: settings)
 
-        return SnoozeMenu(times, settings, at: now, in: calendar) { $0.map(choose) }
+        return SnoozeMenu(times, settings, at: now, in: calendar, numbered: true) { $0.map(choose) }
     }
 
     private init(
-        _ choices: [SnoozeTime], _ settings: SnoozeSettings, at now: Date, in calendar: Calendar,
+        _ choices: [SnoozeTime], _ settings: SnoozeSettings, at now: Date, in calendar: Calendar, numbered: Bool,
         _ choose: @escaping (Date?) -> Void
     ) {
         let untils = choices.map { $0.wakes(after: now, in: calendar, settings: settings) }
@@ -122,6 +132,9 @@ final class SnoozeMenu: NSMenu, NSMenuDelegate {
             }
             addItem(ActionItem(choice.title) { choose(until) })
         }
+        if numbered {
+            number()
+        }
         highlight(nil)
     }
 
@@ -133,13 +146,37 @@ final class SnoozeMenu: NSMenu, NSMenuDelegate {
         highlight(item)
     }
 
+    /// Its choices, in order, the separator before Until it moves aside.
+    var choiceItems: [NSMenuItem] {
+        items.filter { !$0.isSeparatorItem }
+    }
+
+    /// The choice of this number, from 1, as a click on it: its tracking ended, and the time it shows snoozed to.
+    /// Past its last, nothing.
+    func choose(number: Int) {
+        guard choiceItems.indices.contains(number - 1) else {
+            return
+        }
+
+        cancelTracking()
+        performActionForItem(at: index(of: choiceItems[number - 1]))
+    }
+
+    /// Each of its first nine choices keyed by its number, pressed alone.
+    private func number() {
+        for (place, item) in choiceItems.prefix(9).enumerated() {
+            item.keyEquivalent = "\(place + 1)"
+            item.keyEquivalentModifierMask = []
+        }
+    }
+
     /// Each choice's name and time, the time brighter on the one highlighted; Until it moves its name alone.
     private func highlight(_ lit: NSMenuItem?) {
         let names = choices.map(\.title)
         let paragraph = NSMutableParagraphStyle()
 
         paragraph.tabStops = [NSTextTab(textAlignment: .right, location: Self.widest(names) + Self.gap + Self.widest(times))]
-        for (item, (name, time)) in zip(items.filter { !$0.isSeparatorItem }, zip(names, times)) {
+        for (item, (name, time)) in zip(choiceItems, zip(names, times)) {
             let words = [NSAttributedString.Key.font: Self.font, .paragraphStyle: paragraph]
             let title = NSMutableAttributedString(string: time.isEmpty ? name : "\(name)\t", attributes: words)
 
