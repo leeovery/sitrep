@@ -164,6 +164,8 @@ struct WelcomeWindowTests {
         made.preferences.edit { $0.show = .nothing }
         made.at(.edge)
         _ = await made.settled()
+        try made.stage.step(at: made.clock.now)
+        #expect(try !(made.stage.surface is NotchSurface))
         made.welcome.choose(.notch)
         try made.stage.step(at: made.clock.now)
         #expect(made.preferences.edge.show == .notch)

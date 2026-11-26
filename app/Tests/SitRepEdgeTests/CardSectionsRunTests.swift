@@ -188,12 +188,15 @@ struct CardSectionsRunTests {
         var setting = Self.setting
 
         setting.isChosen = false
-        _ = run.show(Self.board(Self.mixed), NotchRun.Moment(time: run.time, pointer: nil, setting: setting))
+        _ = run.show(
+            Self.board(Self.mixed), NotchRun.Moment(time: run.time, pointer: nil, isShown: false, setting: setting)
+        )
         _ = run.show(
             Self.board([Self.ask("sr-c")] + Self.mixed, new: ["ask:sr-c"]),
-            NotchRun.Moment(time: run.time, pointer: nil, setting: setting)
+            NotchRun.Moment(time: run.time, pointer: nil, isShown: false, setting: setting)
         )
 
+        #expect(run.board.sessions.contains { $0.id == "sr-c" })
         #expect(run.folded.sections == [.needsYou])
         #expect(kept.read().folded == [.needsYou])
     }

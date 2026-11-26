@@ -70,7 +70,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **Needs you**: The first section of the panel and of the terminal view: the sessions waiting on you. An orange row has asks, or a window waiting at a permission prompt. The terminal view shows the same with an orange dot. A blue row or dot is Stopped.
 
-**the notch**: The SitRep shape at the left or right edge of your screen, black by default, on every Space. It opens into the panel when you hover over it. Its light is orange while an orange row waits in Needs you. With none, it is blue while a session is Stopped.
+**the notch**: The black SitRep shape at the left or right edge of your screen, on every Space. It opens into the panel when you hover over it. Its light is orange while an orange row waits in Needs you, and otherwise blue while a session is Stopped. You choose Notch or Nothing under Show, in the menu or in Settings › Edge. With Nothing, the menu bar item's menu carries the board.
 
 **the panel**: What the notch opens: your sessions, in Needs you, Working and Snoozed. A click on a session takes you to it.
 

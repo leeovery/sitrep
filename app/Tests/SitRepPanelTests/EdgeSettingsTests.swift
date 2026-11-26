@@ -56,11 +56,13 @@ struct EdgeSettingsTests {
     @Test func theStripSavedReadsAsTheNotch() throws {
         let json = #"{"show":"strip","edge":"right","style":"card","length":"full","maxLength":0.25}"#
 
+        let read = try JSONDecoder().decode(EdgeSettings.self, from: Data(json.utf8))
         var expected = EdgeSettings()
+
         expected.edge = .right
         expected.style = .card
-        #expect(try JSONDecoder().decode(EdgeSettings.self, from: Data(json.utf8)) == expected)
-        #expect(expected.show == .notch)
+        #expect(read.show == .notch)
+        #expect(read == expected)
     }
 
     /// Settings saved while the edge had a Material read as they stand without it: a Glass saved draws in black.

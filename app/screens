@@ -38,7 +38,8 @@ while read -r frame ms; do
 done <"$work/notch/frames.txt"
 
 mkdir -p "$screens"
-find "$screens" -maxdepth 1 -type f \( -name '*.png' -o -name '*.webp' -o -name '*.svg' \) -delete
+# Only what it draws: terminal.webp is made apart, from a golden frame (design/terminal-ui.md)
+rm -f "$screens/claude-code.webp" "$screens/notch.webp"
 # Lossy at high quality, colours converted sharply so coloured text and rings stay crisp: a fraction of each PNG's size
 cwebp -quiet -q 90 -m 6 -sharp_yuv "$work/window.png" -o "$screens/claude-code.webp"
 # Each frame lossy or lossless, whichever is smaller: lossy alone leaves streaks in the black as frames build on it

@@ -35,7 +35,7 @@ What stands at the edge of your screen. See [The edge of your screen](notch.md).
 | Style | Meniscus, Card | Meniscus | How the notch opens |
 | Reduce motion | On, off | Off | Less movement at the edge |
 
-The pane shows the rows under Show only while Show is Notch. With Nothing, the menu bar item carries the board, and the pane holds only Show.
+Edge, Display, Style and Reduce motion show only while Show is Notch. With Nothing, the menu bar item carries the board, and the pane holds only Show.
 
 ## Notifications
 
