@@ -3,9 +3,9 @@ import SitRepCore
 import SitRepPanel
 import SitRepRelay
 
-/// A row of Settings' General, Notifications and Claude Code panes as it stands (DESIGN, "Settings"): its label, the
-/// line under it, and what sits in the controls' column. A dot when it's fine, a button when it's Lee's: all well, the
-/// row says so with a green dot and a word, and nothing to press; when something wants Lee, its line says what is
+/// A row of Settings' General, Edge, Notifications and Claude Code panes as it stands (DESIGN, "Settings"): its label,
+/// the line under it, and what sits in the controls' column. A dot when it's fine, a button when it's Lee's: all well,
+/// the row says so with a green dot and a word, and nothing to press; when something wants Lee, its line says what is
 /// wrong and a push button takes him to the fix.
 public struct SettingsRow: Equatable, Sendable {
     public let label: String
@@ -34,6 +34,10 @@ public struct SettingsRow: Equatable, Sendable {
         case allowGhostty
         /// General › Login Items, where macOS waits on Lee's approval.
         case loginItems
+        /// Privacy & Security › Accessibility, where SitRep's leave for the panel's keys is.
+        case accessibility
+        /// macOS's own prompt for the Accessibility leave, before SitRep has asked.
+        case allowKeys
     }
 
     public init(label: String, line: String?, side: Side) {
@@ -127,6 +131,23 @@ extension SettingsRow {
             SettingsRow(label: ghosttyLabel, line: "macOS says only while Ghostty runs", side: .none)
         case nil:
             SettingsRow(label: ghosttyLabel, line: "So a click on a session jumps to it", side: .none)
+        }
+    }
+
+    /// Edge's Keys (DESIGN, "Keys"), from whether macOS gives the Accessibility leave, nil before it is read: Allowed
+    /// with it; without it, why the panel takes no keys, with Allow… until SitRep has `asked`, which brings up macOS's
+    /// prompt, and the way to it in System Settings after.
+    public static func keys(_ isAllowed: Bool?, asked: Bool) -> SettingsRow {
+        switch isAllowed {
+        case nil:
+            SettingsRow(label: "Keys", line: nil, side: .none)
+        case true?:
+            SettingsRow(label: "Keys", line: nil, side: .fine("Allowed"))
+        case false?:
+            SettingsRow(
+                label: "Keys", line: "Not allowed, so the notch's panel takes no keys",
+                side: asked ? .button("Open System Settings…", .accessibility) : .button("Allow…", .allowKeys)
+            )
         }
     }
 

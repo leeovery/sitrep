@@ -84,7 +84,7 @@ enum WelcomeWorld {
                     self.ghostty = self.ghosttyRuns ? self.answersGhostty : .unknown
                     return self.ghostty
                 },
-                open: { self.opened.append($0) }
+                open: { self.opened.append($0) }, keys: { false }, allowKeys: { false }
             )
         }
 

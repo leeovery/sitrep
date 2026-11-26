@@ -4,8 +4,8 @@ import SitRepPanel
 import SwiftUI
 
 /// Edge (DESIGN, "Settings"): the Show row's card, then the sections that apply to the choice (`EdgePane`), the
-/// notch's and Motion, each arriving and leaving at once, the pane taking its new height with them; with Nothing, the
-/// Show row's card alone. It reads the displays as it appears and as they change, for Display.
+/// notch's, Motion and Keys, each arriving and leaving at once, the pane taking its new height with them; with Nothing,
+/// the Show row's card alone. It reads the displays as it appears and as they change, for Display.
 struct EdgePaneView: View {
     let settings: SettingsModel
 
@@ -51,6 +51,8 @@ struct EdgePaneView: View {
             CardRow(label: "Reduce motion", line: "SitRep follows the Mac's own setting either way") {
                 MiniSwitch(label: "Reduce motion", isOn: preferences.binding(\.reducesMotion))
             }
+        case .keys:
+            StatedRow(row: .keys(settings.said.keys, asked: preferences.app.askedForKeys), fix: settings.fix)
         }
     }
 
