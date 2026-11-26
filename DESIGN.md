@@ -11272,7 +11272,8 @@ to the Mac over SSH in rootshell, and for a Ghostty tab on the Mac. The
 full spec, the code it builds on, what that code can't give yet, the
 questions still Lee's and the slices it is built in, is
 `design/terminal-ui.md`; the looks are in Paper's "SitRep · terminal
-look", the pick on its page "FINAL · board in a terminal".
+look", the pick on its page "FINAL · one line, asks under the row · signed off 26 Nov 2026"
+(round 4's, "FINAL · board in a terminal", until then).
 
 - **One panel, drawn the same everywhere:** a dashboard to leave open
   beside your work, and a launcher to pick from. `sitrep` alone opens it on
@@ -11307,8 +11308,8 @@ look", the pick on its page "FINAL · board in a terminal".
     `sitrep answer`'s code in its own process, `--wants` with it, as the
     snooze menu writes `sitrep snooze`'s line, and the session's window
     delivers it as "From the board:".
-  - Drawn as round 5 in Paper, the page "round 5 · one line, asks under
-    the row". The full spec is `design/terminal-ui.md`, "Answering a row's
+  - Drawn as round 5 in Paper, which Lee signed off the same day, the
+    page "FINAL · one line, asks under the row · signed off 26 Nov 2026". The full spec is `design/terminal-ui.md`, "Answering a row's
     asks". It is built once the keys across SitRep have landed.
 - **Picking a row, by `o`, runs SitRep's resume command in place**, in
   the panel's own terminal, on the Mac as over SSH, so it behaves the same on
