@@ -1,5 +1,5 @@
 import { expect, test } from './kit'
-import { keysOf, type Key } from '../cli/panel/keys'
+import { keysOf, type Key, type Keys } from '../cli/panel/keys'
 import { NORDFOX } from './terminal'
 
 /** The kinds of the keys in the bytes, read whole. */
@@ -7,13 +7,16 @@ const kinds = (bytes: string, isQuiet = false) => keysOf(bytes, isQuiet).keys.ma
 
 const press = (kind: Exclude<Key['kind'], 'tap' | 'wheel'>): Key => ({ kind }) as Key
 
-/** The keys in the pieces, each read with what the one before left, and what the last leaves. */
-const readInPieces = (pieces: readonly string[]) =>
-  pieces.reduce<{ keys: Key[]; rest: string }>(
-    (sofar, piece) => {
-      const next = keysOf(sofar.rest + piece)
+/** Nothing more coming for 50 ms, between pieces: the quiet read the panel makes then. */
+const QUIET = Symbol('quiet')
 
-      return { keys: [...sofar.keys, ...next.keys], rest: next.rest }
+/** The keys in the pieces, each read with what the one before left, as the panel reads them, and what the last leaves. */
+const readInPieces = (pieces: readonly (string | typeof QUIET)[]) =>
+  pieces.reduce<Keys>(
+    (sofar, piece) => {
+      const next = piece === QUIET ? keysOf(sofar.rest, true, sofar.tail) : keysOf(sofar.rest + piece, false, sofar.tail)
+
+      return { keys: [...sofar.keys, ...next.keys], rest: next.rest, ...(next.tail === undefined ? {} : { tail: next.tail }) }
     },
     { keys: [], rest: '' },
   )
@@ -28,6 +31,12 @@ test('j and k move as ↓ and ↑; o opens; z snoozes; s is Snoozed; q and Ctrl-
   expect(kinds('q\x03')).toEqual(['quit', 'quit'])
   expect(kinds('\x1a')).toEqual(['suspend'])
   expect(kinds('\r\n\x1bOM')).toEqual(['enter', 'enter', 'enter'])
+})
+
+test('1 to 9 each carry their number; 0 is nothing, and a digit inside a paste is never a key', () => {
+  expect(keysOf('123456789').keys).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => ({ kind: 'digit', n })))
+  expect(kinds('0')).toEqual([])
+  expect(keysOf('\x1b[200~12\x1b[201~3').keys).toEqual([{ kind: 'digit', n: 3 }])
 })
 
 test('PgUp, PgDn, Home and End, in each form terminals send them', () => {
@@ -61,11 +70,11 @@ test('a sequence the bytes end inside is left to read with the next bytes, whole
   expect(read).toEqual({ keys: [press('down'), { kind: 'wheel', by: -1 }, press('up')], rest: '' })
 })
 
-test('once nothing more has come, a lone ESC is esc, and the start of any other sequence is dropped', () => {
+test('once nothing more has come, a lone ESC is esc, and the start of any other sequence is dropped, kept as a tail', () => {
   expect(keysOf('\x1b', true)).toEqual({ keys: [press('esc')], rest: '' })
   expect(keysOf('j\x1b', true)).toEqual({ keys: [press('down'), press('esc')], rest: '' })
-  expect(keysOf('\x1b[', true)).toEqual({ keys: [], rest: '' })
-  expect(keysOf('\x1b]11;rgb:2e', true)).toEqual({ keys: [], rest: '' })
+  expect(keysOf('\x1b[', true)).toEqual({ keys: [], rest: '', tail: '\x1b[' })
+  expect(keysOf('\x1b]11;rgb:2e', true)).toEqual({ keys: [], rest: '', tail: '\x1b]11;rgb:2e' })
 })
 
 test("a press of the mouse's first button is a tap at its cell, counted from 0; a release, another button, or a motion is nothing", () => {
@@ -92,6 +101,30 @@ test("an X10 mouse report, its three bytes after ESC [ M, is read as SGR's is, n
   expect(kinds("\x1b[M#%'\x1b[M!%'j"), 'a release and the second button').toEqual(['down'])
   expect(keysOf('\x1b[M q')).toEqual({ keys: [], rest: '\x1b[M q' })
   expect(readInPieces(['\x1b[M', ' ', 'q!', 'k']).keys).toEqual([{ kind: 'tap', x: 80, y: 0 }, press('up')])
+})
+
+test("a start dropped once nothing more came is read whole with what comes after, however late and in however many pieces, and its key thrown away, so a cut report's digits are never keys", () => {
+  expect(readInPieces(['\x1b[<64;12', QUIET, ';5M', 'j'])).toEqual({ keys: [press('down')], rest: '' })
+  expect(readInPieces(['\x1b[1;', QUIET, '5A1']).keys, 'Ctrl+Up').toEqual([{ kind: 'digit', n: 1 }])
+  expect(readInPieces(['\x1b[<0;1', QUIET, '2', QUIET, ';5', 'M', 'k']).keys, 'a click').toEqual([press('up')])
+  expect(readInPieces(['\x1b[M ', QUIET, '%', "'", '3']).keys, 'X10').toEqual([{ kind: 'digit', n: 3 }])
+  expect(readInPieces(['\x1bO', QUIET, 'A', 'j']).keys, 'SS3').toEqual([press('down')])
+  expect(readInPieces(['\x1b]11;rgb:2e2e/', QUIET, '3434/4040\x07', 'k']).keys, 'a colour').toEqual([press('up')])
+  expect(readInPieces(['\x1b]11;rgb:2e', QUIET, '2e\x1b\\', 'k']).keys, 'ended by ST').toEqual([press('up')])
+  expect(readInPieces(['\x1b[', QUIET, 'M 1#', 'j']).keys, 'X10, cut after ESC [').toEqual([press('down')])
+  expect(readInPieces(['\x1b[', QUIET, 'M q!', 'j']).keys, 'X10 at column 81, never q').toEqual([press('down')])
+  expect(readInPieces(['\x1b]11;rgb:2e', QUIET, '2e\x1b', QUIET, '\\', 'k']).keys, 'a colour cut twice, its ST split: no esc').toEqual([press('up')])
+})
+
+test('a dropped start that turns out a paste is held to the paste\'s end, and dropped whole', () => {
+  expect(readInPieces(['\x1b[2', QUIET, '00~z2\x1b[201~', '1']).keys).toEqual([{ kind: 'digit', n: 1 }])
+  expect(readInPieces(['\x1b[2', QUIET, '00~z', QUIET, '2', '\x1b[201~1']).keys).toEqual([{ kind: 'digit', n: 1 }])
+})
+
+test("a byte a dropped start's tail can't hold ends it, and is read on its own; a lone ESC is still esc", () => {
+  expect(readInPieces(['\x1b[<64;12', QUIET, '\x03']).keys).toEqual([press('quit')])
+  expect(readInPieces(['\x1b]11;rgb', QUIET, 'j']).keys).toEqual([press('down')])
+  expect(readInPieces(['\x1b', QUIET, '1'])).toEqual({ keys: [press('esc'), { kind: 'digit', n: 1 }], rest: '' })
 })
 
 test('a paste is never keys, however many pieces it comes in, its end split among them; what it holds meanwhile stays short', () => {

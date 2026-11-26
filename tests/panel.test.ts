@@ -468,6 +468,19 @@ test('a SIGCONT after a stop from outside takes the terminal back, raw mode set 
   await run.type('q')
 })
 
+test('a sequence cut short by a stop from outside is never read with the first key after the SIGCONT', async () => {
+  const run = opened()
+
+  await run.passing(0)
+  await run.type('\x1b[')
+  await run.signal('SIGCONT')
+  await run.passing(0)
+  await run.type('j')
+
+  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
+  await run.type('q')
+})
+
 test('Ctrl-Z takes the terminal back at the size it has after the stop, a resize while stopped going to the shell', async () => {
   const run = opened()
 
@@ -1309,6 +1322,22 @@ test("z then ⏎ writes the line sitrep snooze writes, in the CLI's own file: th
   await run.passing(1_000)
 
   expect(screenOf(run.screen.writes).slice(0, 3)).toEqual(['', ' SNOOZED 2 ────────────────────────── ▹', ''])
+  await run.type('q')
+})
+
+test("in the snooze menu a digit snoozes to the choice of its number; a mouse report cut by a quiet gap is read whole once its rest comes, so its digits choose nothing", async () => {
+  const run = opened()
+
+  await run.passing(0)
+  await run.type('jz')
+  await run.type('\x1b[<64;1')
+  await run.passing(ESC_MS)
+  await run.type('2;5M')
+  await run.type('1')
+
+  expect(cliText(run).trim().split('\n').map(line => JSON.parse(line))).toEqual([
+    { v: 1, at: NOW + ESC_MS, seq: 1, type: 'snoozeSession', until: IN_AN_HOUR, asks: ['k1'] },
+  ])
   await run.type('q')
 })
 

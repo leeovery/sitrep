@@ -6,6 +6,7 @@
  *   application cursor mode doesn't matter, and Home and End the same. PgUp
  *   and PgDn come as `ESC [ 5 ~` and `ESC [ 6 ~`.
  * - `j` and `k` move as `↓` and `↑`; `q` and Ctrl-C both leave.
+ * - `1` to `9` each carry their number; `0` is nothing.
  * - A mouse report, in SGR's form or in the old X10 form a terminal without
  *   SGR's sends, its three bytes after `ESC [ M`: a press of the first
  *   button is a tap, the wheel scrolls; a release, or any other button, is
@@ -15,10 +16,15 @@
  * - A string sequence, `ESC ]` and the like, is read as the terminal answers
  *   the colour query: up to its `BEL` or `ST`, its body only what a colour
  *   holds. Any other byte cuts it short and is read on its own, so a key
- *   typed after Alt+`]` is never swallowed.
+ *   typed after Alt+`]` is swallowed only where a colour could hold it.
  * - A sequence the bytes end inside is left to read with the next bytes.
  *   Once nothing more has come, a lone `ESC` is `esc`, and the start of any
  *   other sequence is dropped; a paste under way is kept, to its end.
+ * - A start dropped is kept as a tail: once more bytes come, however late,
+ *   it is read whole with them, as if never cut, and its key thrown away,
+ *   so the rest of a mouse report cut short, its digits among them, is
+ *   never read as keys. A tail that turns out a paste's start is held to
+ *   the paste's end, and dropped as any paste.
  * - Any other byte, or sequence, does nothing: the terminal's answers to
  *   the colour query among them, so none is taken as a key.
  */
@@ -32,9 +38,15 @@ export type Key =
   | { kind: 'tap'; x: number; y: number }
   /** A notch of the wheel: up by -1, down by 1. */
   | { kind: 'wheel'; by: number }
+  /** A digit, `1` to `9`: the choice of its number in what is open. */
+  | { kind: 'digit'; n: number }
 
-/** The keys in some bytes, and what is left of them: the start of a sequence they end inside, to read with the next. */
-export type Keys = { keys: Key[]; rest: string }
+/**
+ * The keys in some bytes, and what is left of them: the start of a sequence
+ * they end inside, to read with the next; or, as `tail`, the start of one
+ * dropped once nothing more came, to read with the next and throw away.
+ */
+export type Keys = { keys: Key[]; rest: string; tail?: string }
 
 const ESC = '\x1b'
 
@@ -90,6 +102,9 @@ const WHEEL: Readonly<Record<number, number>> = { 64: -1, 65: 1 }
 
 /** How far X10 shifts each of its bytes: a button by 32, a cell by 33, counted from 0. */
 const X10 = { button: 32, cell: 33 }
+
+/** `1` to `9`; `0` chooses nothing. */
+const DIGIT = /^[1-9]$/
 
 const pressOf = (kind: Press | undefined): Key | undefined => (kind === undefined ? undefined : { kind })
 
@@ -228,24 +243,52 @@ const escapeAt = (bytes: string, at: number): Read => {
   return STRING_STARTS.has(second) ? stringAt(bytes, at) : taken(2)
 }
 
+/** A byte on its own: a digit carrying its number, or a plain key. */
+const plainOf = (byte: string): Key | undefined => (DIGIT.test(byte) ? { kind: 'digit', n: Number(byte) } : pressOf(PLAIN[byte]))
+
 const readAt = (bytes: string, at: number): Read => {
   const byte = bytes[at] ?? ''
 
-  return byte === ESC ? escapeAt(bytes, at) : taken(1, pressOf(PLAIN[byte]))
+  return byte === ESC ? escapeAt(bytes, at) : taken(1, plainOf(byte))
 }
 
-/** The start of a sequence the bytes end inside, read as all there is: a lone `ESC` is `esc`; any other start is dropped. */
-const quietened = (keys: Key[], rest: string): Keys => ({ keys: rest === ESC ? [...keys, { kind: 'esc' }] : keys, rest: '' })
+/** The start of a sequence the bytes end inside, read as all there is: a lone `ESC` is `esc`; any other start is dropped, kept as a tail. */
+const quietened = (keys: Key[], rest: string): Keys =>
+  rest === ESC ? { keys: [...keys, { kind: 'esc' }], rest: '' } : { keys, rest: '', tail: rest }
+
+/**
+ * A dropped start read whole with the bytes after it, all of them in
+ * `bytes`: how far it took them, its key thrown away; or, where they end
+ * inside it, the start held still, as a tail, or as a paste to its end.
+ */
+const resumed = (bytes: string): number | Keys => {
+  const read = readAt(bytes, 0)
+
+  if (read === 'unfinished') {
+    return { keys: [], rest: '', tail: bytes }
+  }
+
+  return 'pasting' in read ? { keys: [], rest: read.pasting } : read.length
+}
 
 /**
  * The keys in the bytes, and the start of a sequence they end inside, left
  * to read with the next bytes; `isQuiet`, as nothing more came within 50
- * ms, such a start is read as all there is. A paste under way is held
- * however long, since only its end ends it.
+ * ms, such a start is read as all there is, and kept as a tail. A paste
+ * under way is held however long, since only its end ends it. `tail`, a
+ * start the last read dropped, is read first, whole with the bytes, and
+ * its key thrown away.
  */
-export const keysOf = (bytes: string, isQuiet = false): Keys => {
+export const keysOf = (fresh: string, isQuiet = false, tail?: string): Keys => {
+  const bytes = (tail ?? '') + fresh
+  const first = tail === undefined ? 0 : resumed(bytes)
+
+  if (typeof first !== 'number') {
+    return first
+  }
+
   const keys: Key[] = []
-  let at = 0
+  let at = first
 
   while (at < bytes.length) {
     const read = readAt(bytes, at)

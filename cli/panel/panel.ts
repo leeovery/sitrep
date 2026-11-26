@@ -134,18 +134,21 @@ type Later = (ms: number, act: () => void) => () => void
 /**
  * The keys in bytes as they come: a sequence cut short held for the next
  * bytes, and read as all there is once ESC_MS pass with nothing more, so a
- * lone ESC is `esc`.
+ * lone ESC is `esc`, and any other start kept to read whole with the next
+ * bytes, its key thrown away.
  */
 const keyReader = (later: Later, pressed: (key: Key) => void) => {
   let rest = ''
+  let tail: string | undefined
   let letQuietGo = () => {}
 
   const read = (bytes: string, isQuiet: boolean) => {
     letQuietGo()
 
-    const found = keysOf(rest + bytes, isQuiet)
+    const found = keysOf(rest + bytes, isQuiet, tail)
 
     rest = found.rest
+    tail = found.tail
     letQuietGo = !isQuiet && rest !== '' ? later(ESC_MS, () => read('', true)) : () => {}
     found.keys.forEach(pressed)
   }
@@ -155,6 +158,7 @@ const keyReader = (later: Later, pressed: (key: Key) => void) => {
     stop: () => {
       letQuietGo()
       rest = ''
+      tail = undefined
     },
   }
 }
@@ -297,9 +301,10 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
 
   const reader = keyReader(later, pressed)
 
-  /** The keys heard, raw mode set afresh, as a stop from outside leaves it to the shell, cooked. */
+  /** The keys heard, raw mode set afresh, as a stop from outside leaves it to the shell, cooked; nothing held from before it, so the first key after `fg` is read. */
   const listen = () => {
     stopKeys()
+    reader.stop()
     stopKeys = terminal.keys(bytes => guard(() => reader.heard(bytes)))
   }
 
