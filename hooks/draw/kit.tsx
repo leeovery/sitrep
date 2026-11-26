@@ -506,13 +506,24 @@ export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields)
   return drawReplyRow(d, item, reply, <Text color={C.grey}>· on its way</Text>)
 }
 
+/**
+ * The keys that press an opened item's buttons while the pane holds the
+ * focus (DESIGN.md, "Keys"): `x` its ✕, `z` its snooze, and its answers by
+ * number. Of two buttons on one key the later wins, so only the item the
+ * pane holds open may carry them: it alone is drawn with buttons.
+ */
+export const HOTKEY = { cross: 'x', snooze: 'z' } as const
+
+/** The key of the answer drawn `i`th, counted from 0: `1` to `9`, none past nine. */
+export const numbered = (i: number) => (i < 9 ? `${i + 1}` : undefined)
+
 /** An answer to a question a press asks in place: its button. */
 export type Answer = { key: string; label: string; variant?: 'primary'; onPress: () => void }
 
 /**
  * The question a press asks in place of what it was pressed among, as the
- * finish, Snooze and the drop ask theirs: its words, then its answers, and
- * a dim `cancel` after them.
+ * finish, Snooze and the drop ask theirs: its words, then its answers,
+ * numbered, and a dim `cancel` after them.
  */
 export const drawQuestion = (
   d: Drawing,
@@ -526,8 +537,14 @@ export const drawQuestion = (
     <Box flexDirection="column">
       <Text wrap="wrap">{question}</Text>
       <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        {answers.map(({ key, label, variant, onPress }) => (
-          <Button key={key} variant={variant} label={label} onPress={onPress} />
+        {answers.map(({ key, label, variant, onPress }, i) => (
+          <Button
+            key={key}
+            variant={variant}
+            label={label}
+            hotkey={numbered(i)}
+            onPress={onPress}
+          />
         ))}
         <Button key={cancel.key} dimColor label="cancel" onPress={cancel.onPress} />
       </Box>
@@ -572,13 +589,21 @@ export const drawWrite = (
   key: string,
   label: string,
   answering: SitrepAnswering<SessionKey> | undefined,
-  variant?: 'primary',
+  { variant, hotkey }: { variant?: 'primary'; hotkey?: string } = {},
 ) => {
   const { Button } = d.els
 
   return answering === undefined
     ? []
-    : [<Button key={key} variant={variant} label={label} onPress={() => d.act.answer(answering)} />]
+    : [
+        <Button
+          key={key}
+          variant={variant}
+          label={label}
+          hotkey={hotkey}
+          onPress={() => d.act.answer(answering)}
+        />,
+      ]
 }
 
 /** What a queued reply's words are written again as: an answer, a pick-up's note, else a comment, alone or with a yes or a choice; nothing for an ignore. */
