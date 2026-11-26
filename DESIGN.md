@@ -3126,13 +3126,12 @@ each ask's line in Needs you carries the snooze's `wokeAt`, and the watch
 takes it as new. Its row arrives as a new ask's does: the notch swells, its
 row washes on the card, Needs you unfolds on the card whatever Show is set
 to (see "Folding"), and a macOS notification goes where they are on. Its
-time still counts
-from its posting. A turn's line is never new, as on Your turn. Woken by Lee,
-or early, the asks come back as shown, unflashed, as Lee pressed it, and
-`new` means not yet shown to Lee; their row moves wherever the wake changes
-its group, as any row does (Lee, 14 November 2026). An ask new enough to wake
-it is new as any is. One woken while no `watch` ran, the app quit, brings no
-swell, as any line then.
+time still counts from its posting. A turn's line is never new, as on Your
+turn. Woken by Lee, or early, the asks come back as shown, unflashed, as Lee
+pressed it, and `new` means not yet shown to Lee; their row moves wherever
+the wake changes its group, as any row does (Lee, 14 November 2026). An ask
+new enough to wake it is new as any is. One woken while no `watch` ran, the
+app quit, brings no swell, as any line then.
 
 **In the pane.**
 - It reads each ask's `snoozedUntil`, in the held session's fold and in the
@@ -5863,18 +5862,16 @@ with it.
   does not know is, and Needs you takes its own. The folds were one setting
   with the strip's, from 14 November 2026 (Lee) until the strip went.
   An arrival unfolds Needs you, at once, whatever Show is set to: a row
-  holding a line
-  new to the board, as swells the notch, whether the session is new, comes
-  to need Lee or gains a line. The unfold is kept, as a click's is: Needs
-  you stays open until Lee folds it again. From 14 November 2026 an
-  arrival left it folded while the strip was chosen, and once the strip
-  went, while Nothing was; the phase review of the keys (26 November
-  2026) ended that with the strip's last trace, so the notch shows the
-  same Needs you whatever Show was set to before. At once is
+  holding a line new to the board, as swells the notch, whether the
+  session is new, comes to need Lee or gains a line. The unfold is kept,
+  as a click's is: Needs you stays open until Lee folds it again. From 14
+  November 2026 an arrival left it folded while the strip was chosen, and
+  once the strip went, while Nothing was; the phase review of the keys
+  (26 November 2026) ended that with the strip's last trace, so the notch
+  shows the same Needs you whatever Show was set to before. At once is
   for what the fold changes only, the section's rows coming or going;
-  every other row keeps
-  its own motion, one folding away finishing and one arriving, the new
-  ask's own row among them, folding in.
+  every other row keeps its own motion, one folding away finishing and
+  one arriving, the new ask's own row among them, folding in.
 - **One shape** (board J2, 4 November 2026): every row is one line, 30
   tall, inset 10, its lift's corners 10, with no gap between rows (see "How
   each row reads"). Lee, of board I's card, its rows of two heights: they
@@ -6828,7 +6825,11 @@ the panel's, acting on the lit row, until:
 The tap alone decides whether a key ends the hold, as it reads the key,
 and hands that on with what the key does; the panel follows it, whatever
 it reads by the time it hears the key, so the two never disagree on
-whose the keys are (the phase review, 26 November 2026). A hold ending,
+whose the keys are (the phase review, 26 November 2026). So `o` it took
+ending no hold, as `⌘Z` was the asks panel's then, acts on nothing,
+though the beat has passed by the time the panel hears it. A hold it
+ended while a menu holds the card is let go, but the shortcut's panel
+stays open under the menu, holding nothing. A hold ending,
 however it ends, lets go of the row the keys lit: the row under the
 pointer is lit again, or none.
 
@@ -6869,8 +6870,9 @@ on the panel, acting on the ask it shows; `s` does nothing there:
   taken back, `⌘Z` stays the panel's and does nothing, as a digit on
   nothing does, so an Undo pressed a moment late never reaches the window
   in front, nor lets go of the keys (the phase review, 26 November 2026).
-  `→` or `←` away from the line leaves `⌘Z` a chord at once, as does the
-  asks panel closing as its last ask's answer goes.
+  `→` or `←` away from the line leaves `⌘Z` a chord at once, beat or
+  none, as does the asks panel closing, its last ask's answer gone or by
+  a key: opened again, it takes no `⌘Z`.
 - `x` is Ignore, `z` opens Snooze ▾'s menu, and `o` is Open in Claude ↗.
 - `→` shows the next ask and `←` the one before, as the dots lie, one ask
   a step, sliding as a dot's click does.
@@ -6960,9 +6962,9 @@ anywhere, with no pointer:
   the hold.
 - Without the leave, or under secure input, it opens the panel holding
   nothing, with no row lit, until the shortcut again, a click elsewhere,
-  or the pointer coming onto it and leaving. Its keys let go while it is
-  open, as the screens sleep or a window takes secure input, it stays so
-  too: open, holding nothing, no row lit.
+  or the pointer coming onto it and leaving. If its keys let go while it
+  is open (the screens sleeping, or a window taking secure input), it
+  stays so too: open, holding nothing, no row lit.
 - With Show set to Nothing, it opens the menu bar item's menu, whose keys
   are AppKit's; so it does while a full-screen app hides the notch (the
   build, 26 November 2026).
@@ -6973,7 +6975,8 @@ Settled in the build (26 November 2026):
 - The hold starts with the shortcut, so a key pressed as the panel still
   pours is taken, and acts as it would on the open panel: `⏎` opens the
   lit row's asks panel, which shows beside its row as the panel pours,
-  its keys acting at once (the phase review, 26 November 2026).
+  its keys acting at once (the phase review, 26 November 2026). Under
+  Card, it shows before the rows have landed; Lee judges that live.
 - Shift held makes a key no chord: in the shortcut's hold, `A` is taken
   and does nothing, as `a` is. A chord closes the panel and goes
   through: ⌘, ⌃, ⌥ or Fn held, Fn but for the keys that carry it of

@@ -312,7 +312,7 @@ struct NotchKeysTests {
 
         notch.step(at: next(), pointer: pointer)
         try #require(tap.snapshot == .panel(hold: 1))
-        notch.heard(.open, pointer: pointer)
+        notch.heard(.open, ending: 1, pointer: pointer)
         #expect(tap.snapshot == KeySnapshot.none)
         #expect(tap.read(enter) == .pass)
 
@@ -368,7 +368,7 @@ struct NotchKeysTests {
         let helpDesk = try Self.words(Self.helpDesk, notch.run)
 
         notch.step(at: next(), pointer: helpDesk)
-        notch.heard(.open, pointer: helpDesk)
+        notch.heard(.open, ending: 1, pointer: helpDesk)
         #expect(jumped == ["sr-nw0001"])
 
         let closing = try Self.opened(world)

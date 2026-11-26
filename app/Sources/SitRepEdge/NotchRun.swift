@@ -531,7 +531,7 @@ public final class NotchRun: Framed {
         }
 
         if isOut {
-            notch.clickElsewhere()
+            closePanel()
         } else if notch.phase == .closed, !frame.isMoving {
             style = chosen
             notch = style.notch(input)

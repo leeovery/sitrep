@@ -345,6 +345,26 @@ struct ShortcutRunTests {
         #expect(run.phase == .closing && !run.holdsKeys && run.keySnapshot == .none)
     }
 
+    /// A hold the tap ended while a menu holds the card, as `o` or a chord racing the snooze menu `z` opened, is let
+    /// go, but the panel stays open under the menu, holding nothing.
+    @Test(arguments: [false, true])
+    func aHoldEndedUnderAMenuLeavesThePanelOpen(byChord: Bool) throws {
+        let setting = Self.setting(), run = try Self.summoned()
+
+        guard case let .snoozeRow(_, row: row)? = Self.press(.snooze, run) else {
+            Issue.record("z offered no snooze menu")
+            return
+        }
+
+        run.menuOpened(at: CGPoint(x: row.midX, y: row.midY))
+        if byChord {
+            run.letGoOfKeys(in: 1, Self.at(run, Self.away, setting))
+        } else {
+            #expect(Self.press(.open, run, ending: 1) == nil)
+        }
+        #expect(run.phase == .open && !run.holdsKeys)
+    }
+
     /// `⌘Z` stays the panel's through the beat after the sending line goes in the shortcut's hold too, so one pressed
     /// a moment late neither closes the panel nor reaches the window in front.
     @Test func commandZStaysThePanelsThroughTheBeatAfterTheSendingLineGoes() throws {

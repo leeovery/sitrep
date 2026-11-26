@@ -216,7 +216,6 @@ struct NotchKeysRunTests {
 
         run.menuOpened(at: pointer)
         #expect(Self.press(.down, run, pointer) == nil)
-        #expect(Self.press(.open, run, pointer) == nil)
         #expect(Self.lit(run) == Self.helpDesk)
         run.menuClosed()
         Self.press(.down, run, pointer)
@@ -387,7 +386,7 @@ struct NotchKeysRunTests {
     @Test func oJumpsAsAClickOnTheRowsWords() throws {
         let (run, pointer) = try Self.holding(Self.shifts)
 
-        guard case let .jump(session, to: target, click: click)? = Self.press(.open, run, pointer) else {
+        guard case let .jump(session, to: target, click: click)? = Self.press(.open, run, pointer, ending: 1) else {
             Issue.record("o did not jump")
             return
         }
@@ -405,7 +404,7 @@ struct NotchKeysRunTests {
 
         Self.press(.down, run, pointer)
         #expect(Self.lit(run) != Self.shifts)
-        let jump = byClick ? run.press(Self.at(run, pointer, setting)) : Self.press(.open, run, pointer)
+        let jump = byClick ? run.press(Self.at(run, pointer, setting)) : Self.press(.open, run, pointer, ending: 1)
         #expect(jump != nil)
         #expect(!run.holdsKeys && run.keySnapshot == .none && Self.lit(run) == Self.shifts)
 
@@ -452,7 +451,7 @@ struct NotchKeysRunTests {
     @Test func aHoldStartsAgainOnceAJumpHasDrainedAndThePanelReopens() throws {
         let (run, pointer) = try Self.holding(Self.shifts), setting = Self.setting()
 
-        try #require(Self.press(.open, run, pointer) != nil)
+        try #require(Self.press(.open, run, pointer, ending: 1) != nil)
         run.jumpAnswered(Self.at(run, pointer, setting))
         Self.frames(run, for: 3000, Self.away, setting) { run.phase == .closed }
         try #require(run.phase == .closed)

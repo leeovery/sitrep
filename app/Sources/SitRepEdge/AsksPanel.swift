@@ -95,10 +95,11 @@ struct AsksPanel {
     private var lookedAt = -Double.infinity
     /// When it last read otherwise (`Look.readsOther`), which a key waits out the beat after; whether the keys' own
     /// paging made that change, which a key waits on no beat after; and whether they paged it since it was last
-    /// placed.
+    /// placed, and from what had stood its beat.
     private var readAt = -Double.infinity
     private var readByKeys = false
     private var keysPaged = false
+    private var keysPagedSettled = false
     /// When its sending line last went, other than as the keys paged away from it, which `⌘Z` is its through the beat
     /// after (`takesUndo`).
     private var sentAt = -Double.infinity
@@ -175,12 +176,13 @@ struct AsksPanel {
         slide.rest()
     }
 
-    /// Closed, any swipe on it ended.
+    /// Closed, any swipe on it ended, and any beat `⌘Z` was its through, so it opens again taking none.
     mutating func close() {
         open = nil
         slide.rest()
         swipe = AsksSwipe()
         isDragHeld = false
+        sentAt = -.infinity
     }
 
     /// The list scrolled this far: closed once that moves it more than `scrollMost` from where it was as it opened, as
@@ -227,9 +229,11 @@ struct AsksPanel {
     }
 
     /// At the ask on this page of its row's session's, where it has one, sliding there (DESIGN, "Paging"); paged
-    /// `byKeys`, as the keys page what has stood its beat, a key after it waits on no beat (`isSettled(forKeysAt:)`).
+    /// `byKeys`, never starting `⌘Z`'s beat as it pages away from the sending line (`takesUndo`), and where what they
+    /// paged had `settled`, a key after it waits on no beat (`isSettled(forKeysAt:)`).
     mutating func page(
-        to page: Int, _ rows: some AsksRows, _ board: PanelBoard, reducesMotion: Bool, byKeys: Bool = false
+        to page: Int, _ rows: some AsksRows, _ board: PanelBoard, reducesMotion: Bool, byKeys: Bool = false,
+        settled: Bool = false
     ) {
         guard let open, let asks = asks(of: open.row, in: rows, board), asks.indices.contains(page) else {
             return
@@ -238,6 +242,7 @@ struct AsksPanel {
         slide.slide(from: open.page, to: page, reducesMotion: reducesMotion)
         self.open = Open(row: open.row, ask: asks[page].id, page: page, asks: asks.map(\.id))
         keysPaged = byKeys
+        keysPagedSettled = byKeys && settled
     }
 
     /// Whether a scroll with the pointer here is its: on it, or in a swipe across it under way, which keeps every scroll
@@ -338,13 +343,14 @@ struct AsksPanel {
         }
         if look?.readsOther(than: self.look) == true {
             readAt = time
-            readByKeys = keysPaged
+            readByKeys = keysPagedSettled
         }
         if look?.lostSending(since: self.look) == true, !keysPaged {
             sentAt = time
         }
         self.look = look
         keysPaged = false
+        keysPagedSettled = false
     }
 
     /// Its asks at rest at once, wherever their slide had come to, for the next placing to stand it as it rests: as

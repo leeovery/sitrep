@@ -198,7 +198,7 @@ struct AsksPanelKeysRunTests {
     @Test func oIsOpenInClaude() throws {
         let (run, pointer) = try Self.asksOpen()
 
-        guard case let .jump(session, to: target, click: _)? = Self.press(.open, run, pointer) else {
+        guard case let .jump(session, to: target, click: _)? = Self.press(.open, run, pointer, ending: 1) else {
             Issue.record("o did not jump")
             return
         }
@@ -513,6 +513,52 @@ struct AsksPanelKeysRunTests {
 
         Self.frames(run, for: AsksPanel.settle, pointer, setting)
         #expect(run.keySnapshot == .panel(hold: 1, undoes: false))
+    }
+
+    /// `o` the tap took ending no hold, as `⌘Z` was the panel's then, acts on nothing, though the main thread hears it
+    /// only once the beat has passed, when Open in Claude would jump; `o` ending the hold there jumps.
+    @Test func oTheTapKeptTheHoldWithActsOnNothingThoughTheBeatPassed() throws {
+        let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
+        run.heard(.went(Self.threaded), Self.at(run, pointer, setting))
+        Self.frames(run, for: AsksPanel.settle, pointer, setting)
+        #expect(Self.press(.open, run, pointer) == nil)
+        #expect(run.holdsKeys && run.asksShown != nil)
+        guard case .jump? = Self.press(.open, run, pointer, ending: 1) else {
+            Issue.record("o ending the hold did not jump")
+            return
+        }
+    }
+
+    /// The asks panel closed and opened again within the beat takes no `⌘Z`: closing ends the beat.
+    @Test func closingTheAsksPanelEndsTheBeat() throws {
+        let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
+        run.heard(.went(Self.threaded), Self.at(run, pointer, setting))
+        try #require(run.keySnapshot == .panel(hold: 1, undoes: true))
+        #expect(Self.press(.escape, run, pointer) == .asks)
+        #expect(Self.press(.enter, run, pointer) == .asks)
+        #expect(run.asksShown != nil && run.keySnapshot == .panel(hold: 1, undoes: false))
+    }
+
+    /// The keys paging away from the sending line start no beat, though they page within one a click's paging began:
+    /// a dot's click to the next ask, `←` back to the sending line within its beat, and `→` away again once the
+    /// dot's own beat is over, leave `⌘Z` a chord.
+    @Test func theKeysPagingAwayWithinABeatStartNone() throws {
+        let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
+
+        let onPanel = try Self.change(.dot, run, pointer)
+
+        Self.frames(run, for: 250, onPanel, setting)
+        #expect(Self.press(.left, run, onPanel) == .asks)
+        try #require(run.asksShown?.sending != nil)
+        Self.frames(run, for: 150, onPanel, setting)
+        #expect(Self.press(.right, run, onPanel) == .asks)
+        #expect(run.asksShown?.ask.id == "k2" && run.keySnapshot == .panel(hold: 1, undoes: false))
     }
 
     /// Only the sending line going starts it: paging away from the line with `→` leaves `⌘Z` a chord at once, and

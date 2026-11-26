@@ -77,11 +77,12 @@ extension NotchRun {
     /// at the moment does nothing, as does one heard while a menu holds the card, the menu's. A key the tap took as
     /// `ending` a hold, as it takes `o` whether or not `o` jumps (`KeyReader`), lets that hold go here too, acting or
     /// not, so the panel holds what the tap holds: the tap alone decides it. So the keys typed after it go to the
-    /// window in front, and the shortcut's panel closes where `o` didn't jump.
+    /// window in front, and the shortcut's panel closes where `o` didn't jump. `o` the tap took ending none, as `⌘Z`
+    /// was the asks panel's, where `o` can't act, acts on nothing, though the beat has passed by the time it is heard.
     public func key(_ key: PanelKey, ending number: Int? = nil, _ moment: Moment) -> Press? {
         upToNow(moment)
 
-        let press = acted(on: key, in: moment.setting)
+        let press = key == .open && number == nil ? nil : acted(on: key, in: moment.setting)
 
         if let number {
             letGo(of: number)
@@ -223,13 +224,14 @@ extension NotchRun {
     }
 
     /// The hold of this number let go, while it is the hold still: the shortcut's closes the panel, any other holds
-    /// none until the pointer moves again. A hold the pointer began since keeps the keys.
+    /// none until the pointer moves again. A hold the pointer began since keeps the keys. While a menu holds the card,
+    /// the shortcut's panel stays open under it, holding nothing, as a key racing the menu's opening never drains it.
     private func letGo(of number: Int) {
         guard hold.number == number else {
             return
         }
 
-        if hold.isShortcut {
+        if hold.isShortcut, menuAt == nil {
             closePanel()
         } else {
             letGo()

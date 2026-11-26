@@ -59,7 +59,9 @@ extension AsksPanel {
             return nil
         }
         if case let .page(page) = part {
-            self.page(to: page, rows, board, reducesMotion: reducesMotion, byKeys: isSettled(forKeysAt: time))
+            self.page(
+                to: page, rows, board, reducesMotion: reducesMotion, byKeys: true, settled: isSettled(forKeysAt: time)
+            )
             return .paged
         }
 
