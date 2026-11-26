@@ -35,7 +35,7 @@ final class Edge {
 
         self.preferences = preferences
         self.settings = settings
-        notch = Self.notch(preferences, on: Displays.chosen(settings))
+        notch = Self.notch(preferences, on: Displays.chosen(settings), keys: .real)
         notch.onJump = jump
         notch.onSnooze = { snoozes.snoozeRow($0, showing: $1, $2) }
         notch.onSnoozeAsk = { snoozes.snoozeAsk($0, ask: $1, $2) }
@@ -50,11 +50,12 @@ final class Edge {
         show()
     }
 
-    /// The notch on `display`, as `preferences` has it: its sections folded as kept, and each row's Snooze offering
-    /// the choices as Lee has them as its menu opens. Apart from `init`, so the tests make it on no screen.
-    static func notch(_ preferences: Preferences, on display: Display) -> NotchController {
+    /// The notch on `display`, as `preferences` has it: its sections folded as kept, its keys read through `keys`, and
+    /// each row's Snooze offering the choices as Lee has them as its menu opens. Apart from `init`, so the tests make it
+    /// on no screen, and with no tap.
+    static func notch(_ preferences: Preferences, on display: Display, keys: KeysMac) -> NotchController {
         NotchController(
-            preferences.edge, on: display, folding: Folding(kept: preferences.savedCard),
+            preferences.edge, on: display, folding: Folding(kept: preferences.savedCard), keys: keys,
             snoozeSettings: { preferences.snooze }
         )
     }

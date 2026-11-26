@@ -6873,9 +6873,9 @@ native menu, the right-click menu's `SnoozeMenu` shown on its own:
 - Its digits choose its items in order, Until it moves among them, each
   shown as its item's key equivalent, in AppKit's column at the right,
   after the time on its tab stop.
-- The tap reads the digits, `k` `j` and `z`, so AppKit never sees them: a
-  digit chooses its item, `k` `j` are posted to SitRep as `↑` `↓`, and
-  `z` ends the menu's tracking.
+- The tap reads the digits, `k` `j` and `z`: a digit chooses its item and
+  `z` ends the menu's tracking, AppKit never seeing either, and `k` `j`
+  are rewritten in place, going on to the menu as `↑` `↓`.
 - Only a snooze menu shown on its own takes these: as the right-click
   menu's submenu it carries no digits, since a submenu's key equivalents
   fire from its menu, and the right-click menu keeps AppKit's keys alone.
@@ -6883,11 +6883,17 @@ native menu, the right-click menu's `SnoozeMenu` shown on its own:
   Snooze ▾'s among them, no key reaches the window in front: the menu
   has it.
 
-Whether AppKit's tracking takes the keyboard for a menu an inactive
-accessory app pops from a panel that is never key is unproven: build step
-4 proves it first. If it doesn't, the tap takes those keys and posts them
-to SitRep (`CGEvent.postToPid`), where the menu's tracking reads them;
-without the leave, the menu then has only the pointer.
+AppKit's tracking takes the keyboard for a menu an inactive accessory app
+pops from a panel that is never key, proven live on 26 November 2026 for
+build step 4: a menu popped by `popUp(positioning:at:in:)` from a
+borderless non-activating panel, with Ghostty in front, took `↓` `↓` `⏎`
+and chose its second item, Ghostty staying in front. So the menu has the
+keyboard itself, with the leave or without it, and the tap posts nothing:
+`k` `j` go on to the menu as the arrows they stand for, each event
+replaced in the tap by the arrow Quartz makes for its key, and every other
+key the tap doesn't read goes on as it came. Until then the fallback
+planned was the tap taking the menu's keys and posting them to SitRep
+(`CGEvent.postToPid`), the menu having only the pointer without the leave.
 
 **The shortcut, ⌃⌥S by default,** opens the panel holding the keys, from
 anywhere, with no pointer:

@@ -9,8 +9,8 @@ import SitRepPanel
 /// mouse monitors wake the frames as it moves near the notch, or anywhere while the panel is out (`Frame.wakes`).
 /// While idle it costs nothing, but for the light, which breathes on a slow refresh of its own while something needs
 /// Lee (under reduced motion it holds still, and the refresh runs only while a new ask brightens it), and the open
-/// panel's times, drawn again as they change. Whatever comes between frames, a board or Lee's hand, goes to the run,
-/// which brings the notch up to now first; each is drawn, and frames show what it did.
+/// panel's times, drawn again as they change. Whatever comes between frames, a board, Lee's hand or a key the panel
+/// holds, goes to the run, which brings the notch up to now first; each is drawn, and frames show what it did.
 @MainActor
 final class NotchController: NSObject, CalloutShape {
     /// A click on a row: the session to jump to, and what to tell once the jump answers, whether it jumped.
@@ -55,14 +55,16 @@ final class NotchController: NSObject, CalloutShape {
     private var menuAt: CGPoint?
     /// Whether the window is wide, for the asks panel open beside the panel (`ScreenEdge.window(wide:)`).
     private var isWide = false
+    /// The panel's keys: internal only for the tests, which read what its tap was told.
+    let keys: NotchKeys
 
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
 
-    /// On its display, its card's sections folded as `folding` has them, each row's Snooze offering what
-    /// `snoozeSettings` gives as its menu opens.
+    /// On its display, its card's sections folded as `folding` has them, its keys read through `keys`, each row's
+    /// Snooze offering what `snoozeSettings` gives as its menu opens.
     init(
-        _ settings: EdgeSettings, on display: Display, folding: Folding,
+        _ settings: EdgeSettings, on display: Display, folding: Folding, keys: KeysMac,
         snoozeSettings: @escaping () -> SnoozeSettings
     ) {
         self.settings = settings
@@ -70,6 +72,7 @@ final class NotchController: NSObject, CalloutShape {
         edge = ScreenEdge(display, settings)
         run = NotchRun(at: Displays.now, in: .on(edge, settings), folding: folding, measure: AsksMeasure.drawn)
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
+        self.keys = NotchKeys(keys)
         super.init()
 
         surface.show(run.list)
@@ -83,6 +86,8 @@ final class NotchController: NSObject, CalloutShape {
         caption.over = edge.visible
         link = startLink(#selector(tick))
         lightLink = startLink(#selector(tickLight), rate: Self.lightRate)
+        self.keys.onKey = { [unowned self] in heard($0) }
+        self.keys.onLetGo = { [unowned self] in letGoOfKeys(in: $0) }
         listen()
     }
 
@@ -106,6 +111,7 @@ final class NotchController: NSObject, CalloutShape {
                 lightLink?.isPaused = true
                 ages?.invalidate()
             }
+            followKeys()
         }
     }
 
@@ -148,11 +154,13 @@ final class NotchController: NSObject, CalloutShape {
         )
     }
 
-    /// What the run runs in: this edge as Lee set it, and whether one ask's Snooze offers a time now, as he set them.
+    /// What the run runs in: this edge as Lee set it, whether one ask's Snooze offers a time now, as he set them, and
+    /// whether the Mac lets the panel take keys.
     private var setting: NotchRun.Setting {
         var setting = NotchRun.Setting.on(edge, settings)
 
         setting.offersSnooze = snoozeOffer.offers(at: Date(), in: run.calendar, settings: snoozeSettings())
+        setting.takesKeys = keys.allowed
         return setting
     }
 
@@ -222,6 +230,12 @@ final class NotchController: NSObject, CalloutShape {
         window.takesClicks = run.drag != nil || run.isSwiping || isPointedAt
         onDrawn?(isPointedAt)
         pace(at: time)
+        followKeys()
+    }
+
+    /// The keys told whether the panel is out, shown, and what it holds.
+    private func followKeys() {
+        keys.follow(isOut: isShown && run.phase != .closed, holding: run.keySnapshot)
     }
 
     /// The window wide while the asks panel is open beside the panel, and back to the panel's once it closes, a frame
@@ -297,7 +311,28 @@ final class NotchController: NSObject, CalloutShape {
             return
         }
 
-        switch run.press(moment(pointer: point)) {
+        act(on: run.press(moment(pointer: point)))
+        took()
+    }
+
+    /// A key of the set while the panel holds the keys: what it does, by the paths a click takes (`NotchRun.key`).
+    /// Internal only for the tests, which give the pointer on the stage.
+    func heard(_ key: PanelKey, pointer: CGPoint? = nil) {
+        act(on: run.key(key, moment(pointer: pointer)))
+        took()
+    }
+
+    /// A key the panel doesn't take went through, in the hold of this number: the panel holds none until the pointer
+    /// moves again.
+    private func letGoOfKeys(in hold: Int) {
+        run.letGoOfKeys(in: hold, moment())
+        took()
+    }
+
+    /// What a press or a key came to: a jump, an answer held or taken back, a snooze menu, an ask's or a row's, or a
+    /// row's wake.
+    private func act(on press: NotchRun.Press?) {
+        switch press {
         case let .jump(session, to: target, click: click)?:
             jump(from: session, to: target, click: click)
         case let .answer(answering)?:
@@ -306,14 +341,17 @@ final class NotchController: NSObject, CalloutShape {
             onUndo()
         case let .snooze(ask, of: session, at: pressed)?:
             snooze(ask, of: session, pressed: pressed)
+        case let .snoozeRow(session, row: row)?:
+            snooze(session, beside: row)
+        case let .wake(session)?:
+            onWake(session.id)
         case .fold?, .carry?, .asks?, nil:
             break
         }
-        took()
     }
 
-    /// The asks panel's Snooze ▾: the times one ask's Snooze offers, under the button, the card held open as the
-    /// row's menu holds it while it shows. A choice snoozes the ask it shows alone, and closes the asks panel.
+    /// The asks panel's Snooze ▾: the times one ask's Snooze offers, under the button. A choice snoozes the ask it
+    /// shows alone, and closes the asks panel.
     private func snooze(_ ask: String, of session: String, pressed: CGPoint) {
         guard let asks = run.asksShown, let button = asks.layout.snooze else {
             return
@@ -327,11 +365,37 @@ final class NotchController: NSObject, CalloutShape {
             took()
         }
 
-        run.menuOpened(at: pressed)
-        menu.popUp(
-            positioning: nil, at: CGPoint(x: drawn.minX + button.minX, y: drawn.minY + button.maxY), in: surface
-        )
+        show(menu, at: CGPoint(x: drawn.minX + button.minX, y: drawn.minY + button.maxY), holding: pressed)
+    }
+
+    /// `z` on a row: the row's Snooze times in a menu of their own, beside the row's end away from the edge, its top
+    /// level with the row's, as the asks panel stands beside its row.
+    private func snooze(_ session: Session, beside row: CGRect) {
+        let menu = snoozeMenu(for: session), drawn = row.applying(edge.mirror(wide: isWide))
+        let x = settings.edge == .left ? drawn.maxX : drawn.minX - menu.size.width
+
+        show(menu, at: CGPoint(x: x, y: drawn.minY), holding: CGPoint(x: row.midX, y: row.midY))
+    }
+
+    /// The row's Snooze times for `session`, numbered, a choice snoozing it as the row's menu's Snooze does, naming
+    /// the asks its row showed. Internal only for the tests, which choose from it.
+    func snoozeMenu(for session: Session) -> SnoozeMenu {
+        let id = session.id, asks = session.asks
+
+        return SnoozeMenu.forRow(offering: snoozeSettings(), at: Date(), in: run.calendar) { [unowned self] in
+            onSnooze(id, asks, $0)
+        }
+    }
+
+    /// A snooze menu shown on its own at this point in the window, the card held open as if the pointer rested at
+    /// `holding` on the stage, as the row's menu holds it, and its digits, `z`, `k` and `j` the tap's while it shows.
+    private func show(_ menu: SnoozeMenu, at point: CGPoint, holding: CGPoint) {
+        run.menuOpened(at: holding)
+        keys.shows(menu)
+        menu.popUp(positioning: nil, at: point, in: surface)
+        keys.menuClosed()
         run.menuClosed()
+        took()
     }
 
     /// An answer's news, as the answers tell it: the asks panel shows it sending, as it was, or at the session's next
@@ -473,6 +537,7 @@ final class NotchController: NSObject, CalloutShape {
             return
         }
 
+        keys.pointerMoved()
         if clickElsewhere, run.isOut {
             run.clickElsewhere(moment())
             took()
@@ -485,16 +550,19 @@ final class NotchController: NSObject, CalloutShape {
 }
 
 extension NotchController: NSMenuDelegate {
-    /// A row's menu showing holds the card open as if the pointer rested where it was opened (`NotchRun.menuOpened`).
+    /// A row's menu showing holds the card open as if the pointer rested where it was opened (`NotchRun.menuOpened`),
+    /// and keeps AppKit's keys alone.
     func menuWillOpen(_ menu: NSMenu) {
         if let menuAt {
             run.menuOpened(at: menuAt)
         }
+        keys.showsRowMenu()
     }
 
     /// Closed, before any choice on it runs: the card follows the pointer again, its grace starting from now.
     func menuDidClose(_ menu: NSMenu) {
         menuAt = nil
+        keys.menuClosed()
         run.menuClosed()
         took()
     }

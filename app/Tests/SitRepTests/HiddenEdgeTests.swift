@@ -16,7 +16,9 @@ struct HiddenEdgeTests {
     )
 
     @Test func theNotchStaysOnTheScreenHiddenAndShown() {
-        let notch = NotchController(EdgeSettings(), on: Self.display, folding: Folding()) { SnoozeSettings() }
+        let notch = NotchController(EdgeSettings(), on: Self.display, folding: Folding(), keys: .none) {
+            SnoozeSettings()
+        }
 
         defer { notch.window.close() }
         #expect(notch.window.isVisible)

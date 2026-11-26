@@ -9,9 +9,9 @@ extension NotchRun {
     /// while it is closed.
     public var asksShown: AsksShown? { asking.shown }
 
-    /// The rows' arrows that show, by their rows' keys, each lit or not: the row under the pointer's, where the asks
-    /// panel answers an ask of its session, lit with the pointer on it; and, lit, the arrow of the row whose asks
-    /// panel is open. None while the panel is not open.
+    /// The rows' arrows that show, by their rows' keys, each lit or not: the lit row's, where the asks panel answers an
+    /// ask of its session, lit with the pointer on it; and, lit, the arrow of the row whose asks panel is open. None
+    /// while the panel is not open.
     public func arrows(in setting: Setting) -> [String: Bool] {
         guard notch.phase == .open else {
             return [:]
@@ -19,8 +19,10 @@ extension NotchRun {
 
         var arrows = asking.row.map { [$0: true] } ?? [:]
 
-        if let point = seen, let index = item(at: point, in: setting), let key = arrowRow(index) {
-            arrows[key] = arrows[key] == true || arrow(at: point, in: setting) == index
+        if let index = lit(in: setting), let key = arrowRow(index) {
+            let pointed = seen.flatMap { arrow(at: $0, in: setting) } == index
+
+            arrows[key] = arrows[key] == true || pointed
         }
         return arrows
     }

@@ -133,7 +133,7 @@ private final class Driven {
         var settings = EdgeSettings()
 
         settings.edge = side
-        controller = NotchController(settings, on: NotchAsksWindowTests.display, folding: Folding()) {
+        controller = NotchController(settings, on: NotchAsksWindowTests.display, folding: Folding(), keys: .none) {
             SnoozeSettings()
         }
         edge = ScreenEdge(NotchAsksWindowTests.display, settings)
