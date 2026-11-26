@@ -70,11 +70,11 @@ test('a sequence the bytes end inside is left to read with the next bytes, whole
   expect(read).toEqual({ keys: [press('down'), { kind: 'wheel', by: -1 }, press('up')], rest: '' })
 })
 
-test('once nothing more has come, a lone ESC is esc, and the start of any other sequence is dropped', () => {
+test('once nothing more has come, a lone ESC is esc, and the start of any other sequence is dropped, kept as a tail', () => {
   expect(keysOf('\x1b', true)).toEqual({ keys: [press('esc')], rest: '' })
   expect(keysOf('j\x1b', true)).toEqual({ keys: [press('down'), press('esc')], rest: '' })
-  expect(keysOf('\x1b[', true)).toEqual({ keys: [], rest: '', tail: 'csi' })
-  expect(keysOf('\x1b]11;rgb:2e', true)).toEqual({ keys: [], rest: '', tail: 'string' })
+  expect(keysOf('\x1b[', true)).toEqual({ keys: [], rest: '', tail: '\x1b[' })
+  expect(keysOf('\x1b]11;rgb:2e', true)).toEqual({ keys: [], rest: '', tail: '\x1b]11;rgb:2e' })
 })
 
 test("a press of the mouse's first button is a tap at its cell, counted from 0; a release, another button, or a motion is nothing", () => {
@@ -103,7 +103,7 @@ test("an X10 mouse report, its three bytes after ESC [ M, is read as SGR's is, n
   expect(readInPieces(['\x1b[M', ' ', 'q!', 'k']).keys).toEqual([{ kind: 'tap', x: 80, y: 0 }, press('up')])
 })
 
-test("a start dropped once nothing more came has its tail swallowed as it comes, however late and in however many pieces, so a cut report's digits are never keys", () => {
+test("a start dropped once nothing more came is read whole with what comes after, however late and in however many pieces, and its key thrown away, so a cut report's digits are never keys", () => {
   expect(readInPieces(['\x1b[<64;12', QUIET, ';5M', 'j'])).toEqual({ keys: [press('down')], rest: '' })
   expect(readInPieces(['\x1b[1;', QUIET, '5A1']).keys, 'Ctrl+Up').toEqual([{ kind: 'digit', n: 1 }])
   expect(readInPieces(['\x1b[<0;1', QUIET, '2', QUIET, ';5', 'M', 'k']).keys, 'a click').toEqual([press('up')])
@@ -111,6 +111,14 @@ test("a start dropped once nothing more came has its tail swallowed as it comes,
   expect(readInPieces(['\x1bO', QUIET, 'A', 'j']).keys, 'SS3').toEqual([press('down')])
   expect(readInPieces(['\x1b]11;rgb:2e2e/', QUIET, '3434/4040\x07', 'k']).keys, 'a colour').toEqual([press('up')])
   expect(readInPieces(['\x1b]11;rgb:2e', QUIET, '2e\x1b\\', 'k']).keys, 'ended by ST').toEqual([press('up')])
+  expect(readInPieces(['\x1b[', QUIET, 'M 1#', 'j']).keys, 'X10, cut after ESC [').toEqual([press('down')])
+  expect(readInPieces(['\x1b[', QUIET, 'M q!', 'j']).keys, 'X10 at column 81, never q').toEqual([press('down')])
+  expect(readInPieces(['\x1b]11;rgb:2e', QUIET, '2e\x1b', QUIET, '\\', 'k']).keys, 'a colour cut twice, its ST split: no esc').toEqual([press('up')])
+})
+
+test('a dropped start that turns out a paste is held to the paste\'s end, and dropped whole', () => {
+  expect(readInPieces(['\x1b[2', QUIET, '00~z2\x1b[201~', '1']).keys).toEqual([{ kind: 'digit', n: 1 }])
+  expect(readInPieces(['\x1b[2', QUIET, '00~z', QUIET, '2', '\x1b[201~1']).keys).toEqual([{ kind: 'digit', n: 1 }])
 })
 
 test("a byte a dropped start's tail can't hold ends it, and is read on its own; a lone ESC is still esc", () => {

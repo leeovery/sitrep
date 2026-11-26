@@ -16,14 +16,15 @@
  * - A string sequence, `ESC ]` and the like, is read as the terminal answers
  *   the colour query: up to its `BEL` or `ST`, its body only what a colour
  *   holds. Any other byte cuts it short and is read on its own, so a key
- *   typed after Alt+`]` is never swallowed.
+ *   typed after Alt+`]` is swallowed only where a colour could hold it.
  * - A sequence the bytes end inside is left to read with the next bytes.
  *   Once nothing more has come, a lone `ESC` is `esc`, and the start of any
  *   other sequence is dropped; a paste under way is kept, to its end.
- * - The tail of a start dropped is swallowed as it comes, however late, so
- *   none of it is read as keys, the digits of a mouse report's cell among
- *   them: a `CSI`'s parameter bytes and its last byte; a string sequence's
- *   answer bytes and its `BEL`; the bytes an `SS3` or an X10 report lacked.
+ * - A start dropped is kept as a tail: once more bytes come, however late,
+ *   it is read whole with them, as if never cut, and its key thrown away,
+ *   so the rest of a mouse report cut short, its digits among them, is
+ *   never read as keys. A tail that turns out a paste's start is held to
+ *   the paste's end, and dropped as any paste.
  * - Any other byte, or sequence, does nothing: the terminal's answers to
  *   the colour query among them, so none is taken as a key.
  */
@@ -40,15 +41,12 @@ export type Key =
   /** A digit, `1` to `9`: the choice of its number in what is open. */
   | { kind: 'digit'; n: number }
 
-/** What is left of a sequence whose start was dropped: a `CSI`'s, a string sequence's, or a count of bytes. */
-export type Tail = 'csi' | 'string' | { bytes: number }
-
 /**
  * The keys in some bytes, and what is left of them: the start of a sequence
- * they end inside, to read with the next; or the tail still to swallow of a
- * start dropped.
+ * they end inside, to read with the next; or, as `tail`, the start of one
+ * dropped once nothing more came, to read with the next and throw away.
  */
-export type Keys = { keys: Key[]; rest: string; tail?: Tail }
+export type Keys = { keys: Key[]; rest: string; tail?: string }
 
 const ESC = '\x1b'
 
@@ -254,70 +252,43 @@ const readAt = (bytes: string, at: number): Read => {
   return byte === ESC ? escapeAt(bytes, at) : taken(1, plainOf(byte))
 }
 
-/** The tail a start the bytes end inside leaves, `ESC` and at least one byte: an X10 report's bytes, an `SS3`'s last byte, a `CSI`'s or a string sequence's. */
-const tailOf = (start: string): Tail => {
-  if (start.startsWith(`${ESC}[M`)) {
-    return { bytes: 6 - start.length }
-  }
-
-  if (start[1] === 'O') {
-    return { bytes: 1 }
-  }
-
-  return start[1] === '[' ? 'csi' : 'string'
-}
-
-/** The start of a sequence the bytes end inside, read as all there is: a lone `ESC` is `esc`; any other start is dropped, its tail to swallow. */
+/** The start of a sequence the bytes end inside, read as all there is: a lone `ESC` is `esc`; any other start is dropped, kept as a tail. */
 const quietened = (keys: Key[], rest: string): Keys =>
-  rest === ESC ? { keys: [...keys, { kind: 'esc' }], rest: '' } : { keys, rest: '', tail: tailOf(rest) }
+  rest === ESC ? { keys: [...keys, { kind: 'esc' }], rest: '' } : { keys, rest: '', tail: rest }
 
-/** How many bytes from the first a run of bytes `isIn` takes. */
-const runOf = (bytes: string, isIn: (byte: string) => boolean) => {
-  let end = 0
+/**
+ * A dropped start read whole with the bytes after it, all of them in
+ * `bytes`: how far it took them, its key thrown away; or, where they end
+ * inside it, the start held still, as a tail, or as a paste to its end.
+ */
+const resumed = (bytes: string): number | Keys => {
+  const read = readAt(bytes, 0)
 
-  while (end < bytes.length && isIn(bytes[end] ?? '')) {
-    end++
+  if (read === 'unfinished') {
+    return { keys: [], rest: '', tail: bytes }
   }
 
-  return end
-}
-
-/** How much of the bytes a tail takes, and what is left of it where the bytes end inside it. A byte it can't hold ends it, read on its own. */
-const swallowed = (bytes: string, tail: Tail): { length: number; tail?: Tail } => {
-  if (typeof tail === 'object') {
-    const length = Math.min(tail.bytes, bytes.length)
-
-    return length < tail.bytes ? { length, tail: { bytes: tail.bytes - length } } : { length }
-  }
-
-  const isCsi = tail === 'csi'
-  const body = runOf(bytes, byte => (isCsi ? isBetween(byte, 0x20, 0x3f) : ANSWER_BYTE.test(byte)))
-  const last = bytes[body]
-
-  if (last === undefined) {
-    return { length: body, tail }
-  }
-
-  const isLast = isCsi ? isBetween(last, 0x40, 0x7e) : last === '\x07'
-
-  return { length: isLast ? body + 1 : body }
+  return 'pasting' in read ? { keys: [], rest: read.pasting } : read.length
 }
 
 /**
  * The keys in the bytes, and the start of a sequence they end inside, left
  * to read with the next bytes; `isQuiet`, as nothing more came within 50
- * ms, such a start is read as all there is, and its tail left to swallow
- * from the next. A paste under way is held however long, since only its
- * end ends it. `tail`, what the last read left to swallow, goes first.
+ * ms, such a start is read as all there is, and kept as a tail. A paste
+ * under way is held however long, since only its end ends it. `tail`, a
+ * start the last read dropped, is read first, whole with the bytes, and
+ * its key thrown away.
  */
-export const keysOf = (bytes: string, isQuiet = false, tail?: Tail): Keys => {
-  const keys: Key[] = []
-  const first = tail === undefined ? { length: 0 } : swallowed(bytes, tail)
-  let at = first.length
+export const keysOf = (fresh: string, isQuiet = false, tail?: string): Keys => {
+  const bytes = (tail ?? '') + fresh
+  const first = tail === undefined ? 0 : resumed(bytes)
 
-  if (first.tail !== undefined) {
-    return { keys, rest: '', tail: first.tail }
+  if (typeof first !== 'number') {
+    return first
   }
+
+  const keys: Key[] = []
+  let at = first
 
   while (at < bytes.length) {
     const read = readAt(bytes, at)

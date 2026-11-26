@@ -72,7 +72,7 @@ import type { Size } from './cells'
 import { COLOUR_QUERY, paintOf } from './colours'
 import { ansi, draw } from './draw'
 import { handed, readied } from './edge'
-import { keysOf, type Key, type Tail } from './keys'
+import { keysOf, type Key } from './keys'
 import { levelOf, type Paint } from './paint'
 import { noticesOf } from './notices'
 import { reachOf } from './reach'
@@ -134,11 +134,12 @@ type Later = (ms: number, act: () => void) => () => void
 /**
  * The keys in bytes as they come: a sequence cut short held for the next
  * bytes, and read as all there is once ESC_MS pass with nothing more, so a
- * lone ESC is `esc`, and the tail of any other swallowed as it comes.
+ * lone ESC is `esc`, and any other start kept to read whole with the next
+ * bytes, its key thrown away.
  */
 const keyReader = (later: Later, pressed: (key: Key) => void) => {
   let rest = ''
-  let tail: Tail | undefined
+  let tail: string | undefined
   let letQuietGo = () => {}
 
   const read = (bytes: string, isQuiet: boolean) => {
@@ -300,9 +301,10 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
 
   const reader = keyReader(later, pressed)
 
-  /** The keys heard, raw mode set afresh, as a stop from outside leaves it to the shell, cooked. */
+  /** The keys heard, raw mode set afresh, as a stop from outside leaves it to the shell, cooked; nothing held from before it, so the first key after `fg` is read. */
   const listen = () => {
     stopKeys()
+    reader.stop()
     stopKeys = terminal.keys(bytes => guard(() => reader.heard(bytes)))
   }
 
