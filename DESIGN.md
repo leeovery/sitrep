@@ -6783,12 +6783,16 @@ though."
   so a busy main thread never holds up a keystroke anywhere on the Mac.
 - It is made as the panel opens, so a leave given while SitRep runs works
   from the next open, and is on only while the panel or one of its menus
-  is open; at rest it hears nothing.
+  is open; at rest it hears nothing. An open without the leave lets the
+  tap go, so it is never on without it.
 - A key taken is taken whole: its key-up goes nowhere either. A held
   `↑` `↓`, `k` `j`, `←` or `→` repeats, as a Mac menu's arrows do; any
-  other key's repeats are dropped, so a held digit answers once.
+  other key's repeats are dropped, so a held digit answers once. A panel
+  closing under a key it took, as `esc` closes it, leaves the tap on,
+  taking no new key, until the last key it took comes up.
 - macOS turns a tap off when it is slow to answer or as input it can't
-  see starts; SitRep turns it on again as macOS tells it, for either.
+  see starts; SitRep turns it on again as macOS tells it, for either,
+  while it is on or a key it took is down.
 - While a window holds secure input, as Ghostty does at a password
   prompt, macOS gives the tap no keys. The panel then holds nothing and
   shows no keycaps, as if the leave were missing: each key goes to the
@@ -6806,6 +6810,11 @@ the panel's, acting on the lit row, until:
   window in front, and the panel takes none until the pointer moves
   again, so typing into Ghostty with the pointer left on the panel goes
   on there from its first key the panel doesn't take;
+- a row jumps, by `o` or a click: what is typed next is for the window
+  jumped to, and no hold starts while the jump is under way;
+- the screens sleep, or the session goes to another user, so what is
+  typed on coming back goes to the window in front until the pointer
+  moves;
 - the panel closes.
 
 A panel that opens under a resting pointer holds nothing until the pointer
@@ -6939,7 +6948,8 @@ beyond AppKit's own; the banners, which macOS draws; Settings, the welcome
 window and About SitRep keep the Mac's (⌘, ⌘W ⌘[ ⌘]).
 
 **In Settings,** the Edge pane gains a section after Motion, **Keys**:
-- **Keys,** under the notch only: with the leave, a green dot and Allowed.
+- **Accessibility,** under the notch only: with the leave, a green dot
+  and Allowed.
   Without it, "Not allowed, so the notch's panel takes no keys", with
   Allow… until SitRep has asked once, which brings up macOS's prompt, and
   Open System Settings… for Privacy & Security › Accessibility after.

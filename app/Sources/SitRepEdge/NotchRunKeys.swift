@@ -40,6 +40,13 @@ extension NotchRun {
         }
     }
 
+    /// The panel holds the keys no more, whichever hold it is, until the pointer moves again: as the screens sleep or
+    /// the session goes to another user.
+    public func letGoOfKeys(_ moment: Moment) {
+        upToNow(moment)
+        hold.end()
+    }
+
     /// The item lit, by its index: the row the keys lit, while it shows, else the item under the pointer, which an
     /// eyebrow may be, which never lifts.
     public func lit(in setting: Setting) -> Int? {
@@ -107,12 +114,11 @@ extension NotchRun {
 
     /// The keys held as the pointer moves: on the open panel, a move on its list or its asks panel holds them, and one
     /// off both holds them no more, the row the keys lit going back to the pointer either way. A panel opening under a
-    /// resting pointer holds nothing, nor while a menu holds the card. Hidden, closing or closed, or while the Mac
-    /// lets the panel take no keys, it holds nothing.
+    /// resting pointer holds nothing, nor while a menu holds the card, nor while a jump is under way. Hidden, closing
+    /// or closed, or while the Mac lets the panel take no keys, it holds nothing.
     func holdKeys(_ moment: Moment) {
         guard moment.isShown, notch.phase == .open, moment.setting.takesKeys else {
-            hold.end()
-            keyLit = nil
+            endHold()
             felt = moment.pointer
             return
         }
@@ -120,9 +126,19 @@ extension NotchRun {
             return
         }
 
+        let isJumping = frame.panel?.pressed != nil
+
         felt = moment.pointer
         keyLit = nil
-        hold.moved(onPanel: moment.pointer.map { frame.panel?.contains($0) == true || asking.isOn($0) } ?? false)
+        hold.moved(
+            onPanel: !isJumping && moment.pointer.map { frame.panel?.contains($0) == true || asking.isOn($0) } ?? false
+        )
+    }
+
+    /// The hold ended, and the row the keys lit let go: a jump took the panel's keys, or the panel can hold none.
+    func endHold() {
+        hold.end()
+        keyLit = nil
     }
 
     /// The row lit, by its index: the one the keys lit, else the row under the pointer, else the row whose asks panel

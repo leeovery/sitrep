@@ -193,6 +193,19 @@ struct NotchKeysRunTests {
         #expect(run.keySnapshot == .panel(hold: 2))
     }
 
+    /// The screens sleeping, or the session going to another user, lets go of whichever hold it is, until the pointer
+    /// moves again.
+    @Test func lettingGoOfEveryHoldLastsUntilThePointerMovesAgain() throws {
+        let (run, pointer) = try Self.holding(), setting = Self.setting()
+
+        run.letGoOfKeys(Self.at(run, pointer, setting))
+        Self.frames(run, for: 300, pointer, setting)
+        #expect(run.keySnapshot == .none)
+
+        run.step(Self.at(run, try Self.words(Self.shifts, run, setting), setting))
+        #expect(run.keySnapshot == .panel(hold: 2))
+    }
+
     /// While a menu holds the card, the keys are the menu's: one the panel heard meanwhile does nothing.
     @Test func whileAMenuHoldsTheCardAKeyDoesNothing() throws {
         let (run, pointer) = try Self.holding()
@@ -377,6 +390,29 @@ struct NotchKeysRunTests {
         #expect(session.id == AsksBoard.shifts && target == AsksBoard.shifts && click == 1)
         run.step(Self.at(run, pointer, Self.setting()))
         #expect(run.frame.panel?.pressed == Self.shifts)
+    }
+
+    /// A jump ends the hold, the row the keys lit let go, and no hold starts while it is under way, the pointer moving
+    /// on the list or not: `⏎` after `o` is for the window jumped to, not the panel draining.
+    @Test(arguments: [false, true])
+    func aJumpEndsTheHoldAndNoneStartsWhileItIsUnderWay(byClick: Bool) throws {
+        var (run, pointer) = try Self.holding(Self.shifts)
+        let setting = Self.setting()
+
+        Self.press(.down, run, pointer)
+        #expect(Self.lit(run) != Self.shifts)
+        let jump = byClick ? run.press(Self.at(run, pointer, setting)) : Self.press(.open, run, pointer)
+        #expect(jump != nil)
+        #expect(!run.holdsKeys && run.keySnapshot == .none && Self.lit(run) == Self.shifts)
+
+        run.step(Self.at(run, pointer, setting))
+        #expect(run.frame.panel?.pressed != nil)
+        for _ in 0 ..< 120 where run.frame.panel?.pressed != nil {
+            pointer.y += 1
+            run.step(Self.at(run, pointer, setting))
+            #expect(run.keySnapshot == .none)
+            #expect(Self.press(.enter, run, pointer) == nil && run.asksShown == nil)
+        }
     }
 
     /// `z` on a Needs you row, of asks or of a turn alone, offers the row's Snooze beside the row, which stands where

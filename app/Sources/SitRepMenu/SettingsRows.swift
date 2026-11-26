@@ -134,18 +134,18 @@ extension SettingsRow {
         }
     }
 
-    /// Edge's Keys (DESIGN, "Keys"), from whether macOS gives the Accessibility leave, nil before it is read: Allowed
-    /// with it; without it, why the panel takes no keys, with Allow… until SitRep has `asked`, which brings up macOS's
-    /// prompt, and the way to it in System Settings after.
+    /// Edge's Accessibility row, in Keys (DESIGN, "Keys"), from whether macOS gives the Accessibility leave, nil before
+    /// it is read: Allowed with it; without it, why the panel takes no keys, with Allow… until SitRep has `asked`,
+    /// which brings up macOS's prompt, and the way to it in System Settings after.
     public static func keys(_ isAllowed: Bool?, asked: Bool) -> SettingsRow {
         switch isAllowed {
         case nil:
-            SettingsRow(label: "Keys", line: nil, side: .none)
+            SettingsRow(label: "Accessibility", line: nil, side: .none)
         case true?:
-            SettingsRow(label: "Keys", line: nil, side: .fine("Allowed"))
+            SettingsRow(label: "Accessibility", line: nil, side: .fine("Allowed"))
         case false?:
             SettingsRow(
-                label: "Keys", line: "Not allowed, so the notch's panel takes no keys",
+                label: "Accessibility", line: "Not allowed, so the notch's panel takes no keys",
                 side: asked ? .button("Open System Settings…", .accessibility) : .button("Allow…", .allowKeys)
             )
         }

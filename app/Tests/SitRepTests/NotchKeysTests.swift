@@ -28,11 +28,41 @@ struct NotchKeysTests {
         #expect(tap.isOn && keys.allowed)
         keys.follow(isOut: true, holding: .panel(hold: 1))
         #expect(tap.snapshot == .panel(hold: 1))
-        keys.follow(isOut: false, holding: .none)
+        // in, it decides by nothing, though the run has yet to step past the hold
+        keys.follow(isOut: false, holding: .panel(hold: 1))
         #expect(!tap.isOn && tap.snapshot == KeySnapshot.none)
 
         keys.follow(isOut: true, holding: .none)
         #expect(world.taps.count == 1 && tap.isOn)
+    }
+
+    /// An open without the leave lets the tap go, so it is never on without it; one with the leave makes another.
+    @Test func anOpenWithoutTheLeaveLetsGoOfTheTap() throws {
+        let world = KeysWorld(), keys = NotchKeys(world.mac)
+
+        keys.follow(isOut: true, holding: .none)
+        try #require(keys.tap != nil)
+        keys.follow(isOut: false, holding: .none)
+
+        world.isTrusted = false
+        keys.follow(isOut: true, holding: .panel(hold: 1))
+        #expect(keys.tap == nil && !keys.allowed)
+
+        world.isTrusted = true
+        keys.follow(isOut: false, holding: .none)
+        keys.follow(isOut: true, holding: .none)
+        #expect(world.taps.count == 2 && keys.tap === world.taps.last && keys.allowed)
+    }
+
+    /// The screens sleeping, or the session going to another user, tells the notch to let go of the keys.
+    @Test func theScreensSleepingOrTheSessionGoingLetsGoOfTheKeys() {
+        let world = KeysWorld(), keys = NotchKeys(world.mac)
+        var away = 0
+
+        keys.onAway = { away += 1 }
+        world.workspace.post(name: NSWorkspace.screensDidSleepNotification, object: nil)
+        world.workspace.post(name: NSWorkspace.sessionDidResignActiveNotification, object: nil)
+        #expect(away == 2)
     }
 
     /// Without the leave there is no tap and the panel takes no keys; a leave given while SitRep runs works from the next
@@ -108,6 +138,23 @@ struct NotchKeysTests {
         keys.menuClosed()
         try #require(world.taps.first).heard(.choose(1))
         #expect(untils == [nil])
+    }
+
+    /// Keys handed on faster than the main thread woke make one choice at most: a second digit, or a digit after `z`,
+    /// does nothing.
+    @Test(arguments: [[KeyAction.choose(1), .choose(2)], [.closeMenu, .choose(1)]])
+    func aSnoozeMenuTakesOneChoiceOrCloseAlone(_ actions: [KeyAction]) throws {
+        let world = KeysWorld(), keys = NotchKeys(world.mac)
+        var untils: [Date?] = []
+        let menu = SnoozeMenu.forRow(offering: SnoozeSettings(), at: Date(), in: WakeTime.calendar) { untils.append($0) }
+
+        _ = NSApplication.shared
+        keys.follow(isOut: true, holding: .none)
+        keys.shows(menu)
+        for action in actions {
+            try #require(world.taps.first).heard(action)
+        }
+        #expect(untils.count == (actions.first == .closeMenu ? 0 : 1))
     }
 
     @Test func thePanelsKeysAndALetGoGoToTheNotch() throws {
@@ -194,6 +241,43 @@ struct NotchKeysTests {
         #expect(tap.isOn && tap.snapshot == KeySnapshot.none)
         notch.step(at: next(), pointer: try Self.words(Self.helpDesk, notch.run))
         #expect(tap.snapshot == .panel(hold: 1))
+    }
+
+    /// `o`, then `⏎` within the jump: the tap is told at once that the panel holds nothing, before a frame draws, so
+    /// `⏎` goes through to the window jumped to, and the pointer moving on the draining panel starts no hold.
+    @Test func returnAfterOWithinTheJumpGoesThrough() throws {
+        let world = KeysWorld(), (notch, _, next) = try Self.opened(world)
+        let tap = try #require(world.taps.first), enter = TapKey(code: KeyCode.enter)
+
+        defer { notch.window.close() }
+
+        var pointer = try Self.words(Self.helpDesk, notch.run)
+
+        notch.step(at: next(), pointer: pointer)
+        try #require(tap.snapshot == .panel(hold: 1))
+        notch.heard(.open, pointer: pointer)
+        #expect(tap.snapshot == KeySnapshot.none)
+        #expect(tap.read(enter) == .pass)
+
+        notch.step(at: next(), pointer: pointer)
+        #expect(notch.run.frame.panel?.pressed == Self.helpDesk)
+        for _ in 0 ..< 120 where notch.run.frame.panel?.pressed != nil {
+            pointer.y += 1
+            notch.step(at: next(), pointer: pointer)
+            #expect(tap.snapshot == KeySnapshot.none)
+        }
+    }
+
+    /// The screens sleeping lets go of the keys, so what is typed on coming back goes to the window in front.
+    @Test func theScreensSleepingLetsGoOfThePanelsKeys() throws {
+        let world = KeysWorld(), (notch, _, next) = try Self.opened(world)
+        let tap = try #require(world.taps.first)
+
+        defer { notch.window.close() }
+        notch.step(at: next(), pointer: try Self.words(Self.helpDesk, notch.run))
+        try #require(tap.snapshot == .panel(hold: 1))
+        world.workspace.post(name: NSWorkspace.screensDidSleepNotification, object: nil)
+        #expect(!notch.run.holdsKeys && tap.snapshot == KeySnapshot.none)
     }
 
     @Test func underSecureInputTheNotchsPanelHoldsNothing() throws {

@@ -88,6 +88,7 @@ final class NotchController: NSObject, CalloutShape {
         lightLink = startLink(#selector(tickLight), rate: Self.lightRate)
         self.keys.onKey = { [unowned self] in heard($0) }
         self.keys.onLetGo = { [unowned self] in letGoOfKeys(in: $0) }
+        self.keys.onAway = { [unowned self] in letGoOfKeys() }
         listen()
     }
 
@@ -200,10 +201,13 @@ final class NotchController: NSObject, CalloutShape {
 
     /// An input the run has taken: while frames run, the next one draws it, with whatever the frames between showed
     /// (`NotchRun.takeShown`); while they sleep, the frame it brought the notch up to is drawn, and frames start to
-    /// show what it did.
+    /// show what it did. The keys are told what the panel holds at once either way, so a key after a jump goes to the
+    /// window jumped to though no frame has drawn since.
     private func took() {
         if isShown, link?.isPaused == true {
             draw()
+        } else {
+            followKeys()
         }
         wake()
     }
@@ -326,6 +330,13 @@ final class NotchController: NSObject, CalloutShape {
     /// moves again.
     private func letGoOfKeys(in hold: Int) {
         run.letGoOfKeys(in: hold, moment())
+        took()
+    }
+
+    /// The screens slept or the session went to another user: the panel holds the keys no more, so what is typed on
+    /// coming back goes to the window in front.
+    private func letGoOfKeys() {
+        run.letGoOfKeys(moment())
         took()
     }
 

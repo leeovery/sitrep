@@ -138,6 +138,9 @@ public struct KeyReader: Sendable {
 
     public init() {}
 
+    /// Whether a key it took or rewrote has yet to come up.
+    var hasKeysDown: Bool { !down.isEmpty }
+
     public mutating func read(_ key: TapKey, in snapshot: KeySnapshot) -> KeyVerdict {
         switch key.stroke {
         case .down: pressed(key, in: snapshot)

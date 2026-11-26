@@ -222,31 +222,34 @@ struct LoginRowTests {
     }
 }
 
-/// Edge's Keys row (DESIGN, "Keys"): Allowed with the Accessibility leave; without it, why the panel takes no keys,
-/// with Allow… until SitRep has asked, and System Settings' Accessibility after, as macOS keeps no "not asked yet".
+/// Keys' Accessibility row (DESIGN, "Keys"): Allowed with the Accessibility leave; without it, why the panel takes no
+/// keys, with Allow… until SitRep has asked, and System Settings' Accessibility after, as macOS keeps no "not asked
+/// yet".
 @Suite(.backstop)
 struct KeysRowTests {
     private static let notAllowed = "Not allowed, so the notch's panel takes no keys"
 
     @Test(arguments: [false, true])
     func allowedItIsADotAndAWordWithNothingToPress(asked: Bool) {
-        #expect(SettingsRow.keys(true, asked: asked) == SettingsRow(label: "Keys", line: nil, side: .fine("Allowed")))
+        #expect(SettingsRow.keys(true, asked: asked) == SettingsRow(
+            label: "Accessibility", line: nil, side: .fine("Allowed")
+        ))
     }
 
     @Test func notAllowedAndNeverAskedAllowBringsUpMacOSsPrompt() {
         #expect(SettingsRow.keys(false, asked: false) == SettingsRow(
-            label: "Keys", line: Self.notAllowed, side: .button("Allow…", .allowKeys)
+            label: "Accessibility", line: Self.notAllowed, side: .button("Allow…", .allowKeys)
         ))
     }
 
     @Test func notAllowedOnceAskedTheButtonGoesToAccessibilityInSystemSettings() {
         #expect(SettingsRow.keys(false, asked: true) == SettingsRow(
-            label: "Keys", line: Self.notAllowed, side: .button("Open System Settings…", .accessibility)
+            label: "Accessibility", line: Self.notAllowed, side: .button("Open System Settings…", .accessibility)
         ))
     }
 
     @Test func beforeItIsReadThereIsNothingToPress() {
-        #expect(SettingsRow.keys(nil, asked: false) == SettingsRow(label: "Keys", line: nil, side: .none))
+        #expect(SettingsRow.keys(nil, asked: false) == SettingsRow(label: "Accessibility", line: nil, side: .none))
     }
 
     /// Kept under "app"; a value saved before it was is read as never asked.

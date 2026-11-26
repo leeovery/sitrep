@@ -467,6 +467,8 @@ public final class NotchRun: Framed {
         return .fold
     }
 
+    /// The row at this index, where it jumps, pressed in: its asks panel closed, and the keys' hold ended, so what is
+    /// typed next goes to the window jumped to.
     func jump(_ index: Int) -> Press? {
         let items = notch.items
 
@@ -475,6 +477,7 @@ public final class NotchRun: Framed {
         }
 
         asking.close()
+        endHold()
         return .jump(session, to: session.id, click: book.click())
     }
 
