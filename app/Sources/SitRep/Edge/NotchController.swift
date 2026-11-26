@@ -86,7 +86,7 @@ final class NotchController: NSObject, CalloutShape, ShortcutNotch {
         caption.over = edge.visible
         link = startLink(#selector(tick))
         lightLink = startLink(#selector(tickLight), rate: Self.lightRate)
-        self.keys.onKey = { [unowned self] in heard($0) }
+        self.keys.onKey = { [unowned self] in heard($0, ending: $1) }
         self.keys.onLetGo = { [unowned self] in letGoOfKeys(in: $0) }
         self.keys.onAway = { [unowned self] in letGoOfKeys() }
         listen()
@@ -353,10 +353,10 @@ final class NotchController: NSObject, CalloutShape, ShortcutNotch {
         keys.hotKey = chord
     }
 
-    /// A key of the set while the panel holds the keys: what it does, by the paths a click takes (`NotchRun.key`).
-    /// Internal only for the tests, which give the pointer on the stage.
-    func heard(_ key: PanelKey, pointer: CGPoint? = nil) {
-        act(on: run.key(key, moment(pointer: pointer)))
+    /// A key of the set while the panel holds the keys, and the hold the tap ended with it, if any: what it does, by
+    /// the paths a click takes (`NotchRun.key`). Internal only for the tests, which give the pointer on the stage.
+    func heard(_ key: PanelKey, ending hold: Int? = nil, pointer: CGPoint? = nil) {
+        act(on: run.key(key, ending: hold, moment(pointer: pointer)))
         took()
     }
 
@@ -367,8 +367,9 @@ final class NotchController: NSObject, CalloutShape, ShortcutNotch {
         took()
     }
 
-    /// The screens slept or the session went to another user: the panel holds the keys no more, so what is typed on
-    /// coming back goes to the window in front.
+    /// The screens slept, the screen locked, the screen saver started, the session went to another user or a window
+    /// took secure input: the panel holds the keys no more, so what is typed on coming back goes to the window in
+    /// front.
     private func letGoOfKeys() {
         run.letGoOfKeys(moment())
         took()

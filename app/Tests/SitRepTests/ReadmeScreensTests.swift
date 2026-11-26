@@ -59,7 +59,7 @@ struct ReadmeScreensTests {
         let folder = try #require(screens)
         let settings = EdgeSettings(), edge = Self.edge(settings)
         let setting = NotchRun.Setting(
-            stage: edge.stage, mirror: edge.mirror, style: settings.style, reducesMotion: false, isChosen: true
+            stage: edge.stage, mirror: edge.mirror, style: settings.style, reducesMotion: false
         )
         let home = CGPoint(x: 4, y: edge.stage.notchY), board = try Self.board()
         let open = try Self.opened(board, home, setting).insetBy(dx: 0, dy: -Self.edgeMargin)

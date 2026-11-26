@@ -124,7 +124,7 @@ struct SnoozedEdgeTests {
 
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
-        style: .meniscus, reducesMotion: false, isChosen: true
+        style: .meniscus, reducesMotion: false
     )
 
     private static func at(_ time: Double) -> NotchRun.Moment {

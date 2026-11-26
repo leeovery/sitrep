@@ -14,7 +14,7 @@ import Testing
 struct CardSectionsRunTests {
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
-        style: .meniscus, reducesMotion: false, isChosen: true
+        style: .meniscus, reducesMotion: false
     )
     private static let frameMS = 1000.0 / 60
     private static let onTheNotch = CGPoint(x: 3, y: 491)
@@ -181,24 +181,20 @@ struct CardSectionsRunTests {
         #expect(arriving.height < arriving.item.height)
     }
 
-    /// With Nothing chosen, the notch hidden, an arrival leaves Needs you folded.
-    @Test func anArrivalLeavesNeedsYouFoldedWhileTheNotchIsNotChosen() {
+    /// With the notch hidden, as with Nothing chosen, an arrival unfolds Needs you all the same, kept: the notch shown
+    /// again shows it as it would had it shown throughout, whatever Show was set to before.
+    @Test func anArrivalUnfoldsNeedsYouWhileTheNotchIsHidden() {
         let kept = Self.kept([.needsYou])
         let run = NotchRun(at: 1000, in: Self.setting, folding: Folding(kept: kept), calendar: Self.london)
-        var setting = Self.setting
+        let hidden = { NotchRun.Moment(time: run.time, pointer: nil, isShown: false, setting: Self.setting) }
 
-        setting.isChosen = false
-        _ = run.show(
-            Self.board(Self.mixed), NotchRun.Moment(time: run.time, pointer: nil, isShown: false, setting: setting)
-        )
-        _ = run.show(
-            Self.board([Self.ask("sr-c")] + Self.mixed, new: ["ask:sr-c"]),
-            NotchRun.Moment(time: run.time, pointer: nil, isShown: false, setting: setting)
-        )
+        _ = run.show(Self.board(Self.mixed), hidden())
+        #expect(run.folded.sections == [.needsYou])
+        _ = run.show(Self.board([Self.ask("sr-c")] + Self.mixed, new: ["ask:sr-c"]), hidden())
 
         #expect(run.board.sessions.contains { $0.id == "sr-c" })
-        #expect(run.folded.sections == [.needsYou])
-        #expect(kept.read().folded == [.needsYou])
+        #expect(run.folded.sections.isEmpty)
+        #expect(kept.read().folded.isEmpty)
     }
 
     /// Kept under the card's key, Snoozed alone folded at first, so the card starts as Lee left it.

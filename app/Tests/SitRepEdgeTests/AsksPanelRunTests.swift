@@ -27,7 +27,7 @@ struct AsksPanelRunTests {
     ) -> NotchRun.Setting {
         NotchRun.Setting(
             stage: stage, mirror: right ? CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 800, ty: 0) : .identity,
-            style: style, reducesMotion: reducesMotion, isChosen: true
+            style: style, reducesMotion: reducesMotion
         )
     }
 

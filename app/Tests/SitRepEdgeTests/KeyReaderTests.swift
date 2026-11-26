@@ -36,7 +36,7 @@ struct KeyReaderTests {
     // MARK: The panel's keys
 
     @Test(arguments: [
-        ("k", PanelKey.up), ("j", .down), ("o", .open), ("z", .snooze), ("s", .fold), ("x", .ignore),
+        ("k", PanelKey.up), ("j", .down), ("z", .snooze), ("s", .fold), ("x", .ignore),
         ("1", .digit(1)), ("5", .digit(5)), ("9", .digit(9)),
     ])
     func eachLetterAndDigitOfTheSetIsTakenWhileThePanelHoldsTheKeys(_ typed: String, _ key: PanelKey) {
@@ -93,15 +93,15 @@ struct KeyReaderTests {
         #expect(reader.read(Self.typing("a"), in: Self.holding) == .letGo(hold: 1))
         #expect(reader.read(Self.typing("o"), in: Self.holding) == .pass)
         #expect(reader.read(Self.typing("a"), in: Self.holding) == .pass)
-        #expect(reader.read(Self.typing("o"), in: .panel(hold: 2)) == .take(.panel(.open)))
+        #expect(reader.read(Self.typing("o"), in: .panel(hold: 2)) == .take(.panel(.open, ends: 2)))
     }
 
     /// `o` ends its hold as it is taken: it jumps, so a key typed after it, before the main thread has heard of it,
-    /// goes to the window jumped to.
+    /// goes to the window jumped to. What it hands on says which hold it ended, for the panel to follow.
     @Test func oEndsItsHoldAsItIsTaken() {
         var reader = KeyReader()
 
-        #expect(reader.read(Self.typing("o"), in: Self.holding) == .take(.panel(.open)))
+        #expect(reader.read(Self.typing("o"), in: Self.holding) == .take(.panel(.open, ends: 1)))
         #expect(reader.read(Self.code(KeyCode.enter), in: Self.holding) == .pass)
         #expect(reader.read(Self.typing("o", [], .up), in: Self.holding) == .take(nil))
         #expect(reader.read(Self.code(KeyCode.enter), in: .panel(hold: 2)) == .take(.panel(.enter)))
@@ -214,7 +214,8 @@ struct KeyReaderTests {
         #expect(reader.read(Self.typing("z", .maskCommand, .up), in: Self.holding) == .take(nil))
     }
 
-    /// `o` while the sending line shows can't jump: it keeps the hold, so the `⌘Z` after it is still the panel's.
+    /// `o` while `⌘Z` is the panel's can't jump: it keeps the hold, ending none as it is handed on, so the `⌘Z` after
+    /// it is still the panel's.
     @Test func oWhileTheSendingLineShowsKeepsTheHold() {
         var reader = KeyReader()
 

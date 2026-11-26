@@ -43,36 +43,27 @@ struct KeyHold {
 /// The panel's keys in the notch's run (DESIGN, "Keys"): the hold the pointer moving on the panel starts, the lit row
 /// the keys move, and what each key does there, by the paths a click takes.
 extension NotchRun {
-    /// What the tap decides each key by: the panel's hold while it holds the keys, `⌘Z` its while the asks panel's
-    /// sending line shows, every key its in the shortcut's; else nothing.
+    /// What the tap decides each key by: the panel's hold while it holds the keys, `⌘Z` its while the asks panel takes
+    /// it (`AsksPanel.takesUndo`), every key its in the shortcut's; else nothing.
     public var keySnapshot: KeySnapshot {
-        hold.isOn
-            ? .panel(hold: hold.number, undoes: asking.shown?.sending != nil, takesAll: hold.isShortcut) : .none
+        hold.isOn ? .panel(hold: hold.number, undoes: asking.takesUndo(at: time), takesAll: hold.isShortcut) : .none
     }
 
     /// Whether the panel holds the keys.
     public var holdsKeys: Bool { hold.isOn }
 
-    /// A key the panel doesn't take, pressed in the hold of this number: it went through, and the panel holds none
-    /// until the pointer moves again; in the shortcut's hold, a key with ⌘, ⌃ or ⌥, which closes the panel. A hold the
-    /// pointer began since the key keeps the keys.
+    /// A key the panel doesn't take, pressed in the hold of this number: it went through, and that hold is let go
+    /// (`letGo(of:)`); in the shortcut's hold, a key with ⌘, ⌃ or ⌥, which closes the panel.
     public func letGoOfKeys(in number: Int, _ moment: Moment) {
         upToNow(moment)
-        guard hold.number == number else {
-            return
-        }
-
-        if hold.isShortcut {
-            notch.clickElsewhere()
-        }
-        hold.end()
+        letGo(of: number)
     }
 
-    /// The panel holds the keys no more, whichever hold it is, until the pointer moves again: as the screens sleep or
-    /// the session goes to another user.
+    /// The panel holds the keys no more, whichever hold it is, until the pointer moves again: as the screens sleep, the
+    /// session goes to another user or a window takes secure input. The shortcut's panel stays open, no row lit.
     public func letGoOfKeys(_ moment: Moment) {
         upToNow(moment)
-        hold.end()
+        letGo()
     }
 
     /// The item lit, by its index: the row the keys lit, while it shows, else the item under the pointer, which an
@@ -81,29 +72,33 @@ extension NotchRun {
         keyLitIndex ?? seen.flatMap { item(at: $0, in: setting) }
     }
 
-    /// A key of the set while the panel holds the keys, open, or in the shortcut's hold opening too, acting on the lit
-    /// row as its click would: on the asks panel while it is open (`asksKey`), else on the list (`listKey`). A key with
-    /// no use at the moment does nothing, as does one heard while a menu holds the card, the menu's. `o` ends the hold
-    /// whether or not it jumps, as the tap ended it as it took `o` (`KeyReader`), so the keys typed after it go to the
-    /// window in front, and the shortcut's panel closes where it didn't jump; but for `o` while the sending line shows,
-    /// where it can't jump, which keeps the hold for `⌘Z`.
-    public func key(_ key: PanelKey, _ moment: Moment) -> Press? {
+    /// A key of the set while the panel holds the keys, open, or in the shortcut's hold out, acting on the lit row as
+    /// its click would: on the asks panel while it is open (`asksKey`), else on the list (`listKey`). A key with no use
+    /// at the moment does nothing, as does one heard while a menu holds the card, the menu's. A key the tap took as
+    /// `ending` a hold, as it takes `o` whether or not `o` jumps (`KeyReader`), lets that hold go here too, acting or
+    /// not, so the panel holds what the tap holds: the tap alone decides it. So the keys typed after it go to the
+    /// window in front, and the shortcut's panel closes where `o` didn't jump. `o` the tap took ending none, as `⌘Z`
+    /// was the asks panel's, where `o` can't act, acts on nothing, though the beat has passed by the time it is heard.
+    public func key(_ key: PanelKey, ending number: Int? = nil, _ moment: Moment) -> Press? {
         upToNow(moment)
+
+        let press = key == .open && number == nil ? nil : acted(on: key, in: moment.setting)
+
+        if let number {
+            letGo(of: number)
+        }
+        placeAsks(in: moment.setting)
+        return press
+    }
+
+    /// What a key does while it acts: while the panel holds the keys, open, or out in the shortcut's hold, and no menu
+    /// holds the card.
+    private func acted(on key: PanelKey, in setting: Setting) -> Press? {
         guard hold.isOn, notch.phase == .open || hold.isShortcut && isOut, menuAt == nil else {
             return nil
         }
 
-        let undoes = asking.shown?.sending != nil, summoned = hold.isShortcut
-        let press = asking.row == nil ? listKey(key, in: moment.setting) : asksKey(key, in: moment.setting)
-
-        if key == .open, !undoes {
-            if summoned, !press.isJump {
-                notch.clickElsewhere()
-            }
-            endHold()
-        }
-        placeAsks(in: moment.setting)
-        return press
+        return asking.row == nil ? listKey(key, in: setting) : asksKey(key, in: setting)
     }
 
     /// The shortcut (DESIGN, "Keys"): out, the panel closes, as a click elsewhere closes it; closing, nothing; closed,
@@ -114,9 +109,7 @@ extension NotchRun {
     public func summon(_ moment: Moment) {
         upToNow(moment)
         guard !isOut else {
-            notch.clickElsewhere()
-            endHold()
-            return
+            return closePanel()
         }
         guard notch.summon(), moment.isShown, moment.setting.takesKeys else {
             return
@@ -157,8 +150,7 @@ extension NotchRun {
         case .fold:
             return snoozedEyebrow.flatMap { click($0, in: setting) }
         case .escape:
-            notch.clickElsewhere()
-            hold.end()
+            closePanel()
             return nil
         case .left, .right, .ignore, .digit, .undo:
             return nil
@@ -206,7 +198,7 @@ extension NotchRun {
         let isHeld = notch.phase == .open || hold.isShortcut && notch.phase == .opening
 
         guard moment.isShown, isHeld, moment.setting.takesKeys else {
-            endHold()
+            letGo()
             felt = moment.pointer
             return
         }
@@ -224,10 +216,33 @@ extension NotchRun {
         hold.moved(onPanel: onPanel)
     }
 
-    /// The hold ended, and the row the keys lit let go: a jump took the panel's keys, or the panel can hold none.
-    func endHold() {
+    /// The hold ended, whichever it was, and the row the keys lit let go: the one way the panel lets go of the keys, as
+    /// a jump takes them, a key lets go of them, or the panel can hold none.
+    func letGo() {
         hold.end()
         keyLit = nil
+    }
+
+    /// The hold of this number let go, while it is the hold still: the shortcut's closes the panel, any other holds
+    /// none until the pointer moves again. A hold the pointer began since keeps the keys. While a menu holds the card,
+    /// the shortcut's panel stays open under it, holding nothing, as a key racing the menu's opening never drains it.
+    private func letGo(of number: Int) {
+        guard hold.number == number else {
+            return
+        }
+
+        if hold.isShortcut, menuAt == nil {
+            closePanel()
+        } else {
+            letGo()
+        }
+    }
+
+    /// The panel closed, as a click elsewhere closes it, and the keys let go, so the window in front has them as it
+    /// closes: the one way the keys, the shortcut and a click elsewhere close it.
+    func closePanel() {
+        notch.clickElsewhere()
+        letGo()
     }
 
     /// The row lit, by its index: the one the keys lit, else the row under the pointer, else the row whose asks panel
@@ -306,16 +321,5 @@ extension NotchRun {
 
             return eyebrow.section == .snoozed
         }
-    }
-}
-
-extension Optional<NotchRun.Press> {
-    /// Whether it is a jump.
-    fileprivate var isJump: Bool {
-        guard case .jump? = self else {
-            return false
-        }
-
-        return true
     }
 }

@@ -41,9 +41,6 @@ public final class NotchRun: Framed {
         /// The notch Lee chose, which the model becomes once it is at rest.
         public var style: NotchStyle
         public var reducesMotion: Bool
-        /// Whether Lee chose the notch to show the board: an arrival unfolds Needs you on its card. With Nothing
-        /// chosen, Needs you folded stays folded.
-        public var isChosen: Bool
         /// Whether one ask's Snooze offers a time now, as Lee set them: the asks panel's foot shows Snooze ▾ only
         /// while it does, as the pane shows its snooze button.
         public var offersSnooze: Bool
@@ -52,14 +49,13 @@ public final class NotchRun: Framed {
         public var takesKeys: Bool
 
         public init(
-            stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool,
-            offersSnooze: Bool = true, takesKeys: Bool = false
+            stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, offersSnooze: Bool = true,
+            takesKeys: Bool = false
         ) {
             self.stage = stage
             self.mirror = mirror
             self.style = style
             self.reducesMotion = reducesMotion
-            self.isChosen = isChosen
             self.offersSnooze = offersSnooze
             self.takesKeys = takesKeys
         }
@@ -240,7 +236,7 @@ public final class NotchRun: Framed {
 
     /// The board as `watch` last printed it, told to the notch, its rows held while the panel is out: the items
     /// arriving on it to wash, by their keys, while the panel is out; never one a row changing section leaves, folding
-    /// away. An arrival unfolds Needs you, at once, while Lee has the notch show the board.
+    /// away. An arrival unfolds Needs you, at once, whatever Show is set to.
     public func show(_ board: PanelBoard, _ moment: Moment) -> Set<String> {
         upToNow(moment)
         board.tell(notch, after: self.board)
@@ -249,7 +245,7 @@ public final class NotchRun: Framed {
         rows.take(board.cardSessions)
         asking.take(board)
 
-        if !board.new.isEmpty, moment.setting.isChosen {
+        if !board.new.isEmpty {
             folding.set(.needsYou, folded: false)
         }
         relist(at: time, in: moment.setting)
@@ -348,8 +344,7 @@ public final class NotchRun: Framed {
     /// clicked has them as it closes.
     public func clickElsewhere(_ moment: Moment) {
         upToNow(moment)
-        notch.clickElsewhere()
-        endHold()
+        closePanel()
     }
 
     /// The jump a click asked for answered: a row still pressed in drains the panel now.
@@ -395,10 +390,11 @@ public final class NotchRun: Framed {
     }
 
     /// Whether frames must keep coming at this time, though the pointer is still: the notch moves, a row folds, the
-    /// way to the asks panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`), or its
-    /// asks slide, under the fingers or settling (`AsksSlide`).
+    /// way to the asks panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`), its
+    /// asks slide, under the fingers or settling (`AsksSlide`), or it takes `⌘Z` through the beat after its sending
+    /// line went, so the frame its beat ends at tells the tap (`AsksPanel.takesUndo`).
     public func needsFrames(at time: Double) -> Bool {
-        frame.isMoving || isFolding(at: time) || asking.needsFrames
+        frame.isMoving || isFolding(at: time) || asking.needsFrames(at: time)
     }
 
     /// When, after this wall time, the first of the shown rows' times, or a wake's countdown, next reads differently,
@@ -480,7 +476,7 @@ public final class NotchRun: Framed {
         }
 
         asking.close()
-        endHold()
+        letGo()
         return .jump(session, to: session.id, click: book.click())
     }
 
@@ -535,7 +531,7 @@ public final class NotchRun: Framed {
         }
 
         if isOut {
-            notch.clickElsewhere()
+            closePanel()
         } else if notch.phase == .closed, !frame.isMoving {
             style = chosen
             notch = style.notch(input)
