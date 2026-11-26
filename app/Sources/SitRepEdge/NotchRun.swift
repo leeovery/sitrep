@@ -200,6 +200,7 @@ public final class NotchRun: Framed {
         var input = Self.input(at: time, pointer: pointer, needsLee: board.needsLee, list, setting)
 
         input.pointerAt = menuAt == nil ? moment.pointerAt : nil
+        input.pointerIsHeld = menuAt != nil
         let onList = pointer.map { frame.panel?.contains($0) == true } ?? false
 
         input.beside = asking.beside(pointer, onList: onList, at: time)
@@ -343,10 +344,12 @@ public final class NotchRun: Framed {
         return true
     }
 
-    /// A click anywhere off the panel and the notch: the panel closes at once.
+    /// A click anywhere off the panel and the notch: the panel closes at once, and the keys are let go, so the window
+    /// clicked has them as it closes.
     public func clickElsewhere(_ moment: Moment) {
         upToNow(moment)
         notch.clickElsewhere()
+        endHold()
     }
 
     /// The jump a click asked for answered: a row still pressed in drains the panel now.

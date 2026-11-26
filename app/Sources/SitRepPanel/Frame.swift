@@ -53,6 +53,9 @@ public struct Input {
     /// A panel beside the open one, the asks panel, and while the pointer is on its way there, the way to it: the
     /// pointer on it is on the panel, so leaving both is leaving the panel, and the open edge never clings to it.
     public var beside: CGPath?
+    /// Whether `pointer` is a place a menu holds the panel open at, as if the pointer rested there, and not the
+    /// pointer's own: no move of the pointer's.
+    public var pointerIsHeld = false
 
     public init(
         time: Double, pointer: CGPoint?, pointerAt: Double? = nil, needsLee: Bool, stage: Stage, content: Content,

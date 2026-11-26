@@ -32,6 +32,10 @@ struct SettingsServices {
     var keys: () -> Bool
     /// macOS's own prompt for the Accessibility leave, and whether it is given now: macOS answers before Lee does.
     var allowKeys: () -> Bool
+    /// The shortcut's hot key let go while the recorder records, and registered again as it stops.
+    var suspendShortcut: (Bool) -> Void = { _ in }
+    /// Whether macOS refused the shortcut set.
+    var shortcutRefused: () -> Bool = { false }
 }
 
 /// What macOS says of SitRep's leaves, nil until it is read.
@@ -58,6 +62,18 @@ final class SettingsModel {
     private(set) var history: PaneHistory
     /// Allow… under way, while macOS's prompt is up.
     private(set) var isAllowing = false
+    /// The Shortcut row's recorder: while it records, the hot key is let go, so the shortcut set records rather than
+    /// opening the panel.
+    private(set) var recorder = ShortcutRecorder() {
+        didSet {
+            if recorder.isRecording != oldValue.isRecording {
+                services.suspendShortcut(recorder.isRecording)
+                readShortcut()
+            }
+        }
+    }
+    /// Whether macOS refused the shortcut set, read as it is registered.
+    private(set) var macOSRefusesShortcut = false
     /// The read of what macOS says begun last, as a pane came into sight.
     @ObservationIgnored private(set) var reading: Task<Void, Never>?
     @ObservationIgnored private var isReading = false
@@ -148,6 +164,7 @@ final class SettingsModel {
 
     /// What macOS says of SitRep's leaves, each row as its answer comes: the notices helper may take its time.
     func read() async {
+        readShortcut()
         said.login = services.login()
         said.keys = services.keys()
 
@@ -216,6 +233,44 @@ final class SettingsModel {
         case .allowGhostty: allowGhostty()
         case .allowKeys: allowKeys()
         }
+    }
+
+    /// A click on the Shortcut row's field: it records.
+    func recordShortcut() {
+        recorder.record()
+    }
+
+    /// The modifiers held while it records.
+    func holdForShortcut(_ modifiers: ChordModifiers) {
+        recorder.hold(modifiers)
+    }
+
+    /// A key pressed while it records: the shortcut it takes saved, before the hot key is registered again, so the one
+    /// registered is the new one. Whether it records still, as after a key it refused.
+    func pressForShortcut(_ chord: KeyChord) -> Bool {
+        var recorder = recorder
+
+        if let taken = recorder.press(chord) {
+            preferences.app.shortcut = Shortcut(taken)
+        }
+        self.recorder = recorder
+        return recorder.isRecording
+    }
+
+    /// `esc`, or a click away: the shortcut kept as it was.
+    func cancelShortcut() {
+        recorder.stop()
+    }
+
+    /// The clear button: no shortcut, saved as cleared.
+    func clearShortcut() {
+        preferences.app.shortcut = .cleared
+        recorder.stop()
+        readShortcut()
+    }
+
+    private func readShortcut() {
+        macOSRefusesShortcut = services.shortcutRefused()
     }
 
     /// Keys' Allow…: macOS's prompt, kept as asked, so the row offers System Settings from now on.

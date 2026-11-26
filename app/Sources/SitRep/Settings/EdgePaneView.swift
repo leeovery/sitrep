@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Edge (DESIGN, "Settings"): the Show row's card, then the sections that apply to the choice (`EdgePane`), the
 /// notch's, Motion and Keys, each arriving and leaving at once, the pane taking its new height with them; with Nothing,
-/// the Show row's card alone. It reads the displays as it appears and as they change, for Display.
+/// the Show row's card and Keys' Shortcut alone. It reads the displays as it appears and as they change, for Display.
 struct EdgePaneView: View {
     let settings: SettingsModel
 
@@ -53,7 +53,22 @@ struct EdgePaneView: View {
             }
         case .keys:
             StatedRow(row: .keys(settings.said.keys, asked: preferences.app.askedForKeys), fix: settings.fix)
+        case .shortcut:
+            CardRow(
+                label: "Shortcut",
+                line: settings.recorder.line(preferences.edge.show, macOSRefuses: settings.macOSRefusesShortcut)
+            ) { shortcut }
         }
+    }
+
+    /// The recorder, over the shortcut saved.
+    private var shortcut: some View {
+        let chord = preferences.app.shortcut.chord
+
+        return ShortcutField(
+            field: settings.recorder.field(chord, naming: KeyNames.typed), canClear: chord != nil,
+            actions: ShortcutFieldView.Actions(settings)
+        )
     }
 
     private var preferences: Preferences { settings.preferences }

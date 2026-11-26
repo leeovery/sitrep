@@ -7,8 +7,8 @@ import SitRepRelay
 import SitRepTestSupport
 import Testing
 
-/// Edge's sections under the Show row's card: Notch, holding the rows that tune it, then Motion, then Keys; none for
-/// Nothing.
+/// Edge's sections under the Show row's card: Notch, holding the rows that tune it, then Motion, then Keys,
+/// Accessibility then Shortcut; for Nothing, Keys' Shortcut alone.
 @Suite(.backstop)
 struct EdgePaneTests {
     private static func sections(_ show: EdgeSettings.Show) -> [EdgePane.Section] {
@@ -23,12 +23,12 @@ struct EdgePaneTests {
     @Test func theNotchsSectionIsEdgeDisplayAndStyleThenMotionThenKeys() {
         #expect(Self.sections(.notch) == [
             EdgePane.Section(name: "Notch", rows: [.edge, .display, .style]), Self.motion,
-            EdgePane.Section(name: "Keys", rows: [.keys]),
+            EdgePane.Section(name: "Keys", rows: [.keys, .shortcut]),
         ])
     }
 
-    @Test func withNothingThereIsNoSectionAndOneLineSaysWhatCarriesTheBoard() {
-        #expect(Self.sections(.nothing).isEmpty)
+    @Test func withNothingThereIsKeysShortcutAloneAndOneLineSaysWhatCarriesTheBoard() {
+        #expect(Self.sections(.nothing) == [EdgePane.Section(name: "Keys", rows: [.shortcut])])
         #expect(EdgePane.menuCarries == "The menu carries the board.")
     }
 }
@@ -334,7 +334,7 @@ struct AppSettingsTests {
         #expect(read.sound == "Glass")
         #expect(Set(keys) == [
             "notifiesNewAsks", "playsSound", "sound", "pulsesNewAsks", "notifiesTurns", "playsTurnSound", "turnSound",
-            "pulsesTurns", "terminal", "askedForKeys",
+            "pulsesTurns", "terminal", "askedForKeys", "shortcut",
         ], "a resume command never set saved as none")
     }
 

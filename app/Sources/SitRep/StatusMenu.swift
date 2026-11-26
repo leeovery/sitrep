@@ -12,7 +12,7 @@ import SitRepPanel
 /// An NSStatusItem rather than SwiftUI's MenuBarExtra: a menu-style MenuBarExtra tells nothing as its menu opens, and
 /// NSMenuDelegate does.
 @MainActor
-final class StatusMenu: NSObject, NSMenuDelegate {
+final class StatusMenu: NSObject, NSMenuDelegate, ShortcutMenu {
     private let works: Works
     private let preferences: Preferences
     private let openSettings: () -> Void
@@ -28,7 +28,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var notHere: Set<String> = []
     /// What the menu's items show, one entry to an item, in its order.
     private var entries: [MenuEntry] = []
-    private var isOpen = false
+    private(set) var isOpen = false
     private var ticking: Timer?
     private lazy var turn = MenuTurn(menu)
     /// The item under the pointer, whose words take the highlight's own ink.
@@ -87,8 +87,22 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         draw()
     }
 
+    /// The menu opened as a click on the item opens it, its keys AppKit's: the shortcut's, with the notch not showing.
+    func open() {
+        item.button?.performClick(nil)
+    }
+
+    /// The menu closed, as the shortcut closes it while it is open.
+    func close() {
+        menu.cancelTracking()
+    }
+
+    /// The menu opening, which has the keys from then: the notch's panel closes.
+    var onOpen: () -> Void = {}
+
     /// Show may have changed in Settings since it was drawn.
     func menuWillOpen(_ menu: NSMenu) {
+        onOpen()
         isOpen = true
         draw()
     }

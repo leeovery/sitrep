@@ -12,7 +12,7 @@ import SitRepPanel
 /// panel's times, drawn again as they change. Whatever comes between frames, a board, Lee's hand or a key the panel
 /// holds, goes to the run, which brings the notch up to now first; each is drawn, and frames show what it did.
 @MainActor
-final class NotchController: NSObject, CalloutShape {
+final class NotchController: NSObject, CalloutShape, ShortcutNotch {
     /// A click on a row: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
     /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen, or until it moves.
@@ -92,9 +92,10 @@ final class NotchController: NSObject, CalloutShape {
         listen()
     }
 
-    /// Whether the notch is on its display, Lee having chosen it and no full-screen app having the display: hidden,
-    /// it draws nothing and hears nothing, a drag under way ends where it began, and nothing of it shows, its caption
-    /// and its ghost included. Its time runs on meanwhile: shown again, it is where it would have got to.
+    /// Whether the notch is on its display, Lee having chosen it and no full-screen app having the display: hidden, it
+    /// draws nothing and hears nothing, a drag under way ends where it began, an open panel closes, so it never shows
+    /// again by itself, and nothing of it shows, its caption and its ghost included. Its time runs on meanwhile: shown
+    /// again, it is where it would have got to.
     var isShown = false {
         didSet {
             guard isShown != oldValue else {
@@ -108,6 +109,7 @@ final class NotchController: NSObject, CalloutShape {
                 wake()
             } else {
                 endDrag()
+                closePanel()
                 link?.isPaused = true
                 lightLink?.isPaused = true
                 ages?.invalidate()
@@ -319,6 +321,38 @@ final class NotchController: NSObject, CalloutShape {
         took()
     }
 
+    /// The shortcut (DESIGN, "Keys"): while the notch shows, its panel opens, holding the keys where the Mac lets it,
+    /// read first so it holds them as it opens; or, out, it closes (`NotchRun.summon`). Whether the notch took it:
+    /// hidden, under Nothing or a full-screen app, it takes nothing.
+    func summon() -> Bool {
+        guard isShown else {
+            return false
+        }
+
+        if !run.isOut {
+            keys.willOpen()
+        }
+        run.summon(moment())
+        took()
+        return true
+    }
+
+    /// The panel out closed, as a click elsewhere closes it, its keys let go: a click in another of SitRep's windows,
+    /// the menu bar item's menu opening, or the notch hiding.
+    func closePanel() {
+        guard run.isOut else {
+            return
+        }
+
+        run.clickElsewhere(moment())
+        took()
+    }
+
+    /// The shortcut's hot key as macOS holds it, which the panel's hold lets through (`NotchKeys.hotKey`).
+    func hotKey(_ chord: TapChord?) {
+        keys.hotKey = chord
+    }
+
     /// A key of the set while the panel holds the keys: what it does, by the paths a click takes (`NotchRun.key`).
     /// Internal only for the tests, which give the pointer on the stage.
     func heard(_ key: PanelKey, pointer: CGPoint? = nil) {
@@ -525,15 +559,16 @@ final class NotchController: NSObject, CalloutShape {
         }
     }
 
-    /// A scroll: a swipe on the asks panel pages it; anywhere else on the panel, the list scrolls. Internal only for the
-    /// tests, which give its time and the pointer on the stage.
+    /// A scroll: a swipe on the asks panel pages it; anywhere else on the panel, the list scrolls. Internal only for
+    /// the tests, which give its time and the pointer on the stage.
     func scroll(_ scroll: Scroll, at time: Double = Displays.now, pointer: CGPoint? = nil) {
         run.scroll(scroll, moment(at: time, pointer: pointer))
         took()
     }
 
-    /// The pointer anywhere wakes the frames when a move of it may change what shows; a click in another app closes
-    /// the panel. The global monitor hears what goes to other apps, the local one what comes to SitRep.
+    /// The pointer anywhere wakes the frames when a move of it may change what shows; a click in another app, or in
+    /// another of SitRep's windows, closes the panel. The global monitor hears what goes to other apps, the local one
+    /// what comes to SitRep.
     private func listen() {
         let moves: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .rightMouseDragged]
         let downs: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
@@ -543,13 +578,29 @@ final class NotchController: NSObject, CalloutShape {
 
             MainActor.assumeIsolated { self?.heard(clickElsewhere: isClick) }
         }
-        let local = NSEvent.addLocalMonitorForEvents(matching: moves) { [weak self] event in
-            MainActor.assumeIsolated { self?.heard(clickElsewhere: false) }
+        let local = NSEvent.addLocalMonitorForEvents(matching: moves.union(downs)) { [weak self] event in
+            let isClick = downs.contains(NSEvent.EventTypeMask(type: event.type))
+            let window = event.window
 
+            MainActor.assumeIsolated {
+                if isClick {
+                    self?.clicked(in: window)
+                } else {
+                    self?.heard(clickElsewhere: false)
+                }
+            }
             return event
         }
 
         monitors = [global, local].compactMap { $0 }
+    }
+
+    /// A click in one of SitRep's windows: in another than the notch's own, a click elsewhere. Internal only for the
+    /// tests, which give the window.
+    func clicked(in window: NSWindow?) {
+        if window !== self.window {
+            closePanel()
+        }
     }
 
     private func heard(clickElsewhere: Bool) {

@@ -8,7 +8,7 @@ import SitRepPanel
 /// over a full-screen app. The notch takes every board, hidden or not, so it shows the latest once Lee chooses it, and
 /// shows the callout a welcome's Done leaves until Lee first points at it.
 @MainActor
-final class Edge {
+final class Edge: ShortcutNotch {
     private let preferences: Preferences
     private var settings: EdgeSettings
     private let notch: NotchController
@@ -121,8 +121,29 @@ final class Edge {
 
     /// The notch, as Lee chose, unless he chose Nothing, or a full-screen app has the display.
     private func show() {
-        notch.isShown = settings.show == .notch && !fullScreen.hasDisplay
+        notch.isShown = Self.showsNotch(settings.show, underFullScreen: fullScreen.hasDisplay)
         callout.refresh()
+    }
+
+    /// Whether the notch shows: Lee chose it, and no full-screen app has its display.
+    static func showsNotch(_ show: EdgeSettings.Show, underFullScreen: Bool) -> Bool {
+        show == .notch && !underFullScreen
+    }
+
+    /// The shortcut, to the notch while it shows (`NotchController.summon`). Whether it took it: with Nothing chosen,
+    /// or a full-screen app on its display, the menu bar's menu opens instead.
+    func summon() -> Bool {
+        notch.summon()
+    }
+
+    /// The shortcut as macOS holds it, which the panel's hold lets through, so pressed again it closes the panel.
+    func hotKey(_ chord: TapChord?) {
+        notch.hotKey(chord)
+    }
+
+    /// The panel closed, as the menu bar item's menu opens: the menu has the keys.
+    func closePanel() {
+        notch.closePanel()
     }
 
     /// The callout's window, made as the callout is first placed.

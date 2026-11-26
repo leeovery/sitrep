@@ -31,6 +31,12 @@ final class NotchKeys {
     private var menu: KeySnapshot?
     /// A snooze menu shown on its own, until it closes or a key chose from it or closed it.
     private var snoozeMenu: SnoozeMenu?
+    /// The shortcut's hot key as macOS holds it, which the panel's hold lets through for macOS to hand SitRep, so the
+    /// shortcut pressed again closes the panel by the hot key alone.
+    var hotKey: TapChord? {
+        didSet { tell() }
+    }
+
     /// Held only so they leave their centres as the keys go.
     private var observers: Observers?
 
@@ -57,21 +63,27 @@ final class NotchKeys {
     /// secure input.
     var allowed: Bool { tap != nil && isTrusted && !isSecure }
 
-    /// The panel out or not, and what it holds: as it opens, the leave and secure input read, the tap made where the
-    /// leave is given and there is none yet, and let go where it is gone.
+    /// The panel out or not, and what it holds: as it opens, the Mac read (`willOpen`).
     func follow(isOut: Bool, holding held: KeySnapshot) {
         if isOut, !self.isOut {
-            isTrusted = mac.isTrusted()
-            isSecure = mac.isSecure()
-            if !isTrusted {
-                tap = nil
-            } else if tap == nil {
-                tap = mac.tap({ [weak self] in self?.heard($0) }, { [weak self] in self?.readSecureInput() })
-            }
+            willOpen()
         }
         self.isOut = isOut
         self.held = held
         tell()
+    }
+
+    /// The panel about to open: the leave and secure input read, the tap made where the leave is given and there is
+    /// none yet, and let go where it is gone. The shortcut reads them before the panel opens, so the panel knows as it
+    /// opens whether it may hold the keys.
+    func willOpen() {
+        isTrusted = mac.isTrusted()
+        isSecure = mac.isSecure()
+        if !isTrusted {
+            tap = nil
+        } else if tap == nil {
+            tap = mac.tap({ [weak self] in self?.heard($0) }, { [weak self] in self?.readSecureInput() })
+        }
     }
 
     /// The pointer moved while the panel is out: secure input read again.
@@ -111,9 +123,9 @@ final class NotchKeys {
     }
 
     /// The tap told whether it is on, only with the leave, and what it decides by: a menu's keys while one is open,
-    /// else what the panel holds; off, it decides by nothing.
+    /// else what the panel holds, passing the hot key; off, it decides by nothing.
     private func tell() {
-        tap?.turn(on: isTrusted && (isOut || menu != nil), deciding: menu ?? held)
+        tap?.turn(on: isTrusted && (isOut || menu != nil), deciding: menu ?? held.passing(hotKey))
     }
 
     /// What the tap handed on. A snooze menu takes one choice or close alone, though more were handed on before the
