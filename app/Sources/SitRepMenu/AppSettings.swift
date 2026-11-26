@@ -38,7 +38,7 @@ public struct AppSettings: SavedValue {
     public var askedForKeys = false
     /// The hot key that opens the notch's panel, or the menu bar's menu (DESIGN, "Keys"): ⌃⌥S unless Lee set another
     /// or cleared it.
-    public var shortcut = Shortcut.standard
+    public var shortcut = Shortcut.byDefault
 
     public init() {}
 

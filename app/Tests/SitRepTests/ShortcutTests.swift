@@ -331,7 +331,7 @@ struct ShortcutSettingsTests {
         #expect(settings.pressForShortcut(KeyChord(code: 0, modifiers: .option)) == true)
         #expect(settings.recorder.isRecording && settings.recorder.line(.notch) == "Use ⌘ or ⌃")
         #expect(suspended == [true])
-        #expect(settings.preferences.app.shortcut == .standard)
+        #expect(settings.preferences.app.shortcut == .byDefault)
     }
 
     @Test func escOrAClickAwayCancelsKeepingTheShortcut() {
@@ -343,7 +343,7 @@ struct ShortcutSettingsTests {
         settings.recordShortcut()
         settings.cancelShortcut()
         #expect(suspended == [true, false, true, false])
-        #expect(settings.preferences.app.shortcut == .standard)
+        #expect(settings.preferences.app.shortcut == .byDefault)
     }
 
     /// macOS refusing the shortcut set, the row's line says so as recording stops, and as the pane comes into sight.

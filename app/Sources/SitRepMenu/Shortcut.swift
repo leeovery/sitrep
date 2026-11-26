@@ -88,7 +88,7 @@ public struct Shortcut: Codable, Equatable, Sendable {
         self.chord = chord
     }
 
-    public static let standard = Shortcut(.controlOptionS)
+    public static let byDefault = Shortcut(.controlOptionS)
     public static let cleared = Shortcut(nil)
 
     public init(from decoder: any Decoder) throws {

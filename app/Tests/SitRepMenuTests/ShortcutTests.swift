@@ -29,7 +29,7 @@ struct SavedShortcutTests {
     @Test func itIsControlOptionSByDefault() {
         #expect(SavedSettings<AppSettings>(MemoryDefaults()).read().shortcut == Shortcut(.controlOptionS))
         #expect(KeyChord.controlOptionS == KeyChord(code: 1, modifiers: [.control, .option]))
-        #expect(Self.saved(#"{"notifiesNewAsks":true}"#) == .standard)
+        #expect(Self.saved(#"{"notifiesNewAsks":true}"#) == .byDefault)
     }
 
     @Test func aChordSetIsReadBack() {
@@ -63,7 +63,7 @@ struct SavedShortcutTests {
         #"{"shortcut":{"code":40,"modifiers":65536}}"#,
     ])
     func anUnreadableShortcutReadsAsTheDefault(_ json: String) {
-        #expect(Self.saved(json) == .standard)
+        #expect(Self.saved(json) == .byDefault)
     }
 
     /// Modifiers past the four are passed over.
