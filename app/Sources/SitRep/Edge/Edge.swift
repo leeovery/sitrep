@@ -1,6 +1,7 @@
 import AppKit
 import SitRepCore
 import SitRepEdge
+import SitRepMenu
 import SitRepPanel
 
 /// What shows at the screen's edge, as Lee set it: the notch on the chosen display, or nothing, following each change
@@ -134,6 +135,16 @@ final class Edge {
     /// or a full-screen app on its display, the menu bar's menu opens instead.
     func summon() -> Bool {
         notch.summon()
+    }
+
+    /// The shortcut as macOS holds it, which the panel's hold lets through, so pressed again it closes the panel.
+    func hotKey(_ chord: KeyChord?) {
+        notch.hotKey(chord?.tapChord)
+    }
+
+    /// The panel closed, as the menu bar item's menu opens: the menu has the keys.
+    func closePanel() {
+        notch.closePanel()
     }
 
     /// The callout's window, made as the callout is first placed.

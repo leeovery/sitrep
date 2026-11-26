@@ -92,8 +92,12 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         item.button?.performClick(nil)
     }
 
+    /// The menu opening, which has the keys from then: the notch's panel closes.
+    var onOpen: () -> Void = {}
+
     /// Show may have changed in Settings since it was drawn.
     func menuWillOpen(_ menu: NSMenu) {
+        onOpen()
         isOpen = true
         draw()
     }

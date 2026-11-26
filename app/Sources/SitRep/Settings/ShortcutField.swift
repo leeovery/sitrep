@@ -41,6 +41,9 @@ final class ShortcutFieldView: NSView {
     }
 
     var actions = Actions()
+    /// While it records, the clicks in SitRep's windows, any off the field stopping it, as a click on a control that
+    /// takes no focus would not.
+    private var clicks: Any?
     private let field = NSTextField(string: "")
     private let clear = NSButton()
     private var resigned: (any NSObjectProtocol)?
@@ -113,6 +116,9 @@ final class ShortcutFieldView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    /// Out of the key-view loop, so Tab, or the window choosing its first key view, never starts a recording.
+    override var canBecomeKeyView: Bool { false }
+
     override func mouseDown(with event: NSEvent) {
         if !isRecording {
             window?.makeFirstResponder(self)
@@ -125,12 +131,26 @@ final class ShortcutFieldView: NSView {
 
     override func becomeFirstResponder() -> Bool {
         actions.record()
+        clicks = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) {
+            [weak self] event in
+            MainActor.assumeIsolated { self?.clicked(at: event.locationInWindow, in: event.window) }
+            return event
+        }
         return true
     }
 
     override func resignFirstResponder() -> Bool {
+        clicks.map(NSEvent.removeMonitor)
+        clicks = nil
         actions.cancel()
         return true
+    }
+
+    /// A click at a point in a window while it records: off the field, it stops.
+    func clicked(at point: NSPoint, in window: NSWindow?) {
+        if window !== self.window || !bounds.contains(convert(point, from: nil)) {
+            stopRecording()
+        }
     }
 
     override func keyDown(with event: NSEvent) {
@@ -240,5 +260,16 @@ extension KeyChord {
     /// A key AppKit read: its code, and the modifiers held with it.
     init(_ event: NSEvent) {
         self.init(code: event.keyCode, modifiers: ChordModifiers(event.modifierFlags))
+    }
+}
+
+extension ShortcutFieldView.Actions {
+    /// Settings' recorder's, as the Shortcut row tells them.
+    @MainActor
+    init(_ settings: SettingsModel) {
+        self.init(
+            record: settings.recordShortcut, hold: settings.holdForShortcut, press: settings.pressForShortcut,
+            cancel: settings.cancelShortcut, clear: settings.clearShortcut
+        )
     }
 }

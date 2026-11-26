@@ -66,6 +66,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.edge = edge
         self.menu = menu
+        menu.onOpen = { [weak edge] in edge?.closePanel() }
+        edge.hotKey(hotKey.registered)
+        hotKey.onRegistered = { [weak edge] in edge?.hotKey($0) }
         preferences.onShortcut = { [hotKey] in hotKey.chord = $0 }
         plugin.start { [unowned self] in settled($0) }
         if WelcomeWindow.opensAtStart(preferences) {
@@ -152,9 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The shortcut (DESIGN, "Keys"): the notch's panel while the notch shows, else the menu bar item's menu.
     private func shortcut() {
-        if edge?.summon() != true {
-            menu?.open()
-        }
+        Shortcut.press(notch: { [edge] in edge?.summon() ?? false }, menu: { [menu] in menu?.open() })
     }
 
     /// ⌘,, through the main menu: the Settings window.
@@ -183,7 +184,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             open: { Leaves.open($0) },
             keys: { Leaves.keys },
             allowKeys: { Leaves.allowKeys() },
-            suspendShortcut: { [hotKey] in hotKey.isSuspended = $0 }
+            suspendShortcut: { [hotKey] in hotKey.isSuspended = $0 },
+            shortcutRefused: { [hotKey] in hotKey.isRefused }
         )
     }
 }

@@ -170,7 +170,7 @@ public final class Meniscus: Notch {
         if besideChanged, pointer == sp, wasBeside || isBeside(sp) {
             rehover()
         }
-        pointerMoved(pointer, at: input.pointerTime)
+        pointerMoved(pointer, at: input.pointerTime, isHeld: input.pointerIsHeld)
     }
 
     /// The screen changed: the notch's home moves with it, unless a drag has already taken it there.

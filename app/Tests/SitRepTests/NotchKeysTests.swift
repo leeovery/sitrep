@@ -2,6 +2,7 @@ import AppKit
 @testable import SitRep
 @testable import SitRepCore
 import SitRepEdge
+import SitRepMenu
 import SitRepPanel
 import SitRepTestSupport
 import Testing
@@ -405,7 +406,7 @@ struct NotchKeysTests {
         notch.heard(.held(HeldAnswer(answering: ship, heldAt: now, goesAt: now.addingTimeInterval(2))))
         notch.step(at: next(), pointer: pointer)
         try #require(notch.run.asksShown?.sending != nil)
-        guard case .panel(_, undoes: true, _) = tap.snapshot else {
+        guard case .panel(_, undoes: true, _, _) = tap.snapshot else {
             Issue.record("the tap was not told the sending line undoes: \(tap.snapshot)")
             return
         }
@@ -415,7 +416,7 @@ struct NotchKeysTests {
 
         notch.heard(.undone(ship))
         notch.step(at: next(), pointer: pointer)
-        guard case let .panel(hold, undoes: false, _) = tap.snapshot else {
+        guard case let .panel(hold, undoes: false, _, _) = tap.snapshot else {
             Issue.record("the tap was still told the sending line undoes: \(tap.snapshot)")
             return
         }
@@ -478,6 +479,66 @@ struct NotchKeysTests {
 
         #expect(notch.summon())
         #expect(notch.run.phase == .closing && tap.snapshot == KeySnapshot.none)
+    }
+
+    /// The tap lets the shortcut's own chord through, ending no hold, for macOS to hand SitRep.
+    @Test func theTapLetsTheShortcutsChordThrough() throws {
+        let world = KeysWorld(), notch = Self.closed(world)
+
+        defer { notch.window.close() }
+        notch.hotKey(KeyChord.controlOptionS.tapChord)
+        #expect(notch.summon())
+
+        let tap = try #require(world.taps.first)
+
+        #expect(tap.read(TapKey(code: 1, typed: "s", flags: [.maskControl, .maskAlternate])) == .pass)
+        #expect(tap.snapshot == KeySnapshot.panel(hold: 1, takesAll: true).passing(KeyChord.controlOptionS.tapChord))
+    }
+
+    /// Should the tap hand on a chord as the hot key's press comes, the chord closing the panel first, the hot key
+    /// finds it closing and leaves it so: it never opens again.
+    @Test func theShortcutAfterAChordClosedThePanelLeavesItClosing() throws {
+        let world = KeysWorld(), notch = Self.closed(world)
+
+        defer { notch.window.close() }
+        #expect(notch.summon())
+        try #require(world.taps.first).heard(.letGo(hold: 1))
+        try #require(notch.run.phase == .closing)
+        #expect(notch.summon())
+        #expect(notch.run.phase == .closing && !notch.run.holdsKeys)
+    }
+
+    /// Hidden as it shows the shortcut's panel, the notch closes it and lets the keys go; shown again, it goes on in,
+    /// never out by itself.
+    @Test func hiddenMidShortcutThePanelClosesAndStaysClosed() throws {
+        let world = KeysWorld(), notch = Self.closed(world)
+
+        defer { notch.window.close() }
+        #expect(notch.summon())
+        notch.isShown = false
+        #expect(!notch.run.isOut && !notch.run.holdsKeys)
+        #expect(try #require(world.taps.first).snapshot == KeySnapshot.none)
+
+        notch.isShown = true
+        for time in stride(from: Displays.now, to: Displays.now + 1000, by: Self.frameMS) {
+            notch.step(at: time)
+            #expect(notch.run.phase != .open && notch.run.phase != .opening)
+        }
+        #expect(notch.run.phase == .closed)
+    }
+
+    /// A click in another of SitRep's windows, as Settings or the menu bar item, closes the panel; one in the notch's
+    /// own window doesn't.
+    @Test func aClickInAnotherOfSitRepsWindowsClosesThePanel() {
+        let world = KeysWorld(), notch = Self.closed(world)
+        let other = NSWindow(contentRect: .zero, styleMask: [], backing: .buffered, defer: true)
+
+        defer { notch.window.close() }
+        #expect(notch.summon())
+        notch.clicked(in: notch.window)
+        #expect(notch.run.isOut && notch.run.holdsKeys)
+        notch.clicked(in: other)
+        #expect(notch.run.phase == .closing && !notch.run.holdsKeys)
     }
 
     /// Without the leave, or under secure input, the panel opens holding nothing, each key going to the window in front.

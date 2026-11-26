@@ -54,7 +54,10 @@ struct EdgePaneView: View {
         case .keys:
             StatedRow(row: .keys(settings.said.keys, asked: preferences.app.askedForKeys), fix: settings.fix)
         case .shortcut:
-            CardRow(label: "Shortcut", line: settings.recorder.line(preferences.edge.show)) { shortcut }
+            CardRow(
+                label: "Shortcut",
+                line: settings.recorder.line(preferences.edge.show, macOSRefuses: settings.macOSRefusesShortcut)
+            ) { shortcut }
         }
     }
 
@@ -64,10 +67,7 @@ struct EdgePaneView: View {
 
         return ShortcutField(
             field: settings.recorder.field(chord, naming: KeyNames.typed), canClear: chord != nil,
-            actions: ShortcutFieldView.Actions(
-                record: settings.recordShortcut, hold: settings.holdForShortcut, press: settings.pressForShortcut,
-                cancel: settings.cancelShortcut, clear: settings.clearShortcut
-            )
+            actions: ShortcutFieldView.Actions(settings)
         )
     }
 

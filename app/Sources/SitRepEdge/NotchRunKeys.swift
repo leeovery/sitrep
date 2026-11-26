@@ -106,10 +106,11 @@ extension NotchRun {
         return press
     }
 
-    /// The shortcut (DESIGN, "Keys"): out, the panel closes, as a click elsewhere closes it; else it pours open as a
-    /// hover opens it, with no reach toward the pointer, and stays open wherever the pointer is until the pointer has
-    /// come onto it and left (`Notch.summon`). Where the Mac lets it take keys, it holds every key until it closes, its
-    /// lit row the first in Needs you, else the first row; else it holds nothing, and no row is lit.
+    /// The shortcut (DESIGN, "Keys"): out, the panel closes, as a click elsewhere closes it; closing, nothing; closed,
+    /// it pours open as a hover opens it, with no reach toward the pointer, and stays open wherever the pointer is
+    /// until the pointer has come onto it and left (`Notch.summon`). Where the Mac lets it take keys, it holds every
+    /// key until it closes, its lit row the first in Needs you, else the first row; else it holds nothing, and no row
+    /// is lit.
     public func summon(_ moment: Moment) {
         upToNow(moment)
         guard !isOut else {
@@ -242,7 +243,8 @@ extension NotchRun {
     }
 
     /// The lit row moved this many rows over the rows, past the eyebrows, within the first and the last, as the
-    /// terminal view moves its band, and scrolled into view; with none lit, the first lit going down, the last going up.
+    /// terminal view moves its band, and scrolled into view; with none lit, the first lit going down, the last going
+    /// up.
     private func move(_ step: Int, from row: Int?, in setting: Setting) {
         let rows = list.content.entries.indices.filter { list.content.entries[$0].jumps }
 

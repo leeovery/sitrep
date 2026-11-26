@@ -4,11 +4,11 @@ import SitRepTestSupport
 import Testing
 
 /// How the tap decides each key (DESIGN, "Keys"): while the panel holds the keys every key of the set is taken, matched
-/// by what it types on the layout, the arrows, Return, keypad Enter and Esc by their codes, and pressed alone; any other
-/// goes through and ends the hold; a key taken is taken whole, its repeats acting again only for the arrows and `k`
-/// `j`, its key-up going nowhere; in a snooze menu on its own, digits choose, `z` closes and `k` `j` go on as arrows;
-/// `⌘Z` is the one key taken with a modifier, while the asks panel's sending line shows; with nothing holding, or the
-/// row's menu open, every key goes through.
+/// by what it types on the layout, the arrows, Return, keypad Enter and Esc by their codes, and pressed alone; any
+/// other goes through and ends the hold; a key taken is taken whole, its repeats acting again only for the arrows and
+/// `k` `j`, its key-up going nowhere; in a snooze menu on its own, digits choose, `z` closes and `k` `j` go on as
+/// arrows; `⌘Z` is the one key taken with a modifier, while the asks panel's sending line shows; with nothing holding,
+/// or the row's menu open, every key goes through.
 @Suite(.backstop)
 struct KeyReaderTests {
     private static let holding = KeySnapshot.panel(hold: 1)
@@ -257,6 +257,40 @@ struct KeyReaderTests {
         #expect(reader.read(Self.typing("t", modifier), in: Self.summoned) == .letGo(hold: 1))
         #expect(reader.read(Self.typing("a"), in: Self.summoned) == .pass)
         #expect(reader.read(Self.typing("k"), in: Self.summoned) == .pass)
+    }
+
+    /// A key with Fn, the Globe key, is a chord, but for the keys that carry Fn of themselves, the arrows and those
+    /// over them; and a function key is one alone: each goes through and ends the hold.
+    @Test func fnChordsAndFunctionKeysEndTheShortcutsHoldAndTheArrowsCarryFn() {
+        var reader = KeyReader(), function = KeyReader(), arrow = KeyReader()
+
+        #expect(reader.read(Self.typing("e", .maskSecondaryFn), in: Self.summoned) == .letGo(hold: 1))
+        #expect(function.read(TapKey(code: 96, flags: .maskSecondaryFn), in: Self.summoned) == .letGo(hold: 1))
+        #expect(arrow.read(Self.code(KeyCode.right), in: Self.summoned) == .take(.panel(.right)))
+        #expect(arrow.read(TapKey(code: 115, flags: .maskSecondaryFn), in: Self.summoned) == .take(nil))
+    }
+
+    /// Fn held makes a letter another key under a hover's hold too.
+    @Test func fnHeldMakesALetterAnotherKey() {
+        var reader = KeyReader()
+
+        #expect(reader.read(Self.typing("z", .maskSecondaryFn), in: Self.holding) == .letGo(hold: 1))
+    }
+
+    /// The shortcut's own chord goes through, ending no hold, so macOS hands it to SitRep and the hot key alone acts on
+    /// it; the keys after it are the hold's still.
+    @Test(arguments: [true, false])
+    func theShortcutsChordGoesThroughEndingNoHold(takesAll: Bool) {
+        var reader = KeyReader()
+        let hotKey = TapChord(code: 1, flags: [.maskControl, .maskAlternate])
+        let snapshot = KeySnapshot.panel(hold: 1, takesAll: takesAll).passing(hotKey)
+
+        #expect(reader.read(Self.typing("s", [.maskControl, .maskAlternate]), in: snapshot) == .pass)
+        #expect(reader.read(Self.typing("s", [.maskControl, .maskAlternate], .up), in: snapshot) == .pass)
+        #expect(reader.read(Self.typing("k"), in: snapshot) == .take(.panel(.up)))
+        #expect(
+            reader.read(Self.typing("s", [.maskControl, .maskAlternate, .maskShift]), in: snapshot) == .letGo(hold: 1)
+        )
     }
 
     /// `⌘Z` while an answer is sending is the panel's in the shortcut's hold too.

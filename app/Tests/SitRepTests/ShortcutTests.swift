@@ -80,10 +80,24 @@ struct HotKeyTests {
 
         let hotKey = HotKey(carbon, chord: .controlOptionS)
 
-        #expect(hotKey.registered == nil)
+        #expect(hotKey.registered == nil && hotKey.isRefused)
         carbon.refuses = false
         hotKey.chord = Self.commandK
         #expect(hotKey.registered == Self.commandK && carbon.calls == ["register 1", "register 40"])
+        #expect(!hotKey.isRefused)
+    }
+
+    /// What macOS holds is told as it changes, for the notch's tap to let the chord through.
+    @Test func whatMacOSHoldsIsToldAsItChanges() {
+        let hotKey = HotKey(CarbonDouble(), chord: .controlOptionS)
+        var told: [KeyChord?] = []
+
+        hotKey.onRegistered = { told.append($0) }
+        hotKey.chord = Self.commandK
+        hotKey.isSuspended = true
+        hotKey.isSuspended = false
+        hotKey.chord = Self.commandK
+        #expect(told == [Self.commandK, nil, Self.commandK])
     }
 
     /// The bits Carbon takes are Carbon's own.
@@ -101,17 +115,92 @@ struct HotKeyTests {
     }
 }
 
-/// What the shortcut opens: the notch's panel while the notch shows, which is only at Notch with no full-screen app on
-/// its display; else the menu bar item's menu.
+/// What the shortcut opens, as SitRep routes it: the notch's panel while the notch shows, which is only at Notch with
+/// no full-screen app on its display; else the menu bar item's menu.
 @MainActor
 @Suite(.backstop)
 struct ShortcutOpensTests {
     @Test(arguments: [
-        (EdgeSettings.Show.notch, false, true), (.notch, true, false), (.nothing, false, false),
-        (.nothing, true, false),
+        (EdgeSettings.Show.notch, false, false), (.notch, true, true), (.nothing, false, true), (.nothing, true, true),
     ])
-    func theNotchShowsOnlyAtNotchWithNoFullScreenApp(show: EdgeSettings.Show, underFullScreen: Bool, shows: Bool) {
-        #expect(Edge.showsNotch(show, underFullScreen: underFullScreen) == shows)
+    func theMenuOpensUnlessTheNotchShows(show: EdgeSettings.Show, underFullScreen: Bool, opensMenu: Bool) {
+        let notch = NotchController(
+            EdgeSettings(), on: NotchAsksWindowTests.display, folding: Folding(), keys: KeysWorld().mac
+        ) { SnoozeSettings() }
+        var menus = 0
+
+        defer { notch.window.close() }
+        notch.isShown = Edge.showsNotch(show, underFullScreen: underFullScreen)
+        Shortcut.press(notch: notch.summon, menu: { menus += 1 })
+        #expect(menus == (opensMenu ? 1 : 0))
+        #expect(notch.run.isOut == !opensMenu)
+    }
+}
+
+/// The recorder's field as it records: first responder, it records, letting the hot key go; it lets go as it resigns,
+/// as its window goes to the back, as it leaves its window, or at a click off it, the hot key registered again; and it
+/// is out of the key-view loop, so Tab never starts it.
+@MainActor
+@Suite(.backstop)
+struct ShortcutFieldTests {
+    private static func recording() -> (ShortcutFieldView, NSWindow, () -> [Bool]) {
+        var suspended: [Bool] = []
+        var services = Hosted.services()
+
+        services.suspendShortcut = { suspended.append($0) }
+
+        let settings = SettingsModel(preferences: Preferences(MemoryDefaults()), live: LiveBoard(), services: services)
+        let field = ShortcutFieldView(), window = NSWindow(
+            contentRect: CGRect(x: 0, y: 0, width: 300, height: 100), styleMask: [.titled], backing: .buffered,
+            defer: true
+        )
+
+        window.isReleasedWhenClosed = false
+        field.actions = ShortcutFieldView.Actions(settings)
+        field.frame = CGRect(x: 10, y: 10, width: ShortcutFieldView.width, height: 22)
+        window.contentView?.addSubview(field)
+        window.makeFirstResponder(field)
+        return (field, window, { suspended })
+    }
+
+    @Test func resigningItLetsGo() {
+        let (_, window, suspended) = Self.recording()
+
+        defer { window.close() }
+        #expect(suspended() == [true])
+        window.makeFirstResponder(nil)
+        #expect(suspended() == [true, false])
+    }
+
+    @Test func itsWindowGoingToTheBackLetsGo() {
+        let (_, window, suspended) = Self.recording()
+
+        defer { window.close() }
+        NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: window)
+        #expect(suspended() == [true, false])
+    }
+
+    @Test func leavingItsWindowLetsGo() {
+        let (field, window, suspended) = Self.recording()
+
+        defer { window.close() }
+        field.removeFromSuperview()
+        #expect(suspended() == [true, false])
+    }
+
+    /// A click off it, as on a switch, which takes no focus, lets go; one on it records on.
+    @Test func aClickOffItLetsGo() {
+        let (field, window, suspended) = Self.recording()
+
+        defer { window.close() }
+        field.clicked(at: CGPoint(x: 20, y: 20), in: window)
+        #expect(suspended() == [true])
+        field.clicked(at: CGPoint(x: 250, y: 80), in: window)
+        #expect(suspended() == [true, false])
+    }
+
+    @Test func itIsOutOfTheKeyViewLoop() {
+        #expect(!ShortcutFieldView().canBecomeKeyView)
     }
 }
 
@@ -176,6 +265,24 @@ struct ShortcutSettingsTests {
         settings.cancelShortcut()
         #expect(suspended == [true, false, true, false])
         #expect(settings.preferences.app.shortcut == .standard)
+    }
+
+    /// macOS refusing the shortcut set, the row's line says so as recording stops, and as the pane comes into sight.
+    @Test func macOSRefusingTheShortcutIsRead() async {
+        var refuses = false
+        var services = Hosted.services()
+
+        services.shortcutRefused = { refuses }
+
+        let settings = SettingsModel(preferences: Preferences(MemoryDefaults()), live: LiveBoard(), services: services)
+
+        settings.recordShortcut()
+        refuses = true
+        _ = settings.pressForShortcut(Self.commandK)
+        #expect(settings.macOSRefusesShortcut)
+        refuses = false
+        await settings.read()
+        #expect(!settings.macOSRefusesShortcut)
     }
 
     @Test func theClearButtonSavesNone() {

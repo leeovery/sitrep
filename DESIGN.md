@@ -6952,14 +6952,26 @@ Settled in the build (26 November 2026):
 - The hold starts with the shortcut, so a key pressed as the panel still
   pours is taken, and acts as it would on the open panel.
 - Shift held makes a key no chord: in the shortcut's hold, `A` is taken
-  and does nothing, as `a` is. Only ⌘, ⌃ or ⌥ close the panel.
+  and does nothing, as `a` is. A chord closes the panel and goes
+  through: ⌘, ⌃, ⌥ or Fn held, Fn but for the keys that carry it of
+  themselves (the arrows, Home, End, Page Up, Page Down, Forward
+  Delete), or a function key, F1 to F20, alone. Fn held makes a letter
+  another key under a hover's hold too.
+- The tap lets the shortcut's own chord through, ending no hold, so the
+  hot key alone acts on it; and the shortcut does nothing while the panel
+  closes, so pressed again it never reopens it.
 - `o` with no row to jump to closes the panel all the same.
-- A pointer resting where the panel pours has not come onto it: only a
-  move onto the panel or the notch counts.
+- A pointer resting where the panel pours has not come onto it: only the
+  pointer's own move onto the panel or the notch counts, never a menu
+  holding the panel at a row, nor the asks panel opening under it.
+- The notch hiding, as Show goes to Nothing or a full-screen app takes
+  its display, closes the panel, so it never shows again by itself. A
+  click in another of SitRep's windows closes it, as a click in another
+  app does, and so does the menu bar item's menu opening.
 - Saved under "app" as `shortcut`, the key's code and Carbon's modifier
   bits, `{"code":1,"modifiers":6144}` for ⌃⌥S; cleared,
   `{"cleared":true}`, so a cleared shortcut never reads back as ⌃⌥S. A
-  value that is neither reads as ⌃⌥S.
+  value that is neither, or a chord with neither ⌘ nor ⌃, reads as ⌃⌥S.
 
 **The terminal view** keeps its keys (see "The board in a terminal") and
 adds `1`–`9` to its snooze menu, each choice drawn with its number before
@@ -7011,9 +7023,12 @@ window and About SitRep keep the Mac's (⌘, ⌘W ⌘[ ⌘]).
   with ⌘ or ⌃ is saved and ends it; ⌘W and ⌘Q are taken too, before the
   menus see them. A key with neither leaves it recording, the row's line
   "Use ⌘ or ⌃" until a key is taken or it stops. `esc` alone, a click
-  away, or the window going to the back cancels it. While it records,
-  the hot key is let go, so the shortcut set records rather than opening
-  the panel.
+  anywhere off it, or the window going to the back cancels it; Tab never
+  starts it. While it records, the hot key is let go, so the shortcut
+  set records rather than opening the panel. Should macOS refuse the
+  shortcut set, as it refuses one another app holds, the row's line says
+  "macOS refused this shortcut; another app may use it", the shortcut
+  still shown.
 
 **The build** (26 November 2026), a PR at a time, each reviewed and merged
 before the next that shares its code:

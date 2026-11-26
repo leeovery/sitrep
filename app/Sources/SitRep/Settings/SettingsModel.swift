@@ -34,6 +34,8 @@ struct SettingsServices {
     var allowKeys: () -> Bool
     /// The shortcut's hot key let go while the recorder records, and registered again as it stops.
     var suspendShortcut: (Bool) -> Void = { _ in }
+    /// Whether macOS refused the shortcut set.
+    var shortcutRefused: () -> Bool = { false }
 }
 
 /// What macOS says of SitRep's leaves, nil until it is read.
@@ -66,9 +68,12 @@ final class SettingsModel {
         didSet {
             if recorder.isRecording != oldValue.isRecording {
                 services.suspendShortcut(recorder.isRecording)
+                readShortcut()
             }
         }
     }
+    /// Whether macOS refused the shortcut set, read as it is registered.
+    private(set) var macOSRefusesShortcut = false
     /// The read of what macOS says begun last, as a pane came into sight.
     @ObservationIgnored private(set) var reading: Task<Void, Never>?
     @ObservationIgnored private var isReading = false
@@ -159,6 +164,7 @@ final class SettingsModel {
 
     /// What macOS says of SitRep's leaves, each row as its answer comes: the notices helper may take its time.
     func read() async {
+        readShortcut()
         said.login = services.login()
         said.keys = services.keys()
 
@@ -260,6 +266,11 @@ final class SettingsModel {
     func clearShortcut() {
         preferences.app.shortcut = .cleared
         recorder.stop()
+        readShortcut()
+    }
+
+    private func readShortcut() {
+        macOSRefusesShortcut = services.shortcutRefused()
     }
 
     /// Keys' Allow…: macOS's prompt, kept as asked, so the row offers System Settings from now on.

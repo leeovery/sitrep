@@ -3,6 +3,17 @@ import os
 import SitRepCore
 import SitRepMenu
 
+extension Shortcut {
+    /// The shortcut pressed (DESIGN, "Keys"): the notch's panel, where the notch takes it while it shows; else the menu
+    /// bar item's menu, as under Nothing or with a full-screen app hiding the notch.
+    @MainActor
+    static func press(notch: () -> Bool, menu: () -> Void) {
+        if !notch() {
+            menu()
+        }
+    }
+}
+
 /// Carbon's hot key, as the shortcut's hot key registers it and lets it go: given whole, so the tests register none.
 @MainActor
 protocol HotKeyCarbon: AnyObject {
@@ -26,8 +37,18 @@ final class HotKey {
         didSet { settle() }
     }
 
-    /// What macOS holds now.
-    private(set) var registered: KeyChord?
+    /// What macOS holds now, told to `onRegistered` as it changes.
+    private(set) var registered: KeyChord? {
+        didSet {
+            if registered != oldValue {
+                onRegistered(registered)
+            }
+        }
+    }
+
+    /// Whether macOS refused the shortcut set, as it refuses one another app holds.
+    private(set) var isRefused = false
+    var onRegistered: (KeyChord?) -> Void = { _ in }
     private let carbon: any HotKeyCarbon
 
     init(_ carbon: any HotKeyCarbon, chord: KeyChord?) {
@@ -37,18 +58,17 @@ final class HotKey {
     }
 
     /// What macOS holds made what it should: the one registered let go, and the one wanted registered, where macOS
-    /// takes it.
+    /// takes it; one it refused is tried again at the next change.
     private func settle() {
         let wanted = isSuspended ? nil : chord
 
-        guard wanted != registered else {
-            return
+        if wanted != registered {
+            if registered != nil {
+                carbon.unregister()
+            }
+            registered = wanted.flatMap { carbon.register($0) ? $0 : nil }
         }
-
-        if registered != nil {
-            carbon.unregister()
-        }
-        registered = wanted.flatMap { carbon.register($0) ? $0 : nil }
+        isRefused = wanted != nil && registered == nil
     }
 }
 

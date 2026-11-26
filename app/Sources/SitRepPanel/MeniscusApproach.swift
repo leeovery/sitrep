@@ -12,8 +12,10 @@ struct Attract {
 extension Meniscus {
     /// The pointer since the last frame, read at this time, as the prototype's pointer events give it: a move adds to
     /// its trail, and entering or leaving the notch or the panel, as they were last drawn, cancels the grace or may
-    /// start it. A still pointer gets no enter or leave as the shape pours under it.
-    func pointerMoved(_ p: Vec?, at time: Double) {
+    /// start it. A still pointer gets no enter or leave as the shape pours under it. The pointer's own move onto a
+    /// panel the shortcut opened, not a menu's held place (`isHeld`), is its coming onto it: what it was over is
+    /// forgotten, so the move enters it, and leaving it starts the grace.
+    func pointerMoved(_ p: Vec?, at time: Double, isHeld: Bool = false) {
         guard p != sp else {
             return
         }
@@ -22,12 +24,15 @@ extension Meniscus {
         if let p {
             trail.add(p, at: time)
         }
+        if awaitsPointer, !isHeld, hoverOf(p) != nil {
+            awaitsPointer = false
+            hover = nil
+        }
         rehover()
     }
 
     /// What the pointer is over, read again, and the grace started or cancelled as it changes: as the pointer moves,
-    /// or, under a still pointer, as the room beside the panel changes (`Input.beside`), the way to it expiring. Onto
-    /// the notch or the panel, a panel the shortcut opened has had the pointer come onto it.
+    /// or, under a still pointer, as the room beside the panel changes (`Input.beside`), the way to it expiring.
     func rehover() {
         let over = hoverOf(sp)
         guard over != hover else {
@@ -40,7 +45,6 @@ extension Meniscus {
             maybeClose(pointerSpeed())
         }
         if over != nil {
-            awaitsPointer = false
             cancel(.grace)
         }
     }

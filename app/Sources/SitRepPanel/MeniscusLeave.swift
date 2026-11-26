@@ -116,7 +116,7 @@ extension Meniscus {
         let O = outlineOf(g)
         let q = sp.map { Vec($0.x, $0.y - O.top) }
         let near = q.map { nearestOn(O, $0) }
-        if let near, near.inside {
+        if let near, near.inside, !awaitsPointer {
             // inside, the edge holds the pointer afresh
             cling = Cling(attached: true)
         } else if cling.attached {

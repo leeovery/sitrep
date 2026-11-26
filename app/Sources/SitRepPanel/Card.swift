@@ -102,8 +102,8 @@ public final class Card: Notch {
     }
 
     /// What happened since the last frame, before the sim clock moves on: the screen, the content, reduced motion, a
-    /// panel beside the open one, what needs Lee, and the pointer, which, moved onto the card, has come onto a panel
-    /// the shortcut opened.
+    /// panel beside the open one, what needs Lee, and the pointer, which, moved onto the card, not a menu's held place,
+    /// has come onto a panel the shortcut opened.
     private func take(_ input: Input) {
         if input.stage != stage {
             stage = input.stage
@@ -128,7 +128,7 @@ public final class Card: Notch {
         if let p {
             trail.add(p, at: input.pointerTime)
         }
-        if pointerInside() {
+        if !input.pointerIsHeld, pointerInside() {
             awaitsPointer = false
         }
     }

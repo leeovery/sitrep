@@ -27,7 +27,7 @@ public protocol Notch: AnyObject {
     func clickElsewhere()
     /// The shortcut (DESIGN, "Keys"): the panel opens as a hover opens it, with no reach toward the pointer, and stays
     /// open wherever the pointer is: only a click, a key, or the pointer coming onto it and leaving closes it, its
-    /// grace starting only then. Not while a drag has the notch, nor while the panel is out: whether it opened.
+    /// grace starting only then. Only from closed, not while a drag has the notch: whether it opened.
     @discardableResult func summon() -> Bool
     /// A drag carries the notch, as the prototypes' does: the panel closes and the notch lifts off the edge.
     func carry()
@@ -142,7 +142,7 @@ extension NotchModel {
 
     @discardableResult
     public func summon() -> Bool {
-        guard isFree, !isLive else {
+        guard isFree, phase == .closed else {
             return false
         }
 

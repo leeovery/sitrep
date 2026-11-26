@@ -170,7 +170,71 @@ struct ShortcutRunTests {
         #expect(!run.holdsKeys)
     }
 
+    /// A menu's held place is no move of the pointer's: `z` opens the row's snooze menu, which holds the panel at the
+    /// row as it shows, and closed, the panel stays open, the pointer away.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func aMenuHoldingThePanelIsNoPointerComingOntoIt(style: NotchStyle) throws {
+        let setting = Self.setting(style), run = try Self.summoned(setting)
+
+        guard case let .snoozeRow(_, row: row)? = Self.press(.snooze, run, Self.away, setting) else {
+            Issue.record("z offered no snooze menu")
+            return
+        }
+
+        run.menuOpened(at: CGPoint(x: row.midX, y: row.midY))
+        Self.frames(run, for: 500, Self.away, setting)
+        run.menuClosed()
+        Self.frames(run, for: 2000, Self.away, setting)
+        #expect(run.phase == .open)
+    }
+
+    /// `⏎` opening the asks panel beside the lit row, the pointer away, leaves the panel open.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func theAsksPanelOpeningIsNoPointerComingOntoIt(style: NotchStyle) throws {
+        let setting = Self.setting(style), run = try Self.summoned(setting)
+
+        #expect(Self.press(.enter, run, Self.away, setting) == .asks)
+        Self.frames(run, for: 2000, Self.away, setting)
+        #expect(run.phase == .open && run.asksShown != nil)
+    }
+
+    /// A pointer left resting on the panel, as `esc` closed it under it, comes onto the panel the shortcut opens only
+    /// as it moves; then leaving it closes it, with motion or without.
+    @Test(arguments: [(NotchStyle.meniscus, false), (.meniscus, true), (.card, false)])
+    func aPointerRestingOnThePanelComesOntoItOnlyAsItMoves(style: NotchStyle, reducesMotion: Bool) throws {
+        let setting = Self.setting(style, reducesMotion: reducesMotion), run = Self.closed(setting)
+
+        Self.frames(run, for: 3000, Self.onTheNotch, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open)
+
+        let resting = try Self.words(Self.helpDesk, run)
+
+        run.step(Self.at(run, resting, setting))
+        Self.press(.escape, run, resting, setting)
+        #expect(Self.closes(run, at: resting, setting))
+
+        run.summon(Self.at(run, resting, setting))
+        Self.frames(run, for: 2000, resting, setting)
+        #expect(run.phase == .open)
+        Self.frames(run, for: 2000, Self.elsewhere, setting)
+        #expect(run.phase == .open)
+
+        run.step(Self.at(run, CGPoint(x: resting.x, y: resting.y + 2), setting))
+        #expect(Self.closes(run, at: Self.away, setting))
+    }
+
     // MARK: What closes it
+
+    /// Closing, the panel takes no shortcut: it goes on closing.
+    @Test func closingItTakesNoShortcut() throws {
+        let setting = Self.setting(), run = try Self.summoned()
+
+        Self.press(.escape, run)
+        try #require(run.phase == .closing)
+        run.summon(Self.at(run, Self.away, setting))
+        #expect(run.phase == .closing && !run.holdsKeys)
+        #expect(Self.closes(run, at: Self.away))
+    }
 
     /// The shortcut again closes it, whether it opened, or the pointer opened it.
     @Test func theShortcutAgainClosesIt() throws {

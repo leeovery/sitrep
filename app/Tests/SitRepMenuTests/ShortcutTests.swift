@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 @testable import SitRepEdge
 @testable import SitRepMenu
@@ -53,12 +54,23 @@ struct SavedShortcutTests {
         #expect(SavedSettings<AppSettings>(defaults).read().shortcut.chord == nil)
     }
 
+    /// Anything else reads as the default, a chord with neither ⌘ nor ⌃ among it, which would take a key from typing
+    /// everywhere.
     @Test(arguments: [
         #"{"shortcut":"⌃⌥S"}"#, #"{"shortcut":{"code":1}}"#, #"{"shortcut":{"cleared":"yes"}}"#,
         #"{"shortcut":{"code":"S","modifiers":6144}}"#, #"{"shortcut":null}"#,
+        #"{"shortcut":{"code":40,"modifiers":0}}"#, #"{"shortcut":{"code":40,"modifiers":2560}}"#,
+        #"{"shortcut":{"code":40,"modifiers":65536}}"#,
     ])
     func anUnreadableShortcutReadsAsTheDefault(_ json: String) {
         #expect(Self.saved(json) == .standard)
+    }
+
+    /// Modifiers past the four are passed over.
+    @Test func modifiersPastTheFourArePassedOver() {
+        let commandK = Shortcut(KeyChord(code: 40, modifiers: .command))
+
+        #expect(Self.saved(#"{"shortcut":{"code":40,"modifiers":65792}}"#) == commandK)
     }
 }
 
@@ -78,10 +90,12 @@ struct KeyChordTests {
         #expect(KeyChord(code: code, modifiers: .command).glyphs { _ in "?" } == glyphs)
     }
 
-    /// Carbon's bits, as `RegisterEventHotKey` takes them.
-    @Test func theModifiersAreCarbonsBits() {
-        #expect(ChordModifiers.command.rawValue == 0x100 && ChordModifiers.shift.rawValue == 0x200)
-        #expect(ChordModifiers.option.rawValue == 0x800 && ChordModifiers.control.rawValue == 0x1000)
+    /// As the notch's tap reads it, Quartz's flags for Carbon's bits.
+    @Test func theTapReadsItWithQuartzsFlags() {
+        let chord = KeyChord(code: 40, modifiers: [.command, .shift, .option, .control])
+
+        #expect(chord.tapChord == TapChord(code: 40, flags: [.maskCommand, .maskShift, .maskAlternate, .maskControl]))
+        #expect(KeyChord.controlOptionS.tapChord == TapChord(code: 1, flags: [.maskControl, .maskAlternate]))
     }
 }
 
@@ -163,5 +177,15 @@ struct ShortcutRecorderTests {
 
         #expect(recorder.line(.notch) == "Opens the notch's panel holding the keys")
         #expect(recorder.line(.nothing) == "Opens the menu bar's menu")
+    }
+
+    /// While macOS refuses the shortcut set, the line says so, the shortcut still shown, until a recording begins.
+    @Test func itsLineSaysWhenMacOSRefusesTheShortcut() {
+        var recorder = ShortcutRecorder()
+
+        #expect(recorder.line(.notch, macOSRefuses: true) == "macOS refused this shortcut; another app may use it")
+        #expect(recorder.field(.controlOptionS, naming: Self.naming).text == "⌃⌥S")
+        recorder.record()
+        #expect(recorder.line(.notch, macOSRefuses: true) == "Opens the notch's panel holding the keys")
     }
 }

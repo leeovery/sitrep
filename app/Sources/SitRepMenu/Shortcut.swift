@@ -1,3 +1,5 @@
+import CoreGraphics
+import SitRepEdge
 import SitRepPanel
 
 /// The modifiers held with a key, by Carbon's bits for them (`cmdKey`, `shiftKey`, `optionKey`, `controlKey`), as
@@ -13,6 +15,7 @@ public struct ChordModifiers: OptionSet, Codable, Hashable, Sendable {
     public static let shift = Self(rawValue: 1 << 9)
     public static let option = Self(rawValue: 1 << 11)
     public static let control = Self(rawValue: 1 << 12)
+    public static let all: Self = [.command, .shift, .option, .control]
 
     /// Whether macOS takes it for a hot key and typing never would: ⌘ or ⌃ held. macOS 15 refuses a hot key of ⌥ or
     /// ⌥⇧ alone, and a key with none is typing.
@@ -33,6 +36,17 @@ public struct KeyChord: Codable, Hashable, Sendable {
     public init(code: UInt16, modifiers: ChordModifiers) {
         self.code = code
         self.modifiers = modifiers
+    }
+
+    /// As the notch's tap reads a key.
+    public var tapChord: TapChord {
+        let flags: [(ChordModifiers, CGEventFlags)] = [
+            (.command, .maskCommand), (.shift, .maskShift), (.option, .maskAlternate), (.control, .maskControl),
+        ]
+
+        return TapChord(
+            code: code, flags: flags.reduce(into: []) { if modifiers.contains($1.0) { $0.insert($1.1) } }
+        )
     }
 
     /// ⌃⌥S, the shortcut until Lee sets another: S's code, `kVK_ANSI_S`.
@@ -65,7 +79,8 @@ public struct KeyChord: Codable, Hashable, Sendable {
 
 /// The shortcut as Lee set it (DESIGN, "Keys"), saved under "app" as `shortcut`: a chord, ⌃⌥S until he sets another,
 /// or none where he cleared it, which is saved as cleared, `{"cleared":true}`, so it never reads back as the default. A
-/// value that is neither reads as the default, as every setting is read leniently.
+/// value that is neither reads as the default, as every setting is read leniently, as does a chord with neither ⌘ nor
+/// ⌃, which would take a key from typing everywhere; modifiers past the four are passed over.
 public struct Shortcut: Codable, Equatable, Sendable {
     public var chord: KeyChord?
 
@@ -79,7 +94,19 @@ public struct Shortcut: Codable, Equatable, Sendable {
     public init(from decoder: any Decoder) throws {
         let saved = try decoder.container(keyedBy: CodingKeys.self)
 
-        chord = saved.value(.cleared, or: false) ? nil : try KeyChord(from: decoder)
+        guard !saved.value(.cleared, or: false) else {
+            chord = nil
+            return
+        }
+
+        var chord = try KeyChord(from: decoder)
+
+        chord.modifiers.formIntersection(.all)
+        guard chord.modifiers.makesAShortcut else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "No ⌘ or ⌃"))
+        }
+
+        self.chord = chord
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -112,6 +139,7 @@ public struct ShortcutRecorder: Equatable, Sendable {
     public static let prompt = "Type shortcut"
     public static let none = "Record shortcut"
     public static let refusal = "Use ⌘ or ⌃"
+    public static let macOSRefusal = "macOS refused this shortcut; another app may use it"
 
     /// What its field shows, and whether it is a prompt, in the placeholder's grey: while it records, the modifiers
     /// held, else its prompt; else the shortcut, or with none, what a click does.
@@ -168,10 +196,14 @@ public struct ShortcutRecorder: Equatable, Sendable {
         return Field(text: saved.glyphs(naming: naming), isPrompt: false)
     }
 
-    /// Its row's line: what the shortcut opens, as Show is set; while a refused key stands, why.
-    public func line(_ show: EdgeSettings.Show) -> String {
+    /// Its row's line: what the shortcut opens, as Show is set; while a refused key stands, why; and while macOS
+    /// refuses the shortcut set, as it refuses one another app holds, that, the shortcut still shown.
+    public func line(_ show: EdgeSettings.Show, macOSRefuses: Bool = false) -> String {
         guard !isRefused else {
             return Self.refusal
+        }
+        guard isRecording || !macOSRefuses else {
+            return Self.macOSRefusal
         }
 
         switch show {
