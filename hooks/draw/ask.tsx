@@ -308,7 +308,7 @@ const drawAnswers = (d: Drawing, ask: Ask, standing: Standing) => {
   )
 }
 
-/** Snooze's question, in place of the ask's buttons: until when, the choices offered at the board's now as the app set them, each time worked out as it is pressed, or cancel, back to the buttons. */
+/** Snooze's question, in place of the ask's buttons: until when, the choices offered at the board's now as the app set them, each time worked out as it is pressed, or cancel, back to the buttons, on `z` as the snooze it replaced, so `z` closes it as it closes every snooze menu. */
 const drawSnoozing = (d: Drawing, { at, key, offered }: Standing) =>
   drawQuestion(
     d,
@@ -318,7 +318,7 @@ const drawSnoozing = (d: Drawing, { at, key, offered }: Standing) =>
       label: SNOOZE_WORDS[when],
       onPress: () => d.act.snooze(at, when),
     })),
-    { key: `snooze-no:${key}`, onPress: () => d.act.select(key) },
+    { key: `snooze-no:${key}`, hotkey: HOTKEY.snooze, onPress: () => d.act.select(key) },
   )
 
 /** An opened ask's buttons and the hint under them, or Snooze's question in their place, at its title's column, a blank row after them unless it is the last ask. */

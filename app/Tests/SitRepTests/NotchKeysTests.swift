@@ -1,7 +1,7 @@
 import AppKit
 @testable import SitRep
 @testable import SitRepCore
-import SitRepEdge
+@testable import SitRepEdge
 import SitRepMenu
 import SitRepPanel
 import SitRepTestSupport
@@ -55,9 +55,9 @@ struct NotchKeysTests {
         #expect(world.taps.count == 2 && keys.tap === world.taps.last && keys.allowed)
     }
 
-    /// The screens sleeping, the screen locking with the display awake, as at ⌃⌘Q, or the session going to another
-    /// user, tells the notch to let go of the keys.
-    @Test func theScreensSleepingTheScreenLockingOrTheSessionGoingLetsGoOfTheKeys() {
+    /// The screens sleeping, the screen locking with the display awake, as at ⌃⌘Q, the screen saver starting, or the
+    /// session going to another user, tells the notch to let go of the keys.
+    @Test func theScreensSleepingTheScreenLockingTheScreenSaverOrTheSessionGoingLetsGoOfTheKeys() {
         let world = KeysWorld(), keys = NotchKeys(world.mac)
         var away = 0
 
@@ -65,7 +65,8 @@ struct NotchKeysTests {
         world.workspace.post(name: NSWorkspace.screensDidSleepNotification, object: nil)
         world.workspace.post(name: NSWorkspace.sessionDidResignActiveNotification, object: nil)
         world.distributed.post(name: NotchKeys.screenIsLocked, object: nil)
-        #expect(away == 3)
+        world.distributed.post(name: NotchKeys.screenSaverStarted, object: nil)
+        #expect(away == 4)
     }
 
     /// Secure input turning on, as the lock screen's password field or a sudo prompt takes it, lets go of the keys,
@@ -94,7 +95,8 @@ struct NotchKeysTests {
         #expect(away == 2)
     }
 
-    /// Gone, the keys leave the centres they observed: the workspace's two and the distributed centre's lock.
+    /// Gone, the keys leave the centres they observed: the workspace's two and the distributed centre's lock and screen
+    /// saver.
     @Test func goneTheKeysLeaveTheirCentres() {
         let workspace = CountingCentre(), distributed = CountingCentre()
         var mac = KeysWorld().mac
@@ -106,7 +108,7 @@ struct NotchKeysTests {
 
         #expect(keys != nil)
         keys = nil
-        #expect(workspace.removed == 2 && distributed.removed == 1)
+        #expect(workspace.removed == 2 && distributed.removed == 2)
     }
 
     /// Without the leave there is no tap and the panel takes no keys; a leave given while SitRep runs works from the next
@@ -201,19 +203,21 @@ struct NotchKeysTests {
         #expect(untils.count == (actions.first == .closeMenu ? 0 : 1))
     }
 
+    /// The panel's keys go to the notch with the hold the tap ended with each, if any, and a let-go with its hold.
     @Test func thePanelsKeysAndALetGoGoToTheNotch() throws {
         let world = KeysWorld(), keys = NotchKeys(world.mac)
         var heard: [String] = []
 
-        keys.onKey = { heard.append("\($0)") }
+        keys.onKey = { heard.append("\($0) ending \($1.map(String.init) ?? "none")") }
         keys.onLetGo = { heard.append("let go of \($0)") }
         keys.follow(isOut: true, holding: .panel(hold: 1))
 
         let tap = try #require(world.taps.first)
 
-        tap.heard(.panel(.open))
+        tap.heard(.panel(.down))
+        tap.heard(.panel(.open, ends: 1))
         tap.heard(.letGo(hold: 1))
-        #expect(heard == ["open", "let go of 1"])
+        #expect(heard == ["down ending none", "open ending 1", "let go of 1"])
     }
 
     // MARK: The notch
@@ -382,7 +386,7 @@ struct NotchKeysTests {
     }
 
     /// On the asks panel `1` answers with its row and `⌘Z` takes the answer back, as their clicks do; the tap is told
-    /// `⌘Z` is the panel's while the sending line shows, and not once it goes.
+    /// `⌘Z` is the panel's while the sending line shows, and not once the beat after it goes has passed.
     @Test func onTheAsksPanelADigitAnswersAndCommandZUndoes() throws {
         let world = KeysWorld(), (notch, _, next) = try Self.opened(world)
         let tap = try #require(world.taps.first), undo = TapKey(code: 6, typed: "z", flags: .maskCommand)
@@ -415,7 +419,9 @@ struct NotchKeysTests {
         #expect(undone == 1)
 
         notch.heard(.undone(ship))
-        notch.step(at: next(), pointer: pointer)
+        for _ in 0 ... Int(AsksPanel.settle / Self.frameMS) {
+            notch.step(at: next(), pointer: pointer)
+        }
         guard case let .panel(hold, undoes: false, _, _) = tap.snapshot else {
             Issue.record("the tap was still told the sending line undoes: \(tap.snapshot)")
             return
@@ -539,6 +545,50 @@ struct NotchKeysTests {
         #expect(notch.run.isOut && notch.run.holdsKeys)
         notch.clicked(in: other)
         #expect(notch.run.phase == .closing && !notch.run.holdsKeys)
+    }
+
+    /// `⏎`, `1` and `o` typed faster than the main thread wakes: the tap reads `o` before the answer shows, so it ends
+    /// the hold, and the panel, hearing `o` once the sending line shows, follows it, closing; it never holds what the
+    /// tap passes through.
+    @Test func oTheTapEndedTheHoldWithClosesThePanelThoughTheMainThreadWasBusy() throws {
+        let world = KeysWorld(), notch = Self.closed(world)
+        let ship = Answering(.words("Ship"), to: "k1", of: "sr-nw0001", wanting: .yes)
+        var answered: [Answering] = []
+
+        defer { notch.window.close() }
+        notch.onAnswer = { answered.append($0) }
+        #expect(notch.summon())
+
+        let tap = try #require(world.taps.first)
+        let enter = tap.read(TapKey(code: KeyCode.enter))
+
+        tap.heard(try #require(enter.action))
+
+        let one = tap.read(TapKey(code: 18, typed: "1")), open = tap.read(TapKey(code: 31, typed: "o"))
+
+        #expect(open == .take(.panel(.open, ends: 1)))
+        tap.heard(try #require(one.action))
+        #expect(answered == [ship])
+
+        let now = Date()
+
+        notch.heard(.held(HeldAnswer(answering: ship, heldAt: now, goesAt: now.addingTimeInterval(2))))
+        try #require(notch.run.asksShown?.sending != nil)
+        tap.heard(try #require(open.action))
+        #expect(notch.run.phase == .closing && !notch.run.holdsKeys && tap.snapshot == KeySnapshot.none)
+    }
+
+    /// The screen saver starting lets go of the shortcut's keys, so the key that dismisses it reaches no panel: the
+    /// panel stays open, holding nothing.
+    @Test func theScreenSaverStartingLetsGoOfTheShortcutsKeys() throws {
+        let world = KeysWorld(), notch = Self.closed(world)
+
+        defer { notch.window.close() }
+        #expect(notch.summon())
+        try #require(notch.run.holdsKeys)
+        world.distributed.post(name: NotchKeys.screenSaverStarted, object: nil)
+        #expect(!notch.run.holdsKeys && notch.run.isOut)
+        #expect(try #require(world.taps.first).snapshot == KeySnapshot.none)
     }
 
     /// Without the leave, or under secure input, the panel opens holding nothing, each key going to the window in front.

@@ -68,7 +68,8 @@ extension NotchRun {
     }
 
     /// The asks panel kept to what shows, closed as the panel goes in, its row goes, or its last ask, and placed
-    /// beside its row as the frame has it, once for all that reads it until the next.
+    /// beside its row as the frame has it, once for all that reads it until the next. Kept while the panel is out, so
+    /// `⏎` in the shortcut's hold opens it as the panel still pours, as it would on the open panel.
     func placeAsks(in setting: Setting) {
         let stage = setting.stage
         let ground = AsksGround(
@@ -76,9 +77,7 @@ extension NotchRun {
             mirror: setting.mirror
         )
 
-        asking.place(
-            isOpen: notch.phase == .open, on: ground, pointer: seen, at: time, offersSnooze: setting.offersSnooze
-        )
+        asking.place(isOut: isOut, on: ground, pointer: seen, at: time, offersSnooze: setting.offersSnooze)
     }
 
     /// A press on the asks panel (`AsksPanel.press`): Open in Claude jumps as the row does, closing it. Nowhere on it

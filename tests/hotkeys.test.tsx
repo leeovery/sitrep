@@ -2,9 +2,9 @@
  * The pane's keys (DESIGN.md, "Keys"): an opened item's buttons carry the
  * engine's hotkeys, its answers numbered `1` to `9` in the order drawn and
  * none past nine, its ✕ on `x` and its snooze on `z`; a question asked in
- * place numbers its answers and leaves cancel bare. Of two buttons on one
- * hotkey the later wins, so no drawing ever holds two on one key: only the
- * item the pane holds open carries any.
+ * place numbers its answers, Snooze's cancel on `z`, every other cancel
+ * bare. Of two buttons on one hotkey the later wins, so no drawing ever
+ * holds two on one key: only the item the pane holds open carries any.
  */
 import { expect, test, tier, type FoundElement } from './kit'
 import { PANE } from '../hooks/pane'
@@ -231,7 +231,7 @@ test('an opened snoozed ask keeps its digits and its x, and has no z', async () 
   ])
 })
 
-test("Snooze's question numbers its times in order, cancel bare, and the ask's buttons gone with their keys", async ($, on) => {
+test("Snooze's question numbers its times in order, its cancel on z as every snooze menu's close, and the ask's buttons gone with their keys", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -247,8 +247,7 @@ test("Snooze's question numbers its times in order, cancel bare, and the ask's b
     .filter(key => key.startsWith('snooze-') && key !== `snooze-no:${item}`)
 
   expect(times.length).toBeGreaterThan(0)
-  expect(drawn).toEqual(times.map((key, i) => [key, `${i + 1}`]))
-  expect(await ui.find({ key: `snooze-no:${item}` })).toBeDefined()
+  expect(drawn).toEqual([...times.map((key, i) => [key, `${i + 1}`]), [`snooze-no:${item}`, 'z']])
 })
 
 test("an opened parked item's ✕ drop takes x; the drop's question numbers its yes, cancel bare", async ($, on) => {

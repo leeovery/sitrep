@@ -25,8 +25,7 @@ struct AsksPanelKeysRunTests {
     ) -> NotchRun.Setting {
         NotchRun.Setting(
             stage: stage, mirror: right ? CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 800, ty: 0) : .identity,
-            style: .meniscus, reducesMotion: reducesMotion, isChosen: true, offersSnooze: offersSnooze,
-            takesKeys: takesKeys
+            style: .meniscus, reducesMotion: reducesMotion, offersSnooze: offersSnooze, takesKeys: takesKeys
         )
     }
 
@@ -97,11 +96,13 @@ struct AsksPanelKeysRunTests {
         return (run, pointer)
     }
 
+    /// A key pressed, the pointer where it was, the hold the tap ended with it `ending`, as it ends one with `o`.
     @discardableResult
     private static func press(
-        _ key: PanelKey, _ run: NotchRun, _ pointer: CGPoint, _ setting: NotchRun.Setting = setting()
+        _ key: PanelKey, _ run: NotchRun, _ pointer: CGPoint, _ setting: NotchRun.Setting = setting(),
+        ending: Int? = nil
     ) -> NotchRun.Press? {
-        run.key(key, at(run, pointer, setting))
+        run.key(key, ending: ending, at(run, pointer, setting))
     }
 
     private static func held(_ answering: Answering) -> AnswerNews {
@@ -212,7 +213,7 @@ struct AsksPanelKeysRunTests {
         let (run, pointer) = try Self.asksOpen()
 
         _ = run.show(AsksBoard.board(without: ["k1"]), Self.at(run, pointer, Self.setting()))
-        #expect(Self.press(.open, run, pointer) == nil)
+        #expect(Self.press(.open, run, pointer, ending: 1) == nil)
         #expect(!run.holdsKeys && run.keySnapshot == .none && run.phase == .open)
     }
 
@@ -226,7 +227,7 @@ struct AsksPanelKeysRunTests {
     // MARK: While an answer is sending
 
     /// As the answer rows and Ignore take no click then, digits and `x` do nothing; `⌘Z` is the sending line's Undo,
-    /// the tap told it is the panel's while the line shows.
+    /// the tap told it is the panel's while the line shows, and through the beat after it goes.
     @Test func whileSendingDigitsAndXDoNothingAndCommandZUndoes() throws {
         let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
 
@@ -238,6 +239,7 @@ struct AsksPanelKeysRunTests {
         #expect(Self.press(.undo, run, pointer) == .undo)
 
         run.heard(.undone(Self.threaded), Self.at(run, pointer, setting))
+        Self.frames(run, for: AsksPanel.settle, pointer, setting)
         #expect(run.keySnapshot == .panel(hold: 1, undoes: false))
     }
 
@@ -469,6 +471,65 @@ struct AsksPanelKeysRunTests {
         #expect(Self.press(.open, run, pointer) == nil)
         #expect(run.holdsKeys && run.keySnapshot == .panel(hold: 1, undoes: true))
         #expect(Self.press(.undo, run, pointer) == .undo)
+    }
+
+    /// The tap alone decides whether `o` ends the hold, and the panel follows it whatever it reads by the time it
+    /// hears `o`: `1` then `o`, the tap ending the hold at `o` before the answer showed, lets the hold go though the
+    /// sending line shows by then; `o` the tap read with the line showing keeps it though the answer went since.
+    @Test func whetherOEndsTheHoldIsTheTapsDecision() throws {
+        let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
+
+        #expect(Self.press(.digit(1), run, pointer) == .answer(Self.threaded))
+        run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
+        try #require(run.asksShown?.sending != nil)
+        #expect(Self.press(.open, run, pointer, ending: 1) == nil)
+        #expect(!run.holdsKeys && run.keySnapshot == .none)
+
+        let (kept, onIt) = try Self.asksOpen()
+
+        kept.heard(Self.held(Self.threaded), Self.at(kept, onIt, setting))
+        kept.heard(.went(Self.threaded), Self.at(kept, onIt, setting))
+        try #require(kept.asksShown?.sending == nil)
+        #expect(Self.press(.open, kept, onIt) == nil)
+        #expect(kept.holdsKeys)
+    }
+
+    // MARK: ⌘Z through the beat
+
+    /// `⌘Z` stays the panel's through the beat after the sending line goes, as its answer goes or is taken back, so
+    /// one pressed a moment late does nothing, as a digit on nothing does, and never reaches the window in front; the
+    /// frames run through the beat, so the tap is told as it ends, and then `⌘Z` is a chord again.
+    @Test(arguments: [true, false])
+    func commandZStaysThePanelsThroughTheBeatAfterTheSendingLineGoes(went: Bool) throws {
+        let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
+        run.heard(went ? .went(Self.threaded) : .undone(Self.threaded), Self.at(run, pointer, setting))
+        try #require(run.asksShown?.sending == nil && run.asksShown?.ask.id == (went ? "k2" : "k1"))
+        #expect(run.keySnapshot == .panel(hold: 1, undoes: true))
+        #expect(run.needsFrames(at: run.time))
+        #expect(Self.press(.undo, run, pointer) == nil)
+        #expect(Self.press(.open, run, pointer) == nil && run.holdsKeys)
+
+        Self.frames(run, for: AsksPanel.settle, pointer, setting)
+        #expect(run.keySnapshot == .panel(hold: 1, undoes: false))
+    }
+
+    /// Only the sending line going starts it: paging away from the line with `→` leaves `⌘Z` a chord at once, and
+    /// with the asks panel closed, as its last ask's answer went, `⌘Z` is a chord too.
+    @Test func noOtherChangeKeepsCommandZThePanels() throws {
+        let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
+        #expect(Self.press(.right, run, pointer) == .asks)
+        #expect(run.keySnapshot == .panel(hold: 1, undoes: false))
+
+        let (alone, onIt) = try Self.asksOpen(Self.dataImport)
+        let answering = Answering(.words("Map"), to: "k1", of: AsksBoard.dataImport, wanting: .yes)
+
+        alone.heard(Self.held(answering), Self.at(alone, onIt, setting))
+        alone.heard(.went(answering), Self.at(alone, onIt, setting))
+        #expect(alone.asksShown == nil && alone.keySnapshot == .panel(hold: 1, undoes: false))
     }
 
     // MARK: Keycaps

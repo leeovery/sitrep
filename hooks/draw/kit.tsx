@@ -523,13 +523,13 @@ export type Answer = { key: string; label: string; variant?: 'primary'; onPress:
 /**
  * The question a press asks in place of what it was pressed among, as the
  * finish, Snooze and the drop ask theirs: its words, then its answers,
- * numbered, and a dim `cancel` after them.
+ * numbered, and a dim `cancel` after them, on its `hotkey` where it has one.
  */
 export const drawQuestion = (
   d: Drawing,
   question: string,
   answers: readonly Answer[],
-  cancel: Pick<Answer, 'key' | 'onPress'>,
+  cancel: Pick<Answer, 'key' | 'onPress'> & { hotkey?: string },
 ) => {
   const { Box, Text, Button } = d.els
 
@@ -546,7 +546,13 @@ export const drawQuestion = (
             onPress={onPress}
           />
         ))}
-        <Button key={cancel.key} dimColor label="cancel" onPress={cancel.onPress} />
+        <Button
+          key={cancel.key}
+          dimColor
+          label="cancel"
+          hotkey={cancel.hotkey}
+          onPress={cancel.onPress}
+        />
       </Box>
     </Box>
   )

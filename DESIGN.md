@@ -3124,9 +3124,9 @@ unremarked. So a line in Snoozed is kept among those shown however long it
 sleeps, and its absence alone never makes it new; once its time runs out,
 each ask's line in Needs you carries the snooze's `wokeAt`, and the watch
 takes it as new. Its row arrives as a new ask's does: the notch swells, its
-row washes on the card, Needs you unfolds on the card while Lee has the notch
-show the board, and a macOS notification goes where they are on; with Nothing
-chosen, Needs you folded stays folded (see "Folding"). Its time still counts
+row washes on the card, Needs you unfolds on the card whatever Show is set
+to (see "Folding"), and a macOS notification goes where they are on. Its
+time still counts
 from its posting. A turn's line is never new, as on Your turn. Woken by Lee,
 or early, the asks come back as shown, unflashed, as Lee pressed it, and
 `new` means not yet shown to Lee; their row moves wherever the wake changes
@@ -5862,13 +5862,15 @@ with it.
   saved before 13 November 2026 is passed over, as a section this version
   does not know is, and Needs you takes its own. The folds were one setting
   with the strip's, from 14 November 2026 (Lee) until the strip went.
-  An arrival unfolds Needs you, at once, while Lee has the notch show the
-  board: a row holding a line
+  An arrival unfolds Needs you, at once, whatever Show is set to: a row
+  holding a line
   new to the board, as swells the notch, whether the session is new, comes
   to need Lee or gains a line. The unfold is kept, as a click's is: Needs
-  you stays open until Lee folds it again. With Nothing chosen, Needs
-  you folded stays folded, as it did with the strip chosen (14 November
-  2026; until then an arrival unfolded it whichever showed). At once is
+  you stays open until Lee folds it again. From 14 November 2026 an
+  arrival left it folded while the strip was chosen, and once the strip
+  went, while Nothing was; the phase review of the keys (26 November
+  2026) ended that with the strip's last trace, so the notch shows the
+  same Needs you whatever Show was set to before. At once is
   for what the fold changes only, the section's rows coming or going;
   every other row keeps
   its own motion, one folding away finishing and one arriving, the new
@@ -6766,7 +6768,8 @@ see "Answering from the panel").
 the screen by accident: Lee chose it over `⏎` jumping as a click does. `x`
 is the ✕ the pane draws on its ignore and its drop. A key is the panel's
 only pressed alone: Shift, ⌘, ⌃ or ⌥ held with it makes it another key,
-`⌘Z` aside while the asks panel's sending line shows.
+`⌘Z` aside while the asks panel takes it: while its sending line shows,
+and through the beat after the line goes (below).
 
 **An event tap reads them.** SitRep reads the panel's keys through a
 Quartz event tap, with macOS's Accessibility leave. A key the panel takes
@@ -6782,9 +6785,10 @@ though."
   the main thread keeps, and hands what the key does to the main thread,
   so a busy main thread never holds up a keystroke anywhere on the Mac.
 - It is made as the panel opens, so a leave given while SitRep runs works
-  from the next open, and is on only while the panel or one of its menus
-  is open; at rest it hears nothing. An open without the leave lets the
-  tap go, so it is never on without it.
+  from the next open, and is on only while the panel is out, from its
+  opening until it has closed, or one of its menus is open; at rest it
+  hears nothing. An open without the leave lets the tap go, so it is never
+  on without it.
 - A key taken is taken whole: its key-up goes nowhere either. A held
   `↑` `↓`, `k` `j`, `←` or `→` repeats, as a Mac menu's arrows do; any
   other key's repeats are dropped, so a held digit answers once. A panel
@@ -6798,7 +6802,8 @@ though."
   prompt, macOS gives the tap no keys. The panel then holds nothing and
   shows no keycaps, as if the leave were missing: each key goes to the
   window. SitRep checks for it as the panel opens, as the pointer moves
-  on it, and as macOS turns the tap off for input it can't see.
+  anywhere while the panel is out, and as macOS turns the tap off for
+  input it can't see.
 - Without the leave the panel takes no keys and shows no keycaps, and
   Settings says why (below, "In Settings"). The welcome window doesn't
   ask for it: its step 5 stays two things to allow.
@@ -6813,13 +6818,19 @@ the panel's, acting on the lit row, until:
   on there from its first key the panel doesn't take;
 - `o` is pressed, whether or not it jumps, or a click jumps: what is
   typed next is for the window jumped to, and no hold starts while the
-  jump is under way; but for `o` while the asks panel's sending line
-  shows (below);
-- the screens sleep, the screen locks, the session goes to another user,
-  or a window takes secure input, as the lock screen's password field and
-  a sudo prompt do, so what is typed on coming back goes to the window in
-  front until the pointer moves;
+  jump is under way; but for `o` while `⌘Z` is the asks panel's (below);
+- the screens sleep, the screen locks, the screen saver starts, the
+  session goes to another user, or a window takes secure input, as the
+  lock screen's password field and a sudo prompt do, so what is typed on
+  coming back goes to the window in front until the pointer moves;
 - the panel closes.
+
+The tap alone decides whether a key ends the hold, as it reads the key,
+and hands that on with what the key does; the panel follows it, whatever
+it reads by the time it hears the key, so the two never disagree on
+whose the keys are (the phase review, 26 November 2026). A hold ending,
+however it ends, lets go of the row the keys lit: the row under the
+pointer is lit again, or none.
 
 A panel that opens under a resting pointer holds nothing until the pointer
 moves. With the pointer on an eyebrow or the black between rows, no row is
@@ -6854,6 +6865,12 @@ on the panel, acting on the ask it shows; `s` does nothing there:
 - While an answer is sending, digits and `x` do nothing, as the answer
   rows and Ignore take no click then, and `⌘Z` is the sending line's Undo.
   Every other key acts as its click would, and the answer still goes.
+- Through the 300ms beat after the sending line goes, its answer gone or
+  taken back, `⌘Z` stays the panel's and does nothing, as a digit on
+  nothing does, so an Undo pressed a moment late never reaches the window
+  in front, nor lets go of the keys (the phase review, 26 November 2026).
+  `→` or `←` away from the line leaves `⌘Z` a chord at once, as does the
+  asks panel closing as its last ask's answer goes.
 - `x` is Ignore, `z` opens Snooze ▾'s menu, and `o` is Open in Claude ↗.
 - `→` shows the next ask and `←` the one before, as the dots lie, one ask
   a step, sliding as a dot's click does.
@@ -6864,7 +6881,8 @@ on the panel, acting on the ask it shows; `s` does nothing there:
   sending line, with no Snooze ▾ or Open in Claude ↗ to click (the build,
   26 November 2026); `→` or `←` to another ask finds them in its foot.
   `o` there, which can't jump, leaves the hold, so `⌘Z` after it still
-  undoes (the review, 26 November 2026).
+  undoes (the review, 26 November 2026); so does `o` in the beat after
+  the line goes, which acts on nothing.
 - The 300ms beat (see "Answering from the panel") holds keys as it holds
   clicks: within it after a change the keys didn't make, the board's, a
   send's or the pointer's paging, a key does nothing, as a press there
@@ -6935,13 +6953,16 @@ anywhere, with no pointer:
   pointer, its lit row the first in Needs you, else the first row.
 - Opened so, it holds every key until it closes: one it doesn't take
   does nothing, where a hover's hold lets it through. A key with ⌘, ⌃ or
-  ⌥ closes it and goes through, `⌘Z` while an answer is sending aside. It
-  closes on `esc` once nothing inside is open, on the shortcut again, on
-  `o`, on a click elsewhere, or as the pointer, having come onto it,
-  leaves.
+  ⌥ closes it and goes through, `⌘Z` while the asks panel takes it
+  aside. It closes on `esc` once nothing inside is open, on the shortcut
+  again, on `o`, on a click elsewhere, or as the pointer, having come onto
+  it, leaves; but `o` while `⌘Z` is the asks panel's keeps the panel and
+  the hold.
 - Without the leave, or under secure input, it opens the panel holding
   nothing, with no row lit, until the shortcut again, a click elsewhere,
-  or the pointer coming onto it and leaving.
+  or the pointer coming onto it and leaving. Its keys let go while it is
+  open, as the screens sleep or a window takes secure input, it stays so
+  too: open, holding nothing, no row lit.
 - With Show set to Nothing, it opens the menu bar item's menu, whose keys
   are AppKit's; so it does while a full-screen app hides the notch (the
   build, 26 November 2026).
@@ -6950,12 +6971,14 @@ anywhere, with no pointer:
 
 Settled in the build (26 November 2026):
 - The hold starts with the shortcut, so a key pressed as the panel still
-  pours is taken, and acts as it would on the open panel.
+  pours is taken, and acts as it would on the open panel: `⏎` opens the
+  lit row's asks panel, which shows beside its row as the panel pours,
+  its keys acting at once (the phase review, 26 November 2026).
 - Shift held makes a key no chord: in the shortcut's hold, `A` is taken
   and does nothing, as `a` is. A chord closes the panel and goes
   through: ⌘, ⌃, ⌥ or Fn held, Fn but for the keys that carry it of
   themselves (the arrows, Home, End, Page Up, Page Down, Forward
-  Delete) and those read by their codes (Return, keypad Enter, which
+  Delete, Help) and those read by their codes (Return, keypad Enter, which
   fn-Return sends on a laptop's keyboard, and `esc`), or a function
   key, F1 to F20, alone. Fn held makes a letter
   another key under a hover's hold too.
@@ -6988,7 +7011,9 @@ after ctrl+x tab or a click on it:
   first, ✎ Answer and ✎ comment among them; its ✕ ignore takes `x`, and
   its snooze `z`;
 - a question drawn in place, Snooze's, a drop's or a finish's, takes
-  `1`–`9` on its answers in order;
+  `1`–`9` on its answers in order; Snooze's cancel takes `z`, as `z`
+  closes every snooze menu, the snooze button it replaced gone with its
+  key (the phase review, 26 November 2026);
 - a parked item's ✕ drop takes `x`.
 
 Only the opened item's buttons carry them, since of two buttons on one

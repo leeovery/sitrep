@@ -41,7 +41,7 @@ struct AsksPanelStillsTests {
     private static func setting(on edge: ScreenEdge, takesKeys: Bool = false) -> NotchRun.Setting {
         NotchRun.Setting(
             stage: edge.stage, mirror: edge.mirror(wide: true), style: settings.style, reducesMotion: false,
-            isChosen: true, takesKeys: takesKeys
+            takesKeys: takesKeys
         )
     }
     private static let helpDesk = "needs:sr-nw0001", shifts = "needs:sr-ct0002", onboarding = "needs:sr-tw0006"

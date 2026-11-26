@@ -103,8 +103,8 @@ public struct TapKey: Equatable, Sendable {
         flags.contains(.maskSecondaryFn) && !KeyCode.carriesFn.contains(code) && Self.byCode[code] == nil
     }
 
-    /// The key of the panel's set it is, `⌘Z` among them where the asks panel's sending line `undoes`: ⌘ alone held
-    /// with the key that types z, Caps Lock aside.
+    /// The key of the panel's set it is, `⌘Z` among them where the panel `undoes`: ⌘ alone held with the key that
+    /// types z, Caps Lock aside.
     func panelKey(undoes: Bool) -> PanelKey? {
         let isUndo = flags.intersection(Self.modifiers) == .maskCommand && typed.lowercased() == "z"
 
@@ -127,10 +127,11 @@ public struct TapKey: Equatable, Sendable {
 public enum KeySnapshot: Equatable, Sendable {
     /// Nothing holds the keys: each goes through.
     case none
-    /// The panel holds them, in its hold of this number: every key of the set is its, `⌘Z` too while the asks panel's
-    /// sending line shows and so `undoes`, and any other ends the hold; but where it `takesAll`, as the shortcut's hold
-    /// does, any other is taken too, doing nothing, and only a chord ends it, going through. The shortcut's `hotKey`
-    /// goes through and ends nothing, for macOS to hand SitRep, so it alone acts on it.
+    /// The panel holds them, in its hold of this number: every key of the set is its, and `⌘Z` too where it `undoes`,
+    /// as the asks panel does while its sending line shows and through the beat after it goes; any other ends the
+    /// hold. But where it `takesAll`, as the shortcut's hold does, any other is taken too, doing nothing, and only a
+    /// chord ends it, going through. The shortcut's `hotKey` goes through and ends nothing, for macOS to hand SitRep,
+    /// so it alone acts on it.
     case panel(hold: Int, undoes: Bool = false, takesAll: Bool = false, hotKey: TapChord? = nil)
     /// One of the notch's menus is open: a snooze menu shown on its own, of this many choices, whose digits, `z`, `k`
     /// and `j` the tap takes; or, with none, the row's menu, which keeps AppKit's keys alone.
@@ -139,8 +140,9 @@ public enum KeySnapshot: Equatable, Sendable {
 
 /// What a key the tap takes, or lets go by, does, handed to the main thread.
 public enum KeyAction: Equatable, Sendable {
-    /// A key of the set while the panel holds the keys.
-    case panel(PanelKey)
+    /// A key of the set while the panel holds the keys; where it `ends` the hold of this number, as `o` does, the
+    /// panel follows, holding none after it, as the tap does from it on.
+    case panel(PanelKey, ends: Int? = nil)
     /// A key the panel doesn't take, in the hold of this number: the panel holds none until the pointer moves again,
     /// or, the shortcut's hold, closes.
     case letGo(hold: Int)
@@ -173,7 +175,8 @@ public enum KeyVerdict: Equatable, Sendable {
 /// A key taken is taken whole: its repeats and its key-up go as it went down, taken or rewritten, whatever the snapshot
 /// says by then. Only `↑` `↓`, `k` `j`, `←` and `→` act again as they repeat. A key the panel doesn't take ends its hold
 /// here at once, as `o` does, which jumps, so the keys typed after it go through though the main thread has yet to hear
-/// of it; but for `o` while the asks panel's sending line shows, where it can't jump, which leaves the hold its `⌘Z`.
+/// of it, the action handed on saying so for the panel to follow; but for `o` while `⌘Z` is the panel's, where it
+/// can't jump, which leaves the hold its `⌘Z`.
 /// The shortcut's hold takes every key pressed alone, so only a chord ends it. The shortcut's own chord goes through,
 /// ending nothing, whatever holds the keys.
 public struct KeyReader: Sendable {
@@ -253,11 +256,12 @@ public struct KeyReader: Sendable {
                 ended = hold
                 return .letGo(hold: hold)
             }
-            if panelKey == .open, !undoes {
-                ended = hold
+            guard panelKey == .open, !undoes else {
+                return .take(.panel(panelKey))
             }
 
-            return .take(.panel(panelKey))
+            ended = hold
+            return .take(.panel(panelKey, ends: hold))
         }
     }
 

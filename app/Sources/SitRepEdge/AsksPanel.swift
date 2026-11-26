@@ -5,7 +5,7 @@ import SitRepPanel
 /// The asks panel as the notch's run holds it beside a panel row (DESIGN, "Answering from the panel"): beside which
 /// row it is open, and the ask it shows; the answer held, as the answers tell it; the asks whose answers went, which it
 /// shows no more until the board leaves them out; and how its words are set, the asks it last laid out kept. It shows
-/// one session's asks, one at a time, in its row's order, while the panel is open; it closes as that goes in, as its
+/// one session's asks, one at a time, in its row's order, while the panel is out; it closes as that goes in, as its
 /// row goes, or as its last ask does.
 struct AsksPanel {
     /// Open beside a row, by its key, at an ask, by its id and its page, among its session's asks as last kept, by
@@ -57,7 +57,16 @@ struct AsksPanel {
                 return false
             }
 
-            return was.ask != ask || (was.isSending && !isSending)
+            return was.ask != ask || lostSending(since: was)
+        }
+
+        /// Whether, shown after `was` beside the same row, its sending line went.
+        func lostSending(since was: Look?) -> Bool {
+            guard let was, was.row == row else {
+                return false
+            }
+
+            return was.isSending && !isSending
         }
 
         /// How fast, pt/s, it moves as the panel's springs settle, which is no move: half a point a frame at 60Hz,
@@ -90,6 +99,9 @@ struct AsksPanel {
     private var readAt = -Double.infinity
     private var readByKeys = false
     private var keysPaged = false
+    /// When its sending line last went, other than as the keys paged away from it, which `⌘Z` is its through the beat
+    /// after (`takesUndo`).
+    private var sentAt = -Double.infinity
     /// The row it opened beside, and how far the list was scrolled then.
     private var opened: (row: String, scroll: Double)?
     /// How the drawing sets its words, and the asks it last laid out.
@@ -110,10 +122,24 @@ struct AsksPanel {
     /// Whether its asks slide, under the fingers or settling, when nothing on it takes a press but a dot.
     var isSliding: Bool { slide.isMoving || slide.isFollowing }
 
-    /// Whether frames must keep coming though the pointer is still: the way to it holds the pointer, which must be
-    /// judged frame by frame until it ends (`SafeTriangle`), or
-    /// its asks move, under the fingers or settling; not under fingers that move nothing, under Reduce motion.
-    var needsFrames: Bool { way.holds || slide.isMoving }
+    /// Whether frames must keep coming at this time though the pointer is still: the way to it holds the pointer, which
+    /// must be judged frame by frame until it ends (`SafeTriangle`); its asks move, under the fingers or settling, not
+    /// under fingers that move nothing, under Reduce motion; or it takes `⌘Z` through a beat that has yet to end.
+    func needsFrames(at time: Double) -> Bool {
+        way.holds || slide.isMoving || isInUndoBeat(at: time)
+    }
+
+    /// Whether `⌘Z` is its at this time (DESIGN, "Keys"): while it is open, its sending line showing, or within the
+    /// beat after the line went from the ask shown, as the answer went or was taken back, though not as the keys paged
+    /// away from it. In the beat `⌘Z` does nothing, as a digit on nothing does, so an Undo pressed a moment late never
+    /// reaches the window in front.
+    func takesUndo(at time: Double) -> Bool {
+        shown?.sending != nil || isInUndoBeat(at: time)
+    }
+
+    private func isInUndoBeat(at time: Double) -> Bool {
+        shown != nil && time - sentAt < Self.settle
+    }
 
     /// Whether fingers on the trackpad carry its asks, when not even a dot takes a press.
     var isFollowing: Bool { slide.isFollowing }
@@ -175,15 +201,15 @@ struct AsksPanel {
     /// brush on a Magic Mouse leave it open; a third of a row's height is a scroll meant.
     static let scrollMost = 10.0
 
-    /// Kept to what shows: closed while the panel is not open, its row gone or none of its asks left; else at its
+    /// Kept to what shows: closed while the panel is not out, its row gone or none of its asks left; else at its
     /// ask, or, where that left, the one that took its page, or the last. Its slide is its two asks', the one shown
     /// and the one beside: as other asks leave or come, it slides on with them; as either of them leaves, it stands
     /// still, under fingers still on the trackpad until they lift.
-    private mutating func keep(isOpen: Bool, _ rows: some AsksRows, _ board: PanelBoard) {
+    private mutating func keep(isOut: Bool, _ rows: some AsksRows, _ board: PanelBoard) {
         guard let open else {
             return
         }
-        guard isOpen, let asks = asks(of: open.row, in: rows, board), !asks.isEmpty else {
+        guard isOut, let asks = asks(of: open.row, in: rows, board), !asks.isEmpty else {
             return close()
         }
 
@@ -291,14 +317,14 @@ struct AsksPanel {
         gone = gone.filter { gone in board.asks[gone.session]?.contains { $0.id == gone.ask } == true }
     }
 
-    /// Kept to what shows (`keep`), the panel it opens beside open or not, and placed as a frame shows it (`shown`):
+    /// Kept to what shows (`keep`), the panel it opens beside out or not, and placed as a frame shows it (`shown`):
     /// beside its row as the ground stands it on the stage, laid out with Snooze ▾ in its foot where Snooze
     /// `offersSnooze`, kept on the screen, the answer held to its ask sending, and the part of it under `pointer` lit;
     /// and, where what sits under the pointer changed meaning (`Look.meansOther`), when, on the display's clock.
     mutating func place(
-        isOpen: Bool, on ground: AsksGround, pointer: CGPoint?, at time: Double, offersSnooze: Bool
+        isOut: Bool, on ground: AsksGround, pointer: CGPoint?, at time: Double, offersSnooze: Bool
     ) {
-        keep(isOpen: isOpen, ground.rows, ground.board)
+        keep(isOut: isOut, ground.rows, ground.board)
         slide.run(to: time)
         shown = placed(on: ground, pointer: pointer) { self.layout($0, offersSnooze: offersSnooze) }
         if opened?.row != shown?.row {
@@ -313,6 +339,9 @@ struct AsksPanel {
         if look?.readsOther(than: self.look) == true {
             readAt = time
             readByKeys = keysPaged
+        }
+        if look?.lostSending(since: self.look) == true, !keysPaged {
+            sentAt = time
         }
         self.look = look
         keysPaged = false

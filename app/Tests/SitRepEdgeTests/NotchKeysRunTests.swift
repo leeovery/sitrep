@@ -25,7 +25,7 @@ struct NotchKeysRunTests {
     private static func setting(right: Bool = false, takesKeys: Bool = true) -> NotchRun.Setting {
         NotchRun.Setting(
             stage: stage, mirror: right ? CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 800, ty: 0) : .identity,
-            style: .meniscus, reducesMotion: false, isChosen: true, takesKeys: takesKeys
+            style: .meniscus, reducesMotion: false, takesKeys: takesKeys
         )
     }
 
@@ -117,12 +117,13 @@ struct NotchKeysRunTests {
         run.lit(in: setting).flatMap { run.list.item($0)?.key }
     }
 
-    /// A key pressed, the pointer where it was.
+    /// A key pressed, the pointer where it was, the hold the tap ended with it `ending`, as it ends one with `o`.
     @discardableResult
     private static func press(
-        _ key: PanelKey, _ run: NotchRun, _ pointer: CGPoint, _ setting: NotchRun.Setting = setting()
+        _ key: PanelKey, _ run: NotchRun, _ pointer: CGPoint, _ setting: NotchRun.Setting = setting(),
+        ending: Int? = nil
     ) -> NotchRun.Press? {
-        run.key(key, at(run, pointer, setting))
+        run.key(key, ending: ending, at(run, pointer, setting))
     }
 
     // MARK: The hold
@@ -167,11 +168,14 @@ struct NotchKeysRunTests {
         #expect(run.keySnapshot == .none)
     }
 
+    /// It lets the row the keys lit go too, the pointer's row lit again.
     @Test func aKeyThePanelDoesntTakeLetsGoUntilThePointerMovesAgain() throws {
         let (run, pointer) = try Self.holding(), setting = Self.setting()
 
+        Self.press(.down, run, pointer)
+        try #require(Self.lit(run) != Self.helpDesk)
         run.letGoOfKeys(in: 1, Self.at(run, pointer, setting))
-        #expect(run.keySnapshot == .none)
+        #expect(run.keySnapshot == .none && Self.lit(run) == Self.helpDesk)
         Self.frames(run, for: 300, pointer, setting)
         #expect(run.keySnapshot == .none)
         #expect(Self.press(.down, run, pointer) == nil && Self.lit(run) == Self.helpDesk)
@@ -422,8 +426,26 @@ struct NotchKeysRunTests {
 
         run.step(Self.at(run, pointer, setting))
         try #require(run.holdsKeys)
-        #expect(Self.press(.open, run, pointer) == nil)
+        #expect(Self.press(.open, run, pointer, ending: 1) == nil)
         #expect(!run.holdsKeys && run.keySnapshot == .none && run.phase == .open)
+    }
+
+    /// The tap alone decides whether a key ends the hold: one it ended goes as the panel hears it, the key acting or
+    /// not, as while a menu holds the card; one it didn't end stays, `o` among them.
+    @Test func theHoldEndsAsTheTapEndedIt() throws {
+        let (run, pointer) = try Self.holding()
+
+        run.menuOpened(at: pointer)
+        #expect(Self.press(.open, run, pointer, ending: 1) == nil)
+        #expect(!run.holdsKeys && run.keySnapshot == .none)
+        run.menuClosed()
+
+        let kept = Self.opened(), setting = Self.setting(), eyebrow = kept.list.content.laidFrame(0)
+        let onEyebrow = try Self.onStage(60, eyebrow.midY, kept, setting)
+
+        kept.step(Self.at(kept, onEyebrow, setting))
+        #expect(Self.press(.open, kept, onEyebrow) == nil)
+        #expect(kept.holdsKeys && kept.keySnapshot == .panel(hold: 1))
     }
 
     /// Once a jump has drained the panel, the panel opening again holds the keys again as the pointer moves on it.

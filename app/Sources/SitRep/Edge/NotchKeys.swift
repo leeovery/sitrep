@@ -4,17 +4,19 @@ import SitRepEdge
 /// The notch's keys on the Mac (DESIGN, "Keys"): the tap, made as the panel opens where macOS gives the leave, so a
 /// leave given while SitRep runs works from the next open, and let go at an open without it; on while the panel is out
 /// or one of its menus is open, and only with the leave; whether the Mac lets the panel take keys, read as the panel
-/// opens, as the pointer moves on it, and as macOS turns the tap off for input it can't see; and what the tap decides
-/// each key by, told it as it changes. A snooze menu shown on its own takes its digits and `z` here; every other key the
-/// tap hands on goes to the panel. The screens sleeping, the screen locking, the session going to another user, or a
-/// window taking secure input, as the lock screen's password field and a sudo prompt do, let go of the keys.
+/// opens, as the pointer moves while it is out, and as macOS turns the tap off for input it can't see; and what the tap
+/// decides each key by, told it as it changes. A snooze menu shown on its own takes its digits and `z` here; every
+/// other key the tap hands on goes to the panel. The screens sleeping, the screen locking, the screen saver starting,
+/// the session going to another user, or a window taking secure input, as the lock screen's password field and a sudo
+/// prompt do, let go of the keys.
 @MainActor
 final class NotchKeys {
-    /// A key of the set while the panel holds the keys, and a key it doesn't take, in the hold of this number.
-    var onKey: (PanelKey) -> Void = { _ in }
+    /// A key of the set while the panel holds the keys, with the hold it ended, if any, as the tap ends one with `o`;
+    /// and a key it doesn't take, in the hold of this number.
+    var onKey: (PanelKey, _ ending: Int?) -> Void = { _, _ in }
     var onLetGo: (Int) -> Void = { _ in }
-    /// The screens slept, the screen locked, the session went to another user, or a window took secure input: the
-    /// panel is to hold the keys no more, so what is typed after goes to the window in front.
+    /// The screens slept, the screen locked, the screen saver started, the session went to another user, or a window
+    /// took secure input: the panel is to hold the keys no more, so what is typed after goes to the window in front.
     var onAway: () -> Void = {}
 
     private let mac: KeysMac
@@ -43,6 +45,9 @@ final class NotchKeys {
     /// What the distributed centre posts as the screen locks, which posts nothing to the workspace where the display
     /// stays awake, as at ⌃⌘Q or a hot corner.
     static let screenIsLocked = Notification.Name("com.apple.screenIsLocked")
+    /// What the distributed centre posts as the screen saver starts, whose dismissing key would otherwise go to the
+    /// panel the shortcut left open.
+    static let screenSaverStarted = Notification.Name("com.apple.screensaver.didstart")
 
     init(_ mac: KeysMac) {
         self.mac = mac
@@ -50,6 +55,7 @@ final class NotchKeys {
         let away = [
             (mac.workspace, NSWorkspace.screensDidSleepNotification),
             (mac.workspace, NSWorkspace.sessionDidResignActiveNotification), (mac.distributed, Self.screenIsLocked),
+            (mac.distributed, Self.screenSaverStarted),
         ]
 
         observers = Observers(away.map { centre, name in
@@ -132,7 +138,7 @@ final class NotchKeys {
     /// main thread woke.
     private func heard(_ action: KeyAction) {
         switch action {
-        case let .panel(key): onKey(key)
+        case let .panel(key, ends): onKey(key, ends)
         case let .letGo(hold): onLetGo(hold)
         case let .choose(number): takeSnoozeMenu()?.choose(number: number)
         case .closeMenu: takeSnoozeMenu()?.cancelTracking()
