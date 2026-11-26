@@ -25,6 +25,7 @@ import {
   drawQueued,
   drawRow,
   heading,
+  HOTKEY,
   isBeingAnswered,
   seeRef,
   shown,
@@ -110,6 +111,7 @@ const drawButtons = (d: Drawing, entry: ParkedAt) => {
         key={dropKey(key)}
         dimColor={pickUps.length > 0}
         label="✕ drop"
+        hotkey={HOTKEY.cross}
         onPress={() => d.act.select(dropKey(key))}
       />
     </Box>

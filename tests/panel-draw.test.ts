@@ -474,7 +474,7 @@ const MENU: NonNullable<PanelView['menu']> = {
   ],
 }
 
-test("the snooze menu stands under the chosen row, a choice a line, its time at the right in grey, the band on the choice picked; the key line is the menu's own", () => {
+test("the snooze menu stands under the chosen row, a choice a line after its number in grey, its time at the right in grey, the band on the choice picked; the key line is the menu's own", () => {
   const view = board({ band: 'sr-ct0001', menu: MENU })
 
   expect(frame(view, 39, 18).slice(0, 14)).toEqual([
@@ -485,20 +485,20 @@ test("the snooze menu stands under the chosen row, a choice a line, its time at 
     '   Litware · Allow Bash: psql -f impo…',
     ' ● Shift schedules                 26m',
     '   Contoso · Approve the rota',
-    '   In an hour                    15:00',
-    '   Later today                   17:00',
-    '   Tonight                       18:00',
-    '   Tomorrow                      09:00',
-    '   This weekend              Sat 09:00',
-    '   Next week                 Mon 09:00',
-    '   Until it moves',
+    '   1 In an hour                  15:00',
+    '   2 Later today                 17:00',
+    '   3 Tonight                     18:00',
+    '   4 Tomorrow                    09:00',
+    '   5 This weekend            Sat 09:00',
+    '   6 Next week               Mon 09:00',
+    '   7 Until it moves',
   ])
   expect(frame(view, 39, 20).at(-1)).toBe(' ↑↓ pick  ⏎ snooze  esc cancel')
   expect(drawn(view, 39, 18, NONE, 5, 9)).toEqual([
     ' ● Shift schedules                 \u001b[0;2m26m\u001b[0m',
     '   \u001b[0;2mContoso · \u001b[0mApprove the rota',
-    '   In an hour                    \u001b[0;2m15:00\u001b[0m',
-    ` ${ESC}[0;7m  ${ESC}[0;1;7mLater today${ESC}[0;7m                   ${ESC}[0;2;7m17:00${ESC}[0m`,
+    '   \u001b[0;2m1\u001b[0m In an hour                  \u001b[0;2m15:00\u001b[0m',
+    ` ${ESC}[0;7m  ${ESC}[0;2;7m2${ESC}[0;7m ${ESC}[0;1;7mLater today${ESC}[0;7m                 ${ESC}[0;2;7m17:00${ESC}[0m`,
   ])
 })
 
@@ -506,14 +506,35 @@ test('a choice and its time fit as they can: past the width the time goes, then 
   const view = board({ band: 'sr-ct0001', menu: MENU })
 
   expect(frame(view, 24, 18).slice(7, 14)).toEqual([
-    '   In an hour     15:00',
-    '   Later today    17:00',
-    '   Tonight        18:00',
-    '   Tomorrow       09:00',
-    '   This weekend',
-    '   Next week  Mon 09:00',
-    '   Until it moves',
+    '   1 In an hour   15:00',
+    '   2 Later today  17:00',
+    '   3 Tonight      18:00',
+    '   4 Tomorrow     09:00',
+    '   5 This weekend',
+    '   6 Next week',
+    '   7 Until it moves',
   ])
+})
+
+test('the first nine choices are numbered, in grey, and those past them are not, their words in line with the numbered; a name is cut, never its number', () => {
+  const titles = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Until the whole of it has moved']
+  const options = titles.map((title, at) => ({ title, time: '', until: at }))
+  const view = board({ band: 'sr-ct0001', menu: { row: 'sr-ct0001', at: 0, top: 0, options } })
+
+  expect(frame(view, 24, 24).slice(7, 18)).toEqual([
+    '   1 One',
+    '   2 Two',
+    '   3 Three',
+    '   4 Four',
+    '   5 Five',
+    '   6 Six',
+    '   7 Seven',
+    '   8 Eight',
+    '   9 Nine',
+    '     Ten',
+    '     Until the whole o…',
+  ])
+  expect(drawn(view, 39, 24, NORDFOX, 8, 9)).toEqual([`   ${ESC}[0;38;2;122;130;171m2${ESC}[0m Two`])
 })
 
 test('the key line names z for the band\'s row: snooze on one that needs you, wake in Snoozed, nothing on a working row', () => {
@@ -1307,19 +1328,19 @@ test('short of room, the menu draws the choices around the pick, scrolled as the
 
   expect(frame(view, 39, 8)).toEqual([
     ' ● Shift schedules                 26m',
-    '   Later today                   17:00',
-    '   Tonight                       18:00',
-    '   Tomorrow                      09:00',
-    '   This weekend              Sat 09:00',
-    '   Next week                 Mon 09:00',
-    '   Until it moves',
+    '   2 Later today                 17:00',
+    '   3 Tonight                     18:00',
+    '   4 Tomorrow                    09:00',
+    '   5 This weekend            Sat 09:00',
+    '   6 Next week               Mon 09:00',
+    '   7 Until it moves',
     ' ↑↓ pick  ⏎ snooze  esc cancel',
   ])
-  expect(drawn(view, 39, 8, NONE, 6, 7)).toEqual([` ${ESC}[0;7m  ${ESC}[0;1;7mUntil it moves${ESC}[0;7m                     ${ESC}[0m`])
+  expect(drawn(view, 39, 8, NONE, 6, 7)).toEqual([` ${ESC}[0;7m  ${ESC}[0;2;7m7${ESC}[0;7m ${ESC}[0;1;7mUntil it moves${ESC}[0;7m                   ${ESC}[0m`])
 })
 
 test('an expanded row the menu leaves one line draws its folded first line, never `…`, so the menu says whose it is', () => {
   const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010', menu: { ...MENU, row: 'sr-nw0010' } })
 
-  expect(frame(view, 39, 8).slice(0, 2)).toEqual([' ● Shift schedules 3                4m', '   In an hour                    15:00'])
+  expect(frame(view, 39, 8).slice(0, 2)).toEqual([' ● Shift schedules 3                4m', '   1 In an hour                  15:00'])
 })

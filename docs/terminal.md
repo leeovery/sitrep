@@ -10,8 +10,8 @@ Type `sitrep` in a terminal, and the terminal view fills it with the board: what
 
 1. Open a terminal on your Mac. Or sign in to the Mac over SSH, with Remote Login on in System Settings › General › Sharing.
 2. Type `sitrep`. The board fills the terminal.
-3. Press `↓` to reach a session no window runs, such as one whose Claude you quit, then press `o` to open it here.
-4. Press `q` to leave, back to your shell.
+3. Press `↓` to reach a session no window runs, then press `o` to open it here.
+4. Press `q` to return to your shell.
 
 Homebrew links `sitrep` into the Homebrew `bin` folder, which a shell needs on its PATH.
 
@@ -43,6 +43,7 @@ The last line names the main keys. Here is every key:
 | `⏎`, or a tap on the chosen row | Expand the chosen row, or fold it |
 | `o` | Open the chosen row: run the resume command |
 | `z` | Snooze the chosen row, or wake it |
+| `1`–`9` | In the Snooze menu, take that snooze choice |
 | `s` | Unfold or fold Snoozed |
 | `q`, `Ctrl-C` | Leave; `Ctrl-Z` suspends, and `fg` brings it back |
 

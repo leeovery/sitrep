@@ -18,6 +18,7 @@
  * session this window holds: each drawn faint, with no buttons, a line
  * under the heading saying why.
  */
+import type { RenderElement } from 'claude-code'
 import {
   isAnswer,
   pickFirst,
@@ -49,7 +50,9 @@ import {
   drawWrite,
   emptyLine,
   heading,
+  HOTKEY,
   isBeingAnswered,
+  numbered,
   seeRef,
   shown,
   type Block,
@@ -100,21 +103,38 @@ const RECOMMENDED = '· recommended'
 const primaryOf = (ask: Ask) => ask.recommended ?? ask.options?.[0]
 
 /** An option's button, its label ending with the word saying so where Claude recommends it: inside the button, so a long label wraps with it. */
-const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: () => void) => {
+const drawOption = (
+  d: Drawing,
+  key: string,
+  option: string,
+  ask: Ask,
+  hotkey: string | undefined,
+  onPress: () => void,
+) => {
   const { Text, Button } = d.els
   const variant = option === primaryOf(ask) ? 'primary' : undefined
 
   return option === ask.recommended ? (
-    <Button key={key} variant={variant} label={option} onPress={onPress}>
+    <Button key={key} variant={variant} label={option} hotkey={hotkey} onPress={onPress}>
       {option} <Text color={C.recommended}>{RECOMMENDED}</Text>
     </Button>
   ) : (
-    <Button key={key} variant={variant} label={option} onPress={onPress} />
+    <Button key={key} variant={variant} label={option} hotkey={hotkey} onPress={onPress} />
   )
 }
 
-/** The buttons a verdict puts on an ask, each keyed by the ask's address: one for each option of a choice. */
-const buttonsFor = (d: Drawing, at: SitrepItemRef<ProjectKey>, ask: Ask, verdict: Verdict) => {
+/**
+ * The buttons a verdict puts on an ask, each keyed by the ask's address: one
+ * for each option of a choice. Its answers are numbered on from `first`, how
+ * many are drawn before them; its ignore, drawn last, takes ✕'s key.
+ */
+const buttonsFor = (
+  d: Drawing,
+  at: SitrepItemRef<ProjectKey>,
+  ask: Ask,
+  verdict: Verdict,
+  first: number,
+) => {
   const { Button } = d.els
   const key = itemKey(at.session, ask.id)
   const reply = (fields: Omit<SitrepQueued, keyof SitrepItemRef>) =>
@@ -127,23 +147,32 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef<ProjectKey>, ask: Ask, verdict
           key={`yes:${key}`}
           variant="primary"
           label={`✓ ${yesOf(ask)}`}
+          hotkey={numbered(first)}
           onPress={() => reply({ verdict })}
         />,
       ]
     case 'choose':
       return pickFirst(ask.options ?? [], ask.recommended).map((option, i) =>
-        drawOption(d, `choose:${key}:${i}`, option, ask, () => reply({ verdict, option })),
+        drawOption(d, `choose:${key}:${i}`, option, ask, numbered(first + i), () =>
+          reply({ verdict, option }),
+        ),
       )
     case 'answer':
-      return drawWrite(d, `answer:${key}`, '✎ Answer', answeringOf(d, at, ask, 'answer'), 'primary')
+      return drawWrite(d, `answer:${key}`, '✎ Answer', answeringOf(d, at, ask, 'answer'), {
+        variant: 'primary',
+        hotkey: numbered(first),
+      })
     case 'comment':
-      return drawWrite(d, `comment:${key}`, commentLabel(ask), answeringOf(d, at, ask, 'comment'))
+      return drawWrite(d, `comment:${key}`, commentLabel(ask), answeringOf(d, at, ask, 'comment'), {
+        hotkey: numbered(first),
+      })
     case 'ignore':
       return [
         <Button
           key={`ignore:${key}`}
           dimColor
           label="✕ ignore"
+          hotkey={HOTKEY.cross}
           onPress={() => reply({ verdict })}
         />,
       ]
@@ -251,6 +280,7 @@ const snoozeButton = (d: Drawing, { key, canSnooze }: Standing) => {
           key={snoozeKey(key)}
           dimColor
           label="snooze"
+          hotkey={HOTKEY.snooze}
           onPress={() => d.act.select(snoozeKey(key))}
         />,
       ]
@@ -260,12 +290,15 @@ const snoozeButton = (d: Drawing, { key, canSnooze }: Standing) => {
 /** An opened ask's buttons, snooze among them where it can be, and the hint under them. */
 const drawAnswers = (d: Drawing, ask: Ask, standing: Standing) => {
   const { Box, Text } = d.els
-  const verdicts = VERDICTS[ask.wants]
+  const buttons = VERDICTS[ask.wants].reduce<RenderElement[]>(
+    (drawn, verdict) => [...drawn, ...buttonsFor(d, standing.at, ask, verdict, drawn.length)],
+    [],
+  )
 
   return (
     <Box flexDirection="column">
       <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        {verdicts.flatMap(verdict => buttonsFor(d, standing.at, ask, verdict))}
+        {buttons}
         {snoozeButton(d, standing)}
       </Box>
       <Text color={C.grey} italic wrap="wrap">

@@ -124,6 +124,64 @@ test(
   }),
 )
 
+const digit = (n: number): Key => ({ kind: 'digit', n })
+
+test(
+  'a digit makes the choice of its number, as ⏎ on it would, the first drawn being 1; past the choices it does nothing, the menu kept open',
+  inLondon(() => {
+    const open = pressed(onRow(read(), 0), Z)
+    const done = step(open, { key: digit(3) })
+
+    expect(done.write).toEqual(step(pressed(open, DOWN, DOWN), { key: ENTER }).write)
+    expect(done.write).toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'], until: at(2026, 11, 18, 18) })
+    expect([done.state.menu, done.state.band]).toEqual([undefined, ASKING])
+    expect(writeOf(open, digit(1))).toMatchObject({ until: at(2026, 11, 18, 15) })
+    expect(writeOf(open, digit(6)), 'Until it moves').toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'] })
+    expect(step(open, { key: digit(7) })).toEqual({ state: open })
+    expect(step(open, { key: digit(9) })).toEqual({ state: open })
+  }),
+)
+
+test(
+  'with the menu open but drawn on no line, an answer filling the body, neither a digit nor ⏎ chooses: nothing is written, the menu stays',
+  inLondon(() => {
+    const open = pressed(onRow(read(board(), { width: 40, height: 8 }), 0), Z)
+    const crowded = stepped(open, { written: 'Something else now waits on you in Help desk redesign. '.repeat(8) })
+
+    expect(layoutIn(open).menu?.lines).toBeGreaterThan(0)
+    expect(layoutIn(crowded).menu?.lines ?? 0).toBe(0)
+
+    for (const key of [digit(1), ENTER]) {
+      const after = step(crowded, { key })
+
+      expect([after.write, after.state.menu], JSON.stringify(key)).toEqual([undefined, open.menu])
+    }
+  }),
+)
+
+test(
+  'a digit chooses by its number wherever the menu is scrolled, its pick aside',
+  inLondon(() => {
+    const short = stepped(read(board(), { width: 39, height: 8 }), { snoozeSettings: WEEKEND })
+    const scrolled = pressed(onRow(short, 0), Z, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN)
+
+    expect(layoutIn(scrolled).menu?.first).toBeGreaterThan(0)
+    expect(writeOf(scrolled, digit(1))).toMatchObject({ until: at(2026, 11, 18, 15) })
+  }),
+)
+
+test(
+  'with no menu open a digit does nothing: no answer, no move, no write',
+  inLondon(() => {
+    const onAsking = onRow(read(), 0)
+    const onWorking = onRow(read(), 3)
+
+    for (const state of [read(), onAsking, onWorking]) {
+      expect(step(state, { key: digit(1) })).toEqual({ state })
+    }
+  }),
+)
+
 test(
   'a tap on a choice snoozes to it; a tap anywhere else, esc or z closes the menu, writing nothing, the band kept',
   inLondon(() => {
