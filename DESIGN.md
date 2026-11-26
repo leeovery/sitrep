@@ -6153,8 +6153,8 @@ grey to orange, then left it to Claude; it can change after a test. The
 sections are told apart by the space over their eyebrows and the eyebrows
 themselves, and their rows by their marks (board J2, 4 November 2026; a
 hairline sat after what waited on Lee until then). A row under the pointer
-lifts to #141416, with no ⏎ hint, since the panel never takes the
-keyboard; an eyebrow never lifts. With nothing needing Lee, the notch rests
+lifts to #141416, with no ⏎ hint (its keys are in "Keys"); an eyebrow
+never lifts. With nothing needing Lee, the notch rests
 with no light; with nothing at all, the head reads "All clear".
 
 Each row says what it is, its project at its right (and drawn whole, with
@@ -6256,9 +6256,12 @@ does not read today, so neither the button nor the menu is offered to it.
 - **Leaving back over the notch** has a grace of 300ms, down to 60ms when
   fast. A click elsewhere closes it at once. The notch takes no click: it
   opens on hover alone.
-- **It never takes the keyboard.** A click on it leaves Lee's typing where
-  it was, in Ghostty, so there is no Esc and no ⏎: moving away closes it.
-  There is no pin either. Lee, 15 October 2026, on the display:
+- **It never becomes the key window.** A click on it leaves Lee's typing
+  where it was, in Ghostty, and moving away closes it. Since 26 November
+  2026 it takes keys through an event tap while it holds them, every
+  other key going on to Ghostty (see "Keys"); until then it
+  took none, so there was no Esc and no ⏎. There is no pin either. Lee,
+  15 October 2026, on the display:
   - hovering opens the panel before the notch can be clicked, so a pin on
     the notch was out of reach;
   - a click on the panel took Lee's typing from Ghostty;
@@ -6479,8 +6482,11 @@ first:
 - **Its answers** as rows of their words alone, full width (Lee picked
   board H3 of "H · The pick filled, four ways", 25 November 2026, after
   his first live try; until then each row led with a numbered keycap).
-  A row pads its words 12 each side and 9 above and below, radius 11, a
-  1pt border, and is 38 tall at least. The words are 13 medium in white,
+  While the panel holds the keys, its number shows in a keycap at its
+  right end (26 November 2026; see "Keys").
+  A row pads its words 12 at its left, 40 at its right for the keycap
+  (since 26 November 2026; 12 until then), and 9 above and below, radius
+  11, a 1pt border, and is 38 tall at least. The words are 13 medium in white,
   letter-spacing -0.01em, on lines of 18. They wrap to a second line
   before they are cut, the row growing to fit and the asks panel with it;
   past two lines the second ends in "…". A yes has one row, its yes; a
@@ -6505,8 +6511,9 @@ first:
   shows only while Snooze offers a time, as the pane's snooze button does:
   with every time switched off, or each passed for today, it is gone.
 
-No keys answer, only clicks (Lee, 24 November 2026): the panel never
-takes the keyboard, so the rows carry no numbers.
+Keys answer since 26 November 2026, the rows showing their numbers only
+while the panel holds the keys (see "Keys"). Until then no keys answered,
+only clicks (Lee, 24 November 2026), so the rows carried no numbers.
 
 **Opening and closing.** Another row's arrow moves the asks panel to that
 session; a click on the lit arrow again closes it. While it is open, a
@@ -6633,9 +6640,9 @@ with its ask.
 
 **Answering, with two seconds to undo.** A click on an answer row turns it
 white: a white fill, its words in ink, Claude's pick's tag in ink at half,
-and an 11pt check in ink at its trailing end, 12 in, where a panel row's
-time goes. Its words keep the lines they had, set narrower for the check,
-so the row keeps its height. A
+and an 11pt check in ink centred in the keycap's room at its trailing end
+(see "Keys"; until 26 November 2026, 12 in, where a panel row's time
+goes). Its words keep the lines they had, so the row keeps its height. A
 line at the asks panel's foot reads "Sending Threaded", the answer's words
 after "Sending", with a countdown ring and an outlined Undo. After 2
 seconds SitRep runs `sitrep answer <ask> <answer>`. Ignore runs `sitrep
@@ -6737,7 +6744,235 @@ from it beside the tab, as the notch's does beside its row.
   build, 25 November 2026).
 
 **Not in this build** (see "Later"): the menu bar item; permission
-prompts and Claude Code's question dialog; keys.
+prompts and Claude Code's question dialog. Keys came on 26 November 2026
+(see "Keys").
+
+### Keys
+
+Decided with Lee on 26 November 2026 (on the board, "Key bindings across
+SitRep"): the same keys do the same thing wherever SitRep shows the board,
+the terminal view's keys taken as the set (see "The board in a terminal").
+Lee: "if I hover an item and press the Z key, that should show a snooze
+menu. I should then be able to choose from the snooze menu, even with the
+arrow keys and return or with numbers… Wherever we are, the key bindings
+respond to the same thing where appropriate." It reverses two decisions:
+the panel never taking the keyboard (15 October 2026, see "The notch and
+its panel") and no keys answering from the asks panel (24 November 2026,
+see "Answering from the panel").
+
+**The keys,** each with one meaning wherever it applies:
+
+| Key | Does |
+|---|---|
+| `↑` `↓`, `k` `j` | moves the lit row, or a menu's highlight |
+| `⏎` | looks closer: on the notch, opens the lit row's asks panel or closes it again; in the terminal view, expands the row or folds it; in a menu, chooses |
+| `o` | opens: jumps to the lit row's window; in the terminal view, runs the resume command |
+| `z` | snoozes: on a row that needs Lee, the snooze menu; on a snoozed row, wakes it; in the asks panel, the snooze menu for the ask shown; in a snooze menu, closes it |
+| `1`–`9` | chooses by number in what is open: a snooze menu's times, an ask's answers |
+| `x` | ignores the ask shown; on the pane, presses ✕ |
+| `←` `→` | pages the asks panel's asks |
+| `s` | folds or unfolds Snoozed |
+| `esc` | closes the innermost: a menu, then the asks panel, then the panel; in the terminal view, the menu, else the band |
+| `⌘Z` | takes back the answer the asks panel is sending, as its Undo |
+
+`⏎` looks closer and `o` opens, as in the terminal view, so no `⏎` moves
+the screen by accident: Lee chose it over `⏎` jumping as a click does. `x`
+is the ✕ the pane draws on its ignore and its drop. A key is the panel's
+only pressed alone: Shift, ⌘, ⌃ or ⌥ held with it makes it another key,
+`⌘Z` aside while the asks panel's sending line shows.
+
+**An event tap reads them.** SitRep reads the panel's keys through a
+Quartz event tap, with macOS's Accessibility leave. A key the panel takes
+never reaches the window in front; every other key goes through as if
+SitRep weren't there, and the window in front keeps the keyboard
+throughout, Ghostty's cursor solid. The other way, the panel becoming the
+key window as a non-activating panel can, needs no leave, but takes every
+key while it holds the keyboard and hollows the window's cursor. Lee: "I'm
+actually fine with the accessibility permission if it's required, but if
+we can get around not doing it, then fine. We want the best experience,
+though."
+- The tap runs on a thread of its own, deciding each key from a snapshot
+  the main thread keeps, and hands what the key does to the main thread,
+  so a busy main thread never holds up a keystroke anywhere on the Mac.
+- It is made as the panel opens, so a leave given while SitRep runs works
+  from the next open, and is on only while the panel or one of its menus
+  is open; at rest it hears nothing.
+- A key taken is taken whole: its key-up goes nowhere either. A held
+  `↑` `↓`, `k` `j`, `←` or `→` repeats, as a Mac menu's arrows do; any
+  other key's repeats are dropped, so a held digit answers once.
+- macOS turns a tap off when it is slow to answer or as input it can't
+  see starts; SitRep turns it on again as macOS tells it, for either.
+- While a window holds secure input, as Ghostty does at a password
+  prompt, macOS gives the tap no keys. The panel then holds nothing and
+  shows no keycaps, as if the leave were missing: each key goes to the
+  window. SitRep checks for it as the panel opens, as the pointer moves
+  on it, and as macOS turns the tap off for input it can't see.
+- Without the leave the panel takes no keys and shows no keycaps, and
+  Settings says why (below, "In Settings"). The welcome window doesn't
+  ask for it: its step 5 stays two things to allow.
+
+**The panel holds the keys once the pointer moves on it.** Once the
+pointer moves on the open panel's list or its asks panel, the keys are
+the panel's, acting on the lit row, until:
+- the pointer leaves the panel, which closes it;
+- a key the panel doesn't take is pressed: that key goes through to the
+  window in front, and the panel takes none until the pointer moves
+  again, so typing into Ghostty with the pointer left on the panel goes
+  on there from its first key the panel doesn't take;
+- the panel closes.
+
+A panel that opens under a resting pointer holds nothing until the pointer
+moves. With the pointer on an eyebrow or the black between rows, no row is
+lit: `↑` `↓` light the first or the last row, `s` folds, and a key needing
+a row does nothing. A key of the set with no use at that moment, `z` on a
+working row or `⏎` on a row with no arrow, is taken and does nothing, so a
+`⏎` meant for the panel never reaches the window behind it.
+
+**On the notch's panel:**
+- `↑` `↓`, `k` `j` move the lit row over the rows, past eyebrows and
+  folded sections, scrolling it into view, as a Mac menu's arrows move its
+  highlight; the pointer moving takes the highlight back.
+- `⏎` on a row with the arrow opens its asks panel, as a click on the
+  arrow does, or closes it again.
+- `o` jumps, as a click on the row's words does: the press-in, the spin,
+  the drain and the caption.
+- `z` on a Needs you row, of asks or of a turn alone, opens the snooze
+  menu at the row's end: the row's right-click Snooze, as a menu of its own
+  (see "The row snoozes"). On a row in Snoozed it wakes the session, as
+  Wake now. A row of stops alone, or a working one, offers neither, as
+  its right-click menu doesn't.
+- `s` folds Snoozed or unfolds it, as a click on its eyebrow.
+- `esc` closes the panel, which stays closed until the pointer leaves the
+  notch and comes back.
+
+**On the asks panel.** While it is open and the panel holds the keys,
+every key of the set but `↑` `↓`, `k` `j` is its, wherever the pointer is
+on the panel, acting on the ask it shows; `s` does nothing there:
+- `1`–`9` answer with that answer row, as a click on it, the sending line
+  and its two seconds with it; `1` is the first row, Claude's pick where
+  Claude has one.
+- While an answer is sending, digits and `x` do nothing, as the answer
+  rows and Ignore take no click then, and `⌘Z` is the sending line's Undo.
+  Every other key acts as its click would, and the answer still goes.
+- `x` is Ignore, `z` opens Snooze ▾'s menu, and `o` is Open in Claude ↗.
+- `→` shows the next ask and `←` the one before, as the dots lie, one ask
+  a step, sliding as a dot's click does.
+- `⏎` and `esc` close it; `↑` `↓`, `k` `j` move the lit row and close
+  it, as a menu's arrows close its submenu.
+- A digit past its answers, or `z` with no Snooze ▾, does nothing.
+- The 300ms beat (see "Answering from the panel") holds keys as it holds
+  clicks: within it after a change the keys didn't make, the board's, a
+  send's or the pointer's paging, a key does nothing, as a press there
+  doesn't land. After a change the keys made, paging among them, a key
+  acts at once.
+- **Closed by a key** with the pointer on it, the asks panel holds the
+  panel as if the pointer rested on its row, as an open menu does, until
+  the pointer moves: a pointer leaving its place then starts the panel's
+  grace only once it is off the list too.
+- **Keycaps while it holds the keys** (Lee, 26 November 2026, over
+  showing them always or never): each answer row shows its number at its
+  right end, as a Mac menu shows an item's key, in the keycap the rows
+  had until 25 November 2026: 20 × 20, radius 6, fill #2C2C31, the digit
+  11 semibold in the soft grey, centred on the row's first line, 12 from
+  its right edge. A row's words always leave it room, padded 40 at the
+  right, so nothing moves or wraps as keycaps come and go. They come and
+  go at once, with no motion. While an answer is sending, the keycaps go,
+  and the held row's check stands in its keycap's place.
+
+**Menus.** A snooze menu `z` opens, from a row or as Snooze ▾'s, is a
+native menu, the right-click menu's `SnoozeMenu` shown on its own:
+- `↑` `↓`, `⏎` and `esc` are AppKit's own; `k` `j` move as `↑` `↓`, and
+  `z` closes it, as in the terminal view.
+- Its digits choose its items in order, Until it moves among them, each
+  shown as its item's key equivalent, in AppKit's column at the right,
+  after the time on its tab stop.
+- The tap reads the digits, `k` `j` and `z`, so AppKit never sees them: a
+  digit chooses its item, `k` `j` are posted to SitRep as `↑` `↓`, and
+  `z` ends the menu's tracking.
+- Only a snooze menu shown on its own takes these: as the right-click
+  menu's submenu it carries no digits, since a submenu's key equivalents
+  fire from its menu, and the right-click menu keeps AppKit's keys alone.
+- While any of SitRep's menus is open, the right-click menu and a clicked
+  Snooze ▾'s among them, no key reaches the window in front: the menu
+  has it.
+
+Whether AppKit's tracking takes the keyboard for a menu an inactive
+accessory app pops from a panel that is never key is unproven: build step
+4 proves it first. If it doesn't, the tap takes those keys and posts them
+to SitRep (`CGEvent.postToPid`), where the menu's tracking reads them;
+without the leave, the menu then has only the pointer.
+
+**The shortcut, ⌃⌥S by default,** opens the panel holding the keys, from
+anywhere, with no pointer:
+- It is a hot key macOS keeps (Carbon's `RegisterEventHotKey`), needing no
+  leave; Settings changes it or clears it.
+- The panel pours open as a hover opens it, with no reach toward the
+  pointer, its lit row the first in Needs you, else the first row.
+- Opened so, it holds every key until it closes: one it doesn't take
+  does nothing, where a hover's hold lets it through. A key with ⌘, ⌃ or
+  ⌥ closes it and goes through, `⌘Z` while an answer is sending aside. It
+  closes on `esc` once nothing inside is open, on the shortcut again, on
+  `o`, on a click elsewhere, or as the pointer, having come onto it,
+  leaves.
+- Without the leave, or under secure input, it opens the panel holding
+  nothing, with no row lit, until the shortcut again, a click elsewhere,
+  or the pointer coming onto it and leaving.
+- With Show set to Nothing, it opens the menu bar item's menu, whose keys
+  are AppKit's.
+- Only Lee opens it: SitRep never opens anything by itself (see
+  "Answering from the panel").
+
+**The terminal view** keeps its keys (see "The board in a terminal") and
+adds `1`–`9` to its snooze menu, each choice drawn with its number before
+it, in the key line's grey.
+
+**The pane** in Claude Code takes them through a Button's `hotkey`, a digit
+or a lowercase letter that presses it while the pane holds the keyboard,
+after ctrl+x tab or a click on it:
+- an opened ask's answers take `1`–`9` in the order drawn, Claude's pick
+  first, ✎ Answer and ✎ comment among them; its ✕ ignore takes `x`, and
+  its snooze `z`;
+- a question drawn in place, Snooze's, a drop's or a finish's, takes
+  `1`–`9` on its answers in order;
+- a parked item's ✕ drop takes `x`.
+
+Only the opened item's buttons carry them, since of two buttons on one
+hotkey the engine presses the later. The pane draws no keycaps: the engine
+draws a hotkey only on a `plain` button, which drops the pane's chrome.
+Escape stays the engine's, handing the keys back to the prompt.
+
+**Not keyed:** the menu bar item's menu and a row's right-click menu,
+beyond AppKit's own; the banners, which macOS draws; Settings, the welcome
+window and About SitRep keep the Mac's (⌘, ⌘W ⌘[ ⌘]).
+
+**In Settings,** the Edge pane gains a section after Motion, **Keys**:
+- **Keys,** under the notch only: with the leave, a green dot and Allowed.
+  Without it, "Not allowed, so the notch's panel takes no keys", with
+  Allow… until SitRep has asked once, which brings up macOS's prompt, and
+  Open System Settings… for Privacy & Security › Accessibility after.
+  macOS keeps no "not asked yet" for Accessibility, so SitRep keeps that
+  it asked, under "app".
+- **Shortcut:** a recorder, ⌃⌥S by default, with a button that clears
+  it; its line "Opens the notch's panel holding the keys", or under
+  Nothing "Opens the menu bar's menu". Saved under "app" as `shortcut`.
+  AppKit has no recorder, so it is SitRep's own control, drawn as macOS's
+  Keyboard Shortcuts settings draw one: the one exception to Settings'
+  controls being the system's. It refuses a shortcut with no ⌘ or ⌃,
+  which macOS 15 refuses a hot key of ⌥ or ⌥⇧ alone, and a plain key
+  would take from typing.
+
+**The build** (26 November 2026), a PR at a time, each reviewed and merged
+before the next that shares its code:
+1. The strip removed (Lee, the same day: "I literally never use it. I
+   think the notch is definitely better."), so no key reaches it.
+2. The terminal view's digits.
+3. The pane's hotkeys.
+4. The tap and the notch's panel, first proving the menu's keyboard: the
+   Accessibility leave, the hold, the row keys, the snooze menu and its
+   digits, and Settings' Keys row.
+5. The asks panel's keys and keycaps.
+6. The shortcut, and Settings' Shortcut row.
+7. The docs: a page for the keys, and the pages each changes.
 
 ### The strip
 
@@ -7600,13 +7835,13 @@ live changed, and how they group.
   jarring"):
   - **Notch:** Edge, Left or Right ("or drag it across the middle");
     Display, the main one unless another is chosen; Style, Meniscus or Card
-    ("Meniscus pours, Card slides"). Then Motion.
+    ("Meniscus pours, Card slides"). Then Motion, then Keys (see "Keys").
   - **Strip:** Edge; Display; Length, Grows or Full ("grows with what's on
     it, or runs the screen's height"); Max, only at Grows, a slider 160
     wide whose right end is Full ("how long it grows"). Then Motion.
-  - **Nothing:** neither section; the pane is the Show row's card alone,
-    and Show has a line under it, as a row's line is set, saying the menu
-    carries the board. Under the notch or the strip,
+  - **Nothing:** neither section; the pane is the Show row's card and
+    Keys' Shortcut alone (see "Keys"), and Show has a line under it, as
+    a row's line is set, saying the menu carries the board. Under the notch or the strip,
     Show has no line.
 
   Until 25 November 2026 a Material row, Black or Glass, closed both
@@ -11138,7 +11373,8 @@ look", the pick on its page "FINAL · board in a terminal".
 - **`z` snoozes** (Lee, 20 November 2026), from that same strip: on a row
   that needs him, of asks or of his turn alone, it opens a menu of
   Snooze's times under the row, the notch's choices and words, worked out
-  from `snooze.json` as the menu opens, then Until it moves. A choice
+  from `snooze.json` as the menu opens, then Until it moves; since 26
+  November 2026 its digits choose too (see "Keys"). A choice
   writes exactly what `sitrep snooze` writes, the CLI's own line in its
   own file, naming the asks the row showed, so none is snoozed unseen. On
   a Snoozed row `z` writes `sitrep wake`'s line. On a row of a window's
