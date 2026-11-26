@@ -658,7 +658,7 @@ the skipped hook's work runs on in the queue and writes its line.
 - **What it did:** 15 calls failed so from 22 to 24 November, `status`
   and `ask` in four projects' windows, each 10.5 to 12.6 seconds after
   its hook began, while the Mac's processor stood at 100% for hours
-  (test suites and builds of other projects). Every one of the Fabric
+  (test suites and builds of other projects). Every one of one
   session's failed statuses was on its board 2.5 to 7 seconds after the
   error, and an ask Claude sent again was on its board twice.
 - **The deadline:** sitrep's hook gives a call until its budget's
@@ -1526,15 +1526,14 @@ shape is ever shown as a word:
     the option stripped keeps it recommended; and the CLI's `answer`, which
     writes the option in its stored words.
   - **Claude's pick comes first** wherever SitRep offers the options to
-    press: the pane's buttons, the asks panel's rows and a banner's
-    buttons, the rest in Claude's order (Lee, 25 November 2026; until then
-    every surface kept Claude's order). Core's `pickFirst` orders them
-    once, for the pane's drawing and for `board --json` and `watch`,
-    whose ask carries its options so, which the app and its banners
-    follow. Every answer names its option by its words, never its place;
-    a banner reads a press back by its place among the options its
-    userInfo carries, which are the options as it showed them. Claude's
-    board text is no list of buttons, and keeps Claude's order.
+    press: the pane's buttons and the asks panel's rows (and, until
+    banner answering was removed on 25 November 2026, a banner's
+    buttons), the rest in Claude's order (Lee, 25 November 2026; until
+    then every surface kept Claude's order). Core's `pickFirst` orders
+    them once, for the pane's drawing and for `board --json` and `watch`,
+    whose ask carries its options so, which the app follows. Every answer
+    names its option by its words, never its place. Claude's board text
+    is no list of buttons, and keeps Claude's order.
   - **Drawn once, inside its option's button.** The pane ends the
     recommended option's label with the word, after a middle dot, in a
     darker lilac than the button's own (`[ Redraw · recommended ]` in the
@@ -1557,8 +1556,8 @@ shape is ever shown as a word:
     the options (`answer it with “Ship it” (recommended) or “Redraw”.`).
     No band or row shows an ask's options, so none shows it; since 24
     November 2026 the asks panel ends the recommended option's row with
-    the word, and a banner's buttons, which list the options, leave it out
-    (see "Answering from the panel"). Lee's
+    the word (a banner's buttons, until their removal on 25 November
+    2026, left it out; see "Answering from the panel"). Lee's
     reply when he picks the option is the option alone, as ever
     (`→ Redraw`), never the word. Being the button's own, the word wraps
     with its label: on a narrow pane or a phone a long option wraps inside
@@ -4555,8 +4554,9 @@ truth. There is still no background service. None of it is built now. Lee:
     shape.
   - `answer` (20 October 2026) answers a yes or a choice ask, or ignores
     any ask, as Lee does on the board, built for the SitRep window to answer
-    through, and since 24 November 2026 the asks panel and a new ask's
-    banner (see "Answering from the panel"): the ask by its id, then the
+    through, and since 24 November 2026 the asks panel (a new ask's
+    banner too, until banner answering was removed on 25 November 2026;
+    see "Answering from the panel"): the ask by its id, then the
     answer in the words of the button Lee pressed, a yes ask's yes
     (`sitrep answer k1 Go`) or one of a choice ask's options (`sitrep
     answer k2 Keep it`), matched exactly, as the board shows them; or

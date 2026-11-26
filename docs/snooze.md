@@ -27,7 +27,7 @@ In the terminal view, choose the row and press `z`, then pick Tomorrow. To put o
 - **Only you snooze a session.** Claude has no tool for it. Claude sees the snooze on the board, and leaves the asks until then.
 - **A permission prompt never snoozes.** A Claude Code window waiting at one stays in Needs you, though its session is snoozed.
 - **Until it moves has no time.** It wakes the session when Claude next ends a turn there, or for any of the reasons above. Only the right-click menus and the terminal view offer it.
-- **Something new never wakes one ask snoozed alone.** Its time does, or waking it yourself.
+- **Something new never wakes one ask snoozed alone.** Its time wakes it, and so do waking it yourself, answering it, or Claude asking it again.
 
 ## Reference
 
