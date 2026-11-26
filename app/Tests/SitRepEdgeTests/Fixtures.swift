@@ -9,7 +9,6 @@ func watched(new: [String]) -> String {
     WatchLine(rows: watchRows, new: new).text
 }
 
-/// Each lettered `Pr`, as no project is, so the letters a surface shows are seen to be the line's own.
 private let watchRows = [
     WatchLine.Row(
         session: "sr-7p4wd2", name: "Plan the launch", projectName: "Humongous",
@@ -50,13 +49,7 @@ private let watchRows = [
             ),
         ]
     ),
-].map { row in
-    var lettered = row
-
-    lettered.project = "p"
-    lettered.letters = "Pr"
-    return lettered
-}
+]
 
 /// One session working, nothing needing Lee.
 let allClearLine = WatchLine(rows: [

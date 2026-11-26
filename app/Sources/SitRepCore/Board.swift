@@ -240,8 +240,6 @@ public struct Board: Versioned, Sendable, Equatable {
         public let name: String
         /// Its project's name, which a Needs you row shows under its title.
         public let projectName: String
-        /// The strip's two letters for its project.
-        public let letters: String
         /// Needing Lee, the newest first; else its one.
         public let lines: [Line]
         /// The project and the session, under a Working or Your turn row's line; an away row's says no window holds it.
@@ -266,7 +264,6 @@ public struct Board: Versioned, Sendable, Equatable {
             project = try given.decode(String.self, forKey: .project)
             name = try given.decode(String.self, forKey: .name)
             projectName = try given.decode(String.self, forKey: .projectName)
-            letters = try given.decode(String.self, forKey: .letters)
             lines = try given.decode([Line].self, forKey: .lines)
             second = try given.decode(String.self, forKey: .second)
             since = try given.decode(Date.self, forKey: .since)
@@ -276,7 +273,7 @@ public struct Board: Versioned, Sendable, Equatable {
         }
 
         private enum CodingKeys: String, CodingKey {
-            case session, section, isAway, project, name, projectName, letters, lines, second, since
+            case session, section, isAway, project, name, projectName, lines, second, since
         }
     }
 
@@ -314,7 +311,6 @@ public struct Board: Versioned, Sendable, Equatable {
         public let project: String
         public let name: String
         public let projectName: String
-        public let letters: String
         public let lines: [Line]
         public let second: String
         /// When its soonest line wakes; nil for a turn snoozed until it moves.
@@ -334,7 +330,6 @@ public struct Board: Versioned, Sendable, Equatable {
             project = try given.decode(String.self, forKey: .project)
             name = try given.decode(String.self, forKey: .name)
             projectName = try given.decode(String.self, forKey: .projectName)
-            letters = try given.decode(String.self, forKey: .letters)
             lines = try given.decode([Line].self, forKey: .lines)
             second = try given.decode(String.self, forKey: .second)
             wakesAt = try given.decodeIfPresent(Date.self, forKey: .wakesAt)
@@ -344,7 +339,7 @@ public struct Board: Versioned, Sendable, Equatable {
         }
 
         private enum CodingKeys: String, CodingKey {
-            case session, isAway, project, name, projectName, letters, lines, second, wakesAt
+            case session, isAway, project, name, projectName, lines, second, wakesAt
         }
     }
 

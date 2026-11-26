@@ -46,8 +46,8 @@ extension WatchLine {
 
     /// A session's row: its lines, printed newest first as core orders them, whatever order they are given in. What
     /// core derives is derived as it prints, from the row as it then stands, unless given: its section, its newest
-    /// line's kind's; its time, its newest line's; its project's key and letters, from the project's name; its second
-    /// line, the project and the session, or, away, that no window holds it.
+    /// line's kind's; its time, its newest line's; its project's key, from the project's name; its second line, the
+    /// project and the session, or, away, that no window holds it.
     public struct Row: Encodable, Sendable, Naming {
         /// One of a row's lines: an ask, a window's stop, or the session's turn.
         public struct Line: Encodable, Sendable {
@@ -81,7 +81,6 @@ extension WatchLine {
         public var project: String?
         public var name: String
         public var projectName: String
-        public var letters: String?
         public var second: String?
         public var section: Section?
         public var since: Int?
@@ -89,15 +88,14 @@ extension WatchLine {
 
         public init(
             session: String = "sr-nw0001", isAway: Bool = false, project: String? = nil, name: String = "Ledger export",
-            projectName: String = "Northwind", letters: String? = nil, second: String? = nil, section: Section? = nil,
-            since: Int? = nil, lines: [Line]
+            projectName: String = "Northwind", second: String? = nil, section: Section? = nil, since: Int? = nil,
+            lines: [Line]
         ) {
             self.session = session
             self.isAway = isAway
             self.project = project
             self.name = name
             self.projectName = projectName
-            self.letters = letters
             self.second = second
             self.section = section
             self.since = since
@@ -172,20 +170,18 @@ extension WatchLine {
         public var project: String?
         public var name: String
         public var projectName: String
-        public var letters: String?
         public var second: String?
         public var lines: [Line]
 
         public init(
             session: String = "sr-nw0001", isAway: Bool = false, project: String? = nil, name: String = "Ledger export",
-            projectName: String = "Northwind", letters: String? = nil, second: String? = nil, lines: [Line]
+            projectName: String = "Northwind", second: String? = nil, lines: [Line]
         ) {
             self.session = session
             self.isAway = isAway
             self.project = project
             self.name = name
             self.projectName = projectName
-            self.letters = letters
             self.second = second
             self.lines = lines
         }
@@ -200,15 +196,6 @@ extension WatchLine {
             try row.encode(lines, forKey: .lines)
             try row.encode(lines[0].wakesAt, forKey: .wakesAt)
         }
-    }
-
-    /// A project's two letters, as core's `lettersOf` gives them: its capitals (`\p{Lu}`) where it has two, else its
-    /// first two letters or digits (`[\p{L}\p{N}]`).
-    static func letters(of name: String) -> String {
-        let capitals = name.unicodeScalars.filter { $0.properties.generalCategory == .uppercaseLetter }
-        let letters = capitals.count >= 2 ? capitals : name.unicodeScalars.filter(isLetterOrDigit)
-
-        return String(String.UnicodeScalarView(letters.prefix(2)))
     }
 
     /// A project's key, as core's `slug` makes one of its name: decomposed, its accents dropped, in lower case, each
@@ -228,16 +215,6 @@ extension WatchLine {
         return cut.isEmpty ? "project" : cut
     }
 
-    private static func isLetterOrDigit(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.properties.generalCategory {
-        case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter,
-             .decimalNumber, .letterNumber, .otherNumber:
-            true
-        default:
-            false
-        }
-    }
-
     private static func isMark(_ scalar: Unicode.Scalar) -> Bool {
         switch scalar.properties.generalCategory {
         case .nonspacingMark, .spacingMark, .enclosingMark: true
@@ -248,18 +225,17 @@ extension WatchLine {
 
 /// The keys of a row and a Snoozed row, in one set, as both name their session alike.
 enum RowKey: String, CodingKey {
-    case session, section, isAway, project, name, projectName, letters, lines, second, since, wakesAt
+    case session, section, isAway, project, name, projectName, lines, second, since, wakesAt
 }
 
-/// What names a row, in Needs you or Snoozed, as core's `namedRow` gives it: its project's key and letters from the
-/// project's name, and its second line the project and the session, or, away, that no window holds it, unless given.
+/// What names a row, in Needs you or Snoozed, as core's `namedRow` gives it: its project's key from the project's
+/// name, and its second line the project and the session, or, away, that no window holds it, unless given.
 protocol Naming {
     var session: String { get }
     var isAway: Bool { get }
     var project: String? { get }
     var name: String { get }
     var projectName: String { get }
-    var letters: String? { get }
     var second: String? { get }
 }
 
@@ -270,7 +246,6 @@ extension Naming {
         try row.encode(project ?? WatchLine.key(of: projectName), forKey: .project)
         try row.encode(name, forKey: .name)
         try row.encode(projectName, forKey: .projectName)
-        try row.encode(letters ?? WatchLine.letters(of: projectName), forKey: .letters)
         try row.encode(second ?? (isAway ? WatchLine.awayLine : "\(projectName) · \(name)"), forKey: .second)
     }
 }
