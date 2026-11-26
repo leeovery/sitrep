@@ -6,13 +6,13 @@ import SitRepPanel
 /// is on there, the rows' arrows that open it, and what the notch is told of it.
 extension NotchRun {
     /// The asks panel as the last frame or input placed it, beside its row, the part of it under the pointer lit, its
-    /// answers showing their keycaps while the panel holds the keys and no answer is held, when the digits answer; nil
-    /// while it is closed.
+    /// answers showing their keycaps while the panel holds the keys, no menu holds the card and no answer is held, when
+    /// the digits answer; nil while it is closed.
     public var asksShown: AsksShown? {
         asking.shown.map { shown in
             var shown = shown
 
-            shown.keycaps = hold.isOn && !asking.isHolding
+            shown.keycaps = hold.isOn && menuAt == nil && !asking.isHolding
             return shown
         }
     }
@@ -89,11 +89,23 @@ extension NotchRun {
         ))
     }
 
-    /// A key pressing a part of the asks panel (`AsksPanel.key`), coming to what a press on the part does.
+    /// A key pressing a part of the asks panel (`AsksPanel.key`), coming to what a press on the part does. Snooze ▾'s
+    /// menu opens from its foot at rest: its asks stop sliding first, so the menu stands under Snooze ▾ as drawn and
+    /// the card is held at its middle, on the asks panel, whatever height the slide had brought it to.
     func keyAsks(_ part: AsksPart, in setting: Setting) -> Press? {
-        pressed(asking.key(
+        let press = asking.key(
             part, panelRows, board, mirror: setting.mirror, reducesMotion: setting.reducesMotion, at: time
-        ))
+        )
+
+        guard case let .snooze(ask, of: session, at: _)? = press else {
+            return pressed(press)
+        }
+
+        asking.rest()
+        placeAsks(in: setting)
+        return asking.shown
+            .flatMap { shown in shown.middle(of: .snooze).map { shown.stagePoint($0, mirror: setting.mirror) } }
+            .map { .snooze(ask: ask, of: session, at: $0) }
     }
 
     private func pressed(_ press: AsksPress?) -> Press? {

@@ -6813,7 +6813,8 @@ the panel's, acting on the lit row, until:
   on there from its first key the panel doesn't take;
 - `o` is pressed, whether or not it jumps, or a click jumps: what is
   typed next is for the window jumped to, and no hold starts while the
-  jump is under way;
+  jump is under way; but for `o` while the asks panel's sending line
+  shows (below);
 - the screens sleep, the screen locks, the session goes to another user,
   or a window takes secure input, as the lock screen's password field and
   a sudo prompt do, so what is typed on coming back goes to the window in
@@ -6862,16 +6863,25 @@ on the panel, acting on the ask it shows; `s` does nothing there:
   `z` and `o` on the ask whose answer is sending, whose foot is the
   sending line, with no Snooze ▾ or Open in Claude ↗ to click (the build,
   26 November 2026); `→` or `←` to another ask finds them in its foot.
+  `o` there, which can't jump, leaves the hold, so `⌘Z` after it still
+  undoes (the review, 26 November 2026).
 - The 300ms beat (see "Answering from the panel") holds keys as it holds
   clicks: within it after a change the keys didn't make, the board's, a
   send's or the pointer's paging, a key does nothing, as a press there
   doesn't land. After a change the keys made, paging among them, a key
-  acts at once. Settled in the build, 26 November 2026:
-  - `←` `→` page beat or none, as a dot takes its click.
-  - A key presses no point on the screen, so past the beat it acts though
-    the ask is still sliding into place, where a click lands on nothing
-    until it stops; while fingers carry the asks, a key lands on nothing,
-    as a press does.
+  acts at once. Settled in the build and its review, 26 November 2026:
+  - `←` `→` page beat or none, as a dot takes its click; but a page
+    within a beat leaves it holding, so only paging what has stood its
+    beat counts as the keys' change.
+  - A key presses no point on the screen, so the beat holds it only for
+    what the asks panel reads: another ask, the same one changed, or the
+    sending line gone. The asks panel moving under a resting pointer,
+    which holds a click, holds no key, and past the beat a key acts
+    though the ask is still sliding into place, where a click lands on
+    nothing until it stops. While fingers carry the asks, a key lands on
+    nothing, as a press does.
+  - `z` as the asks slide brings them to rest first, so Snooze ▾'s menu
+    opens under Snooze ▾ as drawn.
 - **Closed by a key** with the pointer on it, the asks panel holds the
   panel as if the pointer rested on its row, as an open menu does, until
   the pointer moves: a pointer leaving its place then starts the panel's
@@ -6885,7 +6895,8 @@ on the panel, acting on the ask it shows; `s` does nothing there:
   right, so nothing moves or wraps as keycaps come and go. They come and
   go at once, with no motion. While an answer is sending, the keycaps go,
   and the held row's check stands in its keycap's place. A row past the
-  ninth, which no digit answers, shows none.
+  ninth, which no digit answers, shows none. While a menu holds the card,
+  Snooze ▾'s or a row's, the menu has the keys and the keycaps go.
 
 **Menus.** A snooze menu `z` opens, from a row or as Snooze ▾'s, is a
 native menu, the right-click menu's `SnoozeMenu` shown on its own:

@@ -135,7 +135,7 @@ public enum KeyVerdict: Equatable, Sendable {
 /// A key taken is taken whole: its repeats and its key-up go as it went down, taken or rewritten, whatever the snapshot
 /// says by then. Only `↑` `↓`, `k` `j`, `←` and `→` act again as they repeat. A key the panel doesn't take ends its hold
 /// here at once, as `o` does, which jumps, so the keys typed after it go through though the main thread has yet to hear
-/// of it.
+/// of it; but for `o` while the asks panel's sending line shows, where it can't jump, which leaves the hold its `⌘Z`.
 public struct KeyReader: Sendable {
     /// How a key down went, which its repeats and its key-up follow.
     private enum Went: Sendable {
@@ -210,7 +210,7 @@ public struct KeyReader: Sendable {
                 ended = hold
                 return .letGo(hold: hold)
             }
-            if panelKey == .open {
+            if panelKey == .open, !undoes {
                 ended = hold
             }
 

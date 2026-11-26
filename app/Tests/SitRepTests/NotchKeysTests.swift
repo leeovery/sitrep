@@ -422,6 +422,25 @@ struct NotchKeysTests {
         #expect(tap.read(undo) == .letGo(hold: hold))
     }
 
+    /// A menu holding the card has the keys: as the row's right-click menu opens, the asks panel is drawn without its
+    /// keycaps before the menu tracks, so no number shows beside the menu's own.
+    @Test func aMenuHoldingTheCardDrawsTheAsksPanelWithoutKeycaps() throws {
+        let world = KeysWorld(), (notch, edge, next) = try Self.opened(world)
+        let pointer = try Self.words(Self.helpDesk, notch.run)
+
+        defer { notch.window.close() }
+        notch.step(at: next(), pointer: pointer)
+        notch.heard(.enter, pointer: pointer)
+        notch.step(at: next(), pointer: pointer)
+        try #require(notch.surface.scene?.asks?.keycaps == true)
+
+        let onScreen = edge.screenRect(CGRect(origin: pointer, size: .zero)).origin
+        let menu = try #require(notch.surface.pointer.menu(onScreen))
+
+        notch.menuWillOpen(menu)
+        #expect(notch.surface.scene?.asks?.keycaps == false)
+    }
+
     /// `z` on a Needs you row offers the row's Snooze times numbered, a choice snoozing its session, naming the asks the
     /// row showed, as the row's menu's Snooze does.
     @Test func theRowsSnoozeMenuSnoozesItsSessionNamingItsAsks() throws {

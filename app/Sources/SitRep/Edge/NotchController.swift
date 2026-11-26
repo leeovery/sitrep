@@ -402,11 +402,20 @@ final class NotchController: NSObject, CalloutShape {
     /// `holding` on the stage, as the row's menu holds it, and its digits, `z`, `k` and `j` the tap's while it shows.
     private func show(_ menu: SnoozeMenu, at point: CGPoint, holding: CGPoint) {
         run.menuOpened(at: holding)
+        drawHeld()
         keys.shows(menu)
         menu.popUp(positioning: nil, at: point, in: surface)
         keys.menuClosed()
         run.menuClosed()
         took()
+    }
+
+    /// The card as a menu holding it shows it, drawn before the menu tracks, so the asks panel's keycaps are gone as
+    /// the menu's own digits show.
+    private func drawHeld() {
+        if isShown {
+            draw()
+        }
     }
 
     /// An answer's news, as the answers tell it: the asks panel shows it sending, as it was, or at the session's next
@@ -566,6 +575,7 @@ extension NotchController: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         if let menuAt {
             run.menuOpened(at: menuAt)
+            drawHeld()
         }
         keys.showsRowMenu()
     }

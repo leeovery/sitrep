@@ -57,14 +57,18 @@ extension NotchRun {
     /// A key of the set while the panel holds the keys, open, acting on the lit row as its click would: on the asks
     /// panel while it is open (`asksKey`), else on the list (`listKey`). A key with no use at the moment does nothing,
     /// as does one heard while a menu holds the card, the menu's. `o` ends the hold whether or not it jumps, as the tap
-    /// ended it as it took `o` (`KeyReader`), so the keys typed after it go to the window in front.
+    /// ended it as it took `o` (`KeyReader`), so the keys typed after it go to the window in front; but for `o` while
+    /// the sending line shows, where it can't jump, which keeps the hold for `⌘Z`.
     public func key(_ key: PanelKey, _ moment: Moment) -> Press? {
         upToNow(moment)
         guard hold.isOn, notch.phase == .open, menuAt == nil else {
             return nil
         }
+
+        let undoes = asking.shown?.sending != nil
+
         defer {
-            if key == .open {
+            if key == .open, !undoes {
                 endHold()
             }
             placeAsks(in: moment.setting)

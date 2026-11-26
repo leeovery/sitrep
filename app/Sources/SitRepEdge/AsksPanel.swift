@@ -47,7 +47,17 @@ struct AsksPanel {
             let moved = hypot(place.x - was.place.x, place.y - was.place.y)
                 > max(Self.snap, Self.settling * (time - was.time) / 1000)
 
-            return was.ask != ask || (was.isSending && !isSending) || (pointerOn && moved)
+            return readsOther(than: was) || (pointerOn && moved)
+        }
+
+        /// Whether, shown after `was` beside the same row, it reads otherwise, wherever it stands: another ask, or
+        /// the same one changed; or the sending line gone. What a key, which presses no point, tells a change by.
+        func readsOther(than was: Look?) -> Bool {
+            guard let was, was.row == row else {
+                return false
+            }
+
+            return was.ask != ask || (was.isSending && !isSending)
         }
 
         /// How fast, pt/s, it moves as the panel's springs settle, which is no move: half a point a frame at 60Hz,
@@ -74,9 +84,11 @@ struct AsksPanel {
     private var isDragHeld = false
     private var look: Look?
     private var lookedAt = -Double.infinity
-    /// Whether the keys made the change of meaning at `lookedAt`, paging it, which a key waits on no beat after; and
-    /// whether they paged it since it was last placed.
-    private var lookedByKeys = false
+    /// When it last read otherwise (`Look.readsOther`), which a key waits out the beat after; whether the keys' own
+    /// paging made that change, which a key waits on no beat after; and whether they paged it since it was last
+    /// placed.
+    private var readAt = -Double.infinity
+    private var readByKeys = false
     private var keysPaged = false
     /// The row it opened beside, and how far the list was scrolled then.
     private var opened: (row: String, scroll: Double)?
@@ -189,7 +201,7 @@ struct AsksPanel {
     }
 
     /// At the ask on this page of its row's session's, where it has one, sliding there (DESIGN, "Paging"); paged
-    /// `byKeys`, a key after it waits on no beat (`isSettled(forKeysAt:)`).
+    /// `byKeys`, as the keys page what has stood its beat, a key after it waits on no beat (`isSettled(forKeysAt:)`).
     mutating func page(
         to page: Int, _ rows: some AsksRows, _ board: PanelBoard, reducesMotion: Bool, byKeys: Bool = false
     ) {
@@ -297,10 +309,19 @@ struct AsksPanel {
 
         if look?.meansOther(than: self.look, pointerOn: pointerOn) == true {
             lookedAt = time
-            lookedByKeys = keysPaged
+        }
+        if look?.readsOther(than: self.look) == true {
+            readAt = time
+            readByKeys = keysPaged
         }
         self.look = look
         keysPaged = false
+    }
+
+    /// Its asks at rest at once, wherever their slide had come to, for the next placing to stand it as it rests: as
+    /// a menu opens from its foot.
+    mutating func rest() {
+        slide.rest()
     }
 
     /// Whether a point on the stage is on it, as last placed.
@@ -374,10 +395,11 @@ struct AsksPanel {
         time - lookedAt >= Self.settle
     }
 
-    /// Whether a key takes now (DESIGN, "Keys"): the last change of meaning was the keys' own paging, which a key
-    /// acts at once after; else it has stood `settle` since, as for a press.
+    /// Whether a key takes now (DESIGN, "Keys"): it last read otherwise by the keys' own paging, which a key acts at
+    /// once after; else it has read as it does for `settle`. A key presses no point, so it moving under the pointer is
+    /// no change to it.
     func isSettled(forKeysAt time: Double) -> Bool {
-        lookedByKeys || isSettled(at: time)
+        readByKeys || time - readAt >= Self.settle
     }
 
     /// How long, ms, what it shows stands before it takes a press.

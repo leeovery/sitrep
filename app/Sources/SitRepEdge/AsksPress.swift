@@ -46,26 +46,20 @@ extension AsksPanel {
     /// A key pressing a part of it (DESIGN, "Keys"), on the ask shown wherever the pointer is, as a click on the part's
     /// middle does (`press`): nothing where the part doesn't show or takes no click now, as an answer's row or Ignore
     /// while an answer is held, Snooze ▾ while Snooze offers no time, or Undo with no sending line, nor while fingers
-    /// carry its asks. A page dot pages it beat or none, as its click does, the beat after it not holding the next key;
-    /// any other part waits out the beat after a change the keys didn't make (`isSettled(forKeysAt:)`), its asks
-    /// sliding or not.
+    /// carry its asks. A page dot pages it beat or none, as its click does, the beat after it holding the next key only
+    /// where it paged within one; any other part waits out the beat after a change the keys didn't make
+    /// (`isSettled(forKeysAt:)`), its asks sliding or not.
     mutating func key(
         _ part: AsksPart, _ rows: some AsksRows, _ board: PanelBoard, mirror: CGAffineTransform, reducesMotion: Bool,
         at time: Double
     ) -> AsksPress? {
-        guard let asks = shown, !isFollowing,
-              let box = asks.layout.box(of: part, progress: asks.progress, of: asks.pages)
+        guard let asks = shown, !isFollowing, let middle = asks.middle(of: part),
+              Self.part(of: asks, own: middle, holding: isHolding) == part
         else {
             return nil
         }
-
-        let middle = CGPoint(x: box.midX, y: box.midY)
-
-        guard Self.part(of: asks, own: middle, holding: isHolding) == part else {
-            return nil
-        }
         if case let .page(page) = part {
-            self.page(to: page, rows, board, reducesMotion: reducesMotion, byKeys: true)
+            self.page(to: page, rows, board, reducesMotion: reducesMotion, byKeys: isSettled(forKeysAt: time))
             return .paged
         }
 

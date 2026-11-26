@@ -413,6 +413,16 @@ struct AsksPanelDrawnTests {
         #expect(lines[1] == lines[0] && lines[2] == lines[0])
     }
 
+    /// A keycap's number set at the keycap's middle, the slack words set whole take past it.
+    @Test func aKeycapsNumberIsCentredInIt() {
+        for number in 1 ... 9 {
+            let digit = AsksPanelParts.keycapNumber(number), width = TextLine.width(digit.text)
+
+            #expect(abs(digit.box.minX + width / 2 - AsksLayout.keycapSide / 2) < 1e-9)
+            #expect(abs(digit.box.midY - AsksLayout.keycapSide / 2) < 1e-9)
+        }
+    }
+
     /// Only the first nine answers are numbered, `1` to `9`: a tenth shows no keycap.
     @Test func rowsPastNineShowNoKeycap() {
         let ask = PanelAsk(

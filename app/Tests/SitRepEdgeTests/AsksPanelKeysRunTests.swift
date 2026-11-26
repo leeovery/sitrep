@@ -49,7 +49,7 @@ struct AsksPanelKeysRunTests {
         folding.set(.snoozed, folded: false)
 
         let run = NotchRun(at: 1000, in: setting, folding: folding)
-        let notch = CGPoint(x: 3, y: setting.stage.notchY)
+        let notch = CGPoint(x: 3, y: run.notchY)
 
         _ = run.show(board, at(run, nil, setting))
         while run.time < 4000, run.phase != .open || run.frame.isMoving {
@@ -316,13 +316,16 @@ struct AsksPanelKeysRunTests {
     }
 
     /// The ask shown changed by something other than the keys: the board leaving its ask out, its answer going, a
-    /// click on a dot, or a swipe's lift. Where the pointer is after it, still on the panel.
-    private static func change(_ change: Change, _ run: NotchRun, _ pointer: CGPoint) throws -> CGPoint {
+    /// click on a dot, or a swipe's lift, the board's third ask kept where it has one. Where the pointer is after it,
+    /// still on the panel.
+    private static func change(
+        _ change: Change, _ run: NotchRun, _ pointer: CGPoint, withNotes: Bool = false
+    ) throws -> CGPoint {
         let setting = Self.setting()
 
         switch change {
         case .board:
-            _ = run.show(AsksBoard.board(without: ["k1"]), Self.at(run, pointer, setting))
+            _ = run.show(AsksBoard.board(without: ["k1"], withNotes: withNotes), Self.at(run, pointer, setting))
             return pointer
         case .send:
             run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
@@ -365,7 +368,7 @@ struct AsksPanelKeysRunTests {
     }
 
     /// After a change the keys made, paging among the asks, a key acts at once, the ask still sliding in; a click
-    /// still waits out the beat. A dot's click and then `→` leave the keys' change the last: a key acts at once.
+    /// still waits out the beat.
     @Test func afterTheKeysPageAKeyActsAtOnce() throws {
         let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
 
@@ -373,13 +376,77 @@ struct AsksPanelKeysRunTests {
         #expect(run.asking.isSliding)
         #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == nil)
         #expect(Self.press(.digit(1), run, pointer) == .answer(Self.approve))
+    }
 
-        let (other, onRow) = try Self.asksOpen()
-        let dot = try Self.change(.dot, other, onRow)
+    /// The arrows paging within the beat after a change they didn't make leave it holding: after a dot's click, `←`
+    /// and `→`, a key still waits; after the board's change, `→` lands on the ask after, and `1` waits there too. Once
+    /// the beat has passed, it answers.
+    @Test(arguments: [Change.dot, .board])
+    func anArrowWithinTheBeatLeavesItHolding(_ change: Change) throws {
+        let setting = Self.setting(), board = AsksBoard.board(withNotes: true)
+        let (run, pointer) = try Self.asksOpen(Self.helpDesk, board: board)
+        let onPanel = try Self.change(change, run, pointer, withNotes: true)
+        let notes = Self.answer("Ship", to: "k4", wanting: .yes)
 
-        Self.press(.left, other, dot)
-        Self.press(.right, other, dot)
-        #expect(Self.press(.digit(1), other, dot) == .answer(Self.approve))
+        if change == .dot {
+            #expect(Self.press(.left, run, onPanel) == .asks)
+        }
+        #expect(Self.press(.right, run, onPanel) == .asks)
+
+        let answer = change == .dot ? Self.approve : notes
+
+        #expect(run.asksShown?.ask.id == (change == .dot ? "k2" : "k4"))
+        #expect(Self.press(.digit(1), run, onPanel) == nil)
+        Self.frames(run, for: AsksPanel.settle, onPanel, setting)
+        #expect(Self.press(.digit(1), run, onPanel) == .answer(answer))
+    }
+
+    /// A key presses no point, so the asks panel moving under a resting pointer holds no key: kept at the screen's
+    /// foot, it moves as its height follows `→`'s slide to a shorter ask, which holds a click, but `1` acts at once.
+    @Test func itMovingUnderARestingPointerHoldsNoKey() throws {
+        let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: Self.lowNotch)
+        var setting = Self.setting()
+
+        setting.stage = stage
+
+        let (run, _) = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
+        let asks = try #require(run.asksShown), resting = CGPoint(x: asks.frame.maxX - 40, y: asks.frame.minY + 70)
+
+        try #require(abs(asks.frame.maxY - (stage.visibleBottom - AsksLayout.spare)) < 1e-9)
+        Self.frames(run, for: AsksPanel.settle, resting, setting)
+        try #require(run.holdsKeys)
+        Self.press(.right, run, resting, setting)
+
+        let stood = try #require(run.asksShown?.frame.minY)
+
+        Self.frames(run, for: 100, resting, setting)
+        try #require(run.asking.isSliding && run.asksShown.map { $0.frame.minY > stood + 1 } == true)
+        #expect(!run.asking.isSettled(at: run.time))
+        #expect(Self.press(.digit(1), run, resting, setting) == .answer(Self.approve))
+    }
+
+    /// The notch's home low on the screen, so the asks panel beside Help desk redesign, alone on the board, is kept
+    /// above the screen's foot.
+    private static let lowNotch = 940.0
+
+    /// `z` as the asks slide in after `→`: they come to rest first, so Snooze ▾'s menu stands under it as drawn, the
+    /// card held at its middle, on the asks panel.
+    @Test func zMidSlideOpensFromTheAsksAtRest() throws {
+        let (run, pointer) = try Self.asksOpen()
+
+        Self.press(.right, run, pointer)
+        try #require(run.asking.isSliding)
+        guard case let .snooze(ask, of: _, at: point)? = Self.press(.snooze, run, pointer) else {
+            Issue.record("z offered no snooze")
+            return
+        }
+
+        let asks = try #require(run.asksShown), button = try Self.part(.snooze, run)
+
+        #expect(ask == "k2" && !run.asking.isSliding && asks.slid == 0 && asks.beside == nil)
+        #expect(abs(asks.frame.height - asks.layout.height) < 1e-9)
+        #expect(abs(point.x - button.x) < 1e-9 && abs(point.y - button.y) < 1e-9)
+        #expect(asks.contains(point))
     }
 
     /// While fingers carry the asks, a key lands on nothing, as a press then does, not even a page.
@@ -394,7 +461,29 @@ struct AsksPanelKeysRunTests {
         #expect(run.asksShown?.ask.id == "k1")
     }
 
+    /// `o` while the ask's own answer is sending can't jump, and leaves the hold its `⌘Z`.
+    @Test func oWhileSendingKeepsTheHoldForCommandZ() throws {
+        let (run, pointer) = try Self.asksOpen()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, pointer, Self.setting()))
+        #expect(Self.press(.open, run, pointer) == nil)
+        #expect(run.holdsKeys && run.keySnapshot == .panel(hold: 1, undoes: true))
+        #expect(Self.press(.undo, run, pointer) == .undo)
+    }
+
     // MARK: Keycaps
+
+    /// A menu holding the card, Snooze ▾'s or a row's, has the keys: the keycaps go while it shows, beside its own
+    /// digits, and come back as it closes.
+    @Test func whileAMenuHoldsTheCardNoKeycaps() throws {
+        let (run, pointer) = try Self.asksOpen()
+
+        run.menuOpened(at: try Self.part(.snooze, run))
+        #expect(run.asksShown?.keycaps == false)
+        run.menuClosed()
+        #expect(run.asksShown?.keycaps == true)
+        #expect(run.holdsKeys && Self.press(.digit(1), run, pointer) != nil)
+    }
 
     /// The answers show their keycaps while the panel holds the keys and no answer is held: gone as one is held, back
     /// as it is undone, gone as a key the panel doesn't take lets go, back as the pointer moves on the panel.

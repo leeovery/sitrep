@@ -214,6 +214,14 @@ struct KeyReaderTests {
         #expect(reader.read(Self.typing("z", .maskCommand, .up), in: Self.holding) == .take(nil))
     }
 
+    /// `o` while the sending line shows can't jump: it keeps the hold, so the `⌘Z` after it is still the panel's.
+    @Test func oWhileTheSendingLineShowsKeepsTheHold() {
+        var reader = KeyReader()
+
+        #expect(reader.read(Self.typing("o"), in: Self.undoing) == .take(.panel(.open)))
+        #expect(reader.read(Self.typing("z", .maskCommand), in: Self.undoing) == .take(.panel(.undo)))
+    }
+
     // MARK: A snooze menu on its own
 
     @Test func inASnoozeMenuItsDigitsChooseUpToItsLastAndPastItDoNothing() {

@@ -244,9 +244,9 @@ enum AsksPanelParts {
     /// keycap's frame.
     static func keycapNumber(_ number: Int) -> (text: NSAttributedString, box: CGRect) {
         let text = TextLine.text("\(number)", EdgeStyle.asksKeycap, EdgeStyle.ink2)
-        let width = TextLine.width(text) + Self.slack, side = AsksLayout.keycapSide, line = AsksLayout.textLine
+        let width = TextLine.width(text), side = AsksLayout.keycapSide, line = AsksLayout.textLine
 
-        return (text, CGRect(x: (side - width) / 2, y: (side - line) / 2, width: width, height: line))
+        return (text, CGRect(x: (side - width) / 2, y: (side - line) / 2, width: width + Self.slack, height: line))
     }
 
     static let checkWidth = 1.6, strokeWidth = 1.5

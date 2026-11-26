@@ -26,8 +26,8 @@ public struct AsksShown: Equatable, Sendable {
     /// The ask beside its own as it slides, sliding in or out on the side it is slid toward; nil at rest, or past the
     /// first or the last ask.
     public internal(set) var beside: Beside?
-    /// Whether its answers' rows show their numbers in keycaps: while the panel holds the keys and no answer is held,
-    /// when the digits answer (DESIGN, "Keys").
+    /// Whether its answers' rows show their numbers in keycaps: while the panel holds the keys, no menu holds the card
+    /// and no answer is held, when the digits answer (DESIGN, "Keys").
     public internal(set) var keycaps = false
 
     /// An ask beside the one shown as the asks slide: its page among the session's, laid out, the answer held for it.
@@ -80,6 +80,12 @@ public struct AsksShown: Equatable, Sendable {
     public func ownPoint(_ point: CGPoint, mirror: CGAffineTransform) -> CGPoint {
         let drawn = frame.applying(mirror), at = point.applying(mirror)
         return CGPoint(x: at.x - drawn.minX, y: at.y - drawn.minY)
+    }
+
+    /// The middle of a part in its own frame, its page dots where its slide has brought them; none where it has no such
+    /// part.
+    func middle(of part: AsksPart) -> CGPoint? {
+        layout.box(of: part, progress: progress, of: pages).map { CGPoint(x: $0.midX, y: $0.midY) }
     }
 
     /// A point in its own frame on the stage, as drawn through the edge's mirror: `ownPoint` the other way.
