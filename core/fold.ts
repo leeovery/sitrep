@@ -392,7 +392,6 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
   fitShape(ask)
 }
 
-/** An item opening again, afresh, Lee's own snooze of an ask ended: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
 /** An ask waiting on Lee afresh, reopened or handed back: a new need, its time counting from `at`, his own snooze of it ended. */
 const waitAfresh = (fold: Fold, ask: Ask, at: number) => {
   endAskSnooze(fold.asleep, ask.id, at)
@@ -401,6 +400,7 @@ const waitAfresh = (fold: Fold, ask: Ask, at: number) => {
   ask.state = 'waiting'
 }
 
+/** An item opening again, afresh, Lee's own snooze of an ask ended: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
 const reopen = (fold: Fold, item: Item, at: number) => {
   if (item.closedBy !== undefined) {
     for (const reply of item.replies.filter(each => !isPending(each) && isLine(fold, each))) {

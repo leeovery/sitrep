@@ -42,7 +42,7 @@ The list gives each session id. The brackets count what the session holds:
 
 - `open`: a window is running the session.
 - `waiting`: asks waiting on you.
-- `snoozed`: asks put aside while the session is snoozed.
+- `snoozed`: asks snoozed, with their session or alone.
 - `parked`: items the session parked, which never wait on you.
 
 A project with nothing current but parked items shows `no current sessions (1 parked)`. The board names each item by a short id, such as `xsaq`. Other commands take these ids.
