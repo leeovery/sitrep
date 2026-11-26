@@ -7,8 +7,7 @@ import Testing
 
 /// Needs you's marks in one grammar (13 November 2026): colour says what is needed, an ask's orange or Lee's turn's
 /// blue; fill says where the session is, a dot with its glow where this Mac shows it and a hollow ring away; and a row
-/// in Snoozed its dot, its colour dimmed. On the card, read from its pixels at 2×; the menu's marks and glyph; and the
-/// strip's rings.
+/// in Snoozed its dot, its colour dimmed. On the card, read from its pixels at 2×; and the menu's marks and glyph.
 @MainActor
 @Suite(.backstop)
 struct NeedsYouMarksTests {
@@ -147,48 +146,5 @@ struct NeedsYouMarksTests {
         image.draw(in: NSRect(x: 0, y: 0, width: side, height: side))
         NSGraphicsContext.restoreGraphicsState()
         return bitmap
-    }
-
-    // MARK: The strip
-
-    /// A turn's ring is blue, here or away, as an ask's is orange; away, its letters dim as an away ask's do.
-    @Test(arguments: [StripFrame.Mark.Look.turn, .awayTurn])
-    func theStripsTurnRingIsBlue(look: StripFrame.Mark.Look) throws {
-        let layer = StripMarkLayer()
-
-        layer.show(Self.mark(look), at: .zero)
-
-        #expect(layer.ring.borderColor == EdgeStyle.blue)
-        #expect(layer.letters.backgroundColor == (look == .turn ? EdgeStyle.ink : EdgeStyle.ink3))
-    }
-
-    /// Needs you's count's two looks drawn: orange, while it holds any session not stopped, and blue, while all it
-    /// holds are stopped (14 November 2026).
-    @Test(arguments: [(StripFrame.Mark.Look.needsCount, Need.ask), (.stoppedCount, .turn)])
-    func theStripsNeedsYouCountIsOrangeOrBlue(look: StripFrame.Mark.Look, need: Need) {
-        let layer = StripMarkLayer()
-
-        layer.show(Self.mark(look), at: .zero)
-
-        #expect(layer.ring.borderColor == (need == .ask ? EdgeStyle.orange : EdgeStyle.blue))
-        #expect(layer.letters.backgroundColor == EdgeStyle.ink)
-    }
-
-    /// A stopped mark arriving flashes in its own blue, its ring at the flash's height its light's warm, and is not
-    /// washed orange, as only an ask's arrival is.
-    @Test func aStoppedMarksArrivalFlashesBlue() throws {
-        let layer = StripMarkLayer()
-
-        layer.show(Self.mark(.turn, flash: 1), at: .zero)
-
-        #expect(layer.ring.borderColor == EdgeStyle.color(LiveLight.Palette.turn.warm))
-        #expect(try #require(layer.ring.backgroundColor).alpha == 0)
-    }
-
-    private static func mark(_ look: StripFrame.Mark.Look, flash: Double = 0) -> StripFrame.Mark {
-        StripFrame.Mark(
-            key: .session("a"), text: "SR", look: look, centre: .zero, scale: 1, alpha: 1, isLifted: false, lift: 0,
-            isJumping: false, wash: 0, flash: flash
-        )
     }
 }

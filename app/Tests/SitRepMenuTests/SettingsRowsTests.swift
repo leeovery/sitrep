@@ -7,17 +7,13 @@ import SitRepRelay
 import SitRepTestSupport
 import Testing
 
-/// Edge's sections under the Show row's card: one named for the shape, holding the rows that tune it, then Motion.
+/// Edge's sections under the Show row's card: Notch, holding the rows that tune it, then Motion; none for Nothing.
 @Suite(.backstop)
 struct EdgePaneTests {
-    private static func sections(
-        _ show: EdgeSettings.Show, length: StripLength = .grows
-    ) -> [EdgePane.Section] {
+    private static func sections(_ show: EdgeSettings.Show) -> [EdgePane.Section] {
         var settings = EdgeSettings()
 
         settings.show = show
-        settings.length = length
-
         return EdgePane.sections(settings)
     }
 
@@ -27,17 +23,6 @@ struct EdgePaneTests {
         #expect(Self.sections(.notch) == [
             EdgePane.Section(name: "Notch", rows: [.edge, .display, .style]), Self.motion,
         ])
-    }
-
-    @Test func theStripsSectionIsEdgeDisplayLengthAndMaxThenMotion() {
-        #expect(Self.sections(.strip) == [
-            EdgePane.Section(name: "Strip", rows: [.edge, .display, .length, .max]), Self.motion,
-        ])
-    }
-
-    @Test func maxIsForGrowsAlone() {
-        #expect(Self.sections(.strip, length: .full).first?.rows == [.edge, .display, .length])
-        #expect(!Self.sections(.notch, length: .grows).contains { $0.rows.contains(.max) })
     }
 
     @Test func withNothingThereIsNoSectionAndOneLineSaysWhatCarriesTheBoard() {
@@ -84,7 +69,7 @@ struct NoticeRowsTests {
 
     @Test(arguments: [
         (NoticeLeave.denied, EdgeSettings.Show.notch, "the notch swells and lights"),
-        (.allowed(.none), .strip, "the strip flashes"),
+        (.allowed(.none), .notch, "the notch swells and lights"),
         (.denied, .nothing, "the menu bar's light comes on"),
     ])
     func whileMacOSStopsItTheSwitchGreysAndSaysWhatTellsLeeInstead(leave: NoticeLeave, show: EdgeSettings.Show, instead: String) {
@@ -106,7 +91,7 @@ struct NoticeRowsTests {
     @Test(arguments: [
         (NoticeLeave?.some(.allowed(.banners)), EdgeSettings.Show.notch, nil),
         (.denied, .notch, "the notch lights blue"),
-        (.allowed(.none), .strip, "its mark on the strip turns blue"),
+        (.allowed(.none), .nothing, "the menu bar's light turns blue"),
         (.denied, .nothing, "the menu bar's light turns blue"),
     ])
     func leesTurnHasItsOwnSwitch(leave: NoticeLeave?, show: EdgeSettings.Show, instead: String?) {

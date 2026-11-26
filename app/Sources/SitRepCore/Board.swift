@@ -13,15 +13,15 @@ public struct Board: Versioned, Sendable, Equatable {
     /// The CLI's own version, which a window behind needs `/reload-plugins` to catch up to.
     public let version: String?
     public let head: Head
-    /// The panel's, the strip's and the menu's rows, a session each, in their order.
+    /// The panel's and the menu's rows, a session each, in their order.
     public let rows: [Row]
     /// The card's Snoozed rows, a session each, the soonest to wake first: apart from `rows`, as a
     /// session may have one in both. None from a CLI before Snooze.
     public let snoozed: [SnoozedRow]
     /// Every live window, the longest attached first, a finished session's among them.
     public let windows: [Window]
-    /// The keys of the lines needing Lee that the last line had not, an ask's or a window's stop: the notch's swell,
-    /// the strip's flash. None on the first line.
+    /// The keys of the lines needing Lee that the last line had not, an ask's or a window's stop: the notch's swell.
+    /// None on the first line.
     public let new: [String]
     /// Every session the projects list, a current one each, row or none, by its id: their names alone, which a jump
     /// names a session by. Read in any shape or none, as no surface shows the projects: a line whose projects do not

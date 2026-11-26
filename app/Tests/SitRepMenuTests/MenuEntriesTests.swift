@@ -19,7 +19,7 @@ struct MenuEntriesTests {
             "header", "separator:header",
             "heading:sessions", "row:sr-l5c9tz", "row:sr-dash", "row:sr-plan",
             "row:sr-boot", "separator:hairline", "row:sr-diff", "separator:sessions",
-            "heading:show", "show:notch", "show:strip", "show:nothing", "separator:show", "welcome",
+            "heading:show", "show:notch", "show:nothing", "separator:show", "welcome",
             "settings", "separator:settings", "quit",
         ])
     }
@@ -56,8 +56,8 @@ struct MenuEntriesTests {
     }
 
     @Test func showTicksTheOneInUse() {
-        #expect(Self.entries(show: .strip).filter { $0.key.hasPrefix("show:") } == [
-            .show(.notch, isTicked: false), .show(.strip, isTicked: true), .show(.nothing, isTicked: false),
+        #expect(Self.entries(show: .nothing).filter { $0.key.hasPrefix("show:") } == [
+            .show(.notch, isTicked: false), .show(.nothing, isTicked: true),
         ])
     }
 
@@ -117,7 +117,7 @@ struct MenuEntriesTests {
     }
 
     @Test func showChangedSetsItsTwoTicksAgainInPlace() {
-        let new = Self.entries(show: .strip)
+        let new = Self.entries(show: .nothing)
         let changes = MenuChanges(from: Self.entries(), to: new)
 
         #expect(changes.changes.map(\.offset) == [11, 12])

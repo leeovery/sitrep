@@ -7,8 +7,8 @@ import SitRepTestSupport
 import Testing
 
 /// The card's sections as the notch runs them: a click on an eyebrow folds its section at once and is kept, an
-/// arrival unfolds Needs you, every your-turn row stays however old, no hairline comes as sections fold, and the head
-/// shows only with nothing to list or a stale board.
+/// arrival unfolds Needs you while the notch is chosen, every your-turn row stays however old, no hairline comes as
+/// sections fold, and the head shows only with nothing to list or a stale board.
 @MainActor
 @Suite(.backstop)
 struct CardSectionsRunTests {
@@ -179,6 +179,34 @@ struct CardSectionsRunTests {
         #expect(there.count == 2)
         expectEvery(there) { $0.height == $0.item.height }
         #expect(arriving.height < arriving.item.height)
+    }
+
+    /// With Nothing chosen, the notch hidden, an arrival leaves Needs you folded.
+    @Test func anArrivalLeavesNeedsYouFoldedWhileTheNotchIsNotChosen() {
+        let kept = Self.kept([.needsYou])
+        let run = NotchRun(at: 1000, in: Self.setting, folding: Folding(kept: kept), calendar: Self.london)
+        var setting = Self.setting
+
+        setting.isChosen = false
+        _ = run.show(Self.board(Self.mixed), NotchRun.Moment(time: run.time, pointer: nil, setting: setting))
+        _ = run.show(
+            Self.board([Self.ask("sr-c")] + Self.mixed, new: ["ask:sr-c"]),
+            NotchRun.Moment(time: run.time, pointer: nil, setting: setting)
+        )
+
+        #expect(run.folded.sections == [.needsYou])
+        #expect(kept.read().folded == [.needsYou])
+    }
+
+    /// Kept under the card's key, Snoozed alone folded at first, so the card starts as Lee left it.
+    @Test func theFoldsAreKept() {
+        let kept = SavedSettings<CardSettings>(MemoryDefaults())
+
+        #expect(Folding(kept: kept).folds.sections == [.snoozed])
+
+        Folding(kept: kept).set(.working, folded: true)
+        #expect(kept.read().folded == [.working, .snoozed])
+        #expect(Folding(kept: kept).folds.sections == [.working, .snoozed])
     }
 
     /// A new working row on the board that unfolds Needs you folds in as any arriving row does.

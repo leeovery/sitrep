@@ -41,8 +41,8 @@ public final class NotchRun: Framed {
         /// The notch Lee chose, which the model becomes once it is at rest.
         public var style: NotchStyle
         public var reducesMotion: Bool
-        /// Whether Lee chose the notch to show the board: an arrival unfolds Needs you on its card. With the strip
-        /// chosen, Needs you folded stays folded, its count on the strip flashing (14 November 2026).
+        /// Whether Lee chose the notch to show the board: an arrival unfolds Needs you on its card. With Nothing
+        /// chosen, Needs you folded stays folded.
         public var isChosen: Bool
         /// Whether one ask's Snooze offers a time now, as Lee set them: the asks panel's foot shows Snooze ▾ only
         /// while it does, as the pane shows its snooze button.
@@ -101,10 +101,10 @@ public final class NotchRun: Framed {
     public private(set) var scroll = 0.0
     /// A press off a row, which a move makes a drag, until it lets go.
     public private(set) var drag: NotchDrag?
-    /// The sections Lee folded, here or on the strip, as they change, by a click or an arrival unfolding Needs you.
+    /// The sections Lee folded, as they change, by a click or an arrival unfolding Needs you.
     public var folded: CardFolds { folding.folds }
 
-    /// What Lee folded, the strip's setting as well.
+    /// What Lee folded, kept.
     private let folding: Folding
     /// The light's own clock, apart from the frames': the latest it was drawn at.
     private var lit: Double
@@ -174,8 +174,7 @@ public final class NotchRun: Framed {
     }
 
     /// One frame: the list as it folds now, the model moved on with the pointer where it is, the rows taking core's
-    /// order once the panel is in, and the sections as folded on the strip meanwhile, the notch Lee chose once it is at
-    /// rest, and the scroll kept inside the content.
+    /// order once the panel is in, the notch Lee chose once it is at rest, and the scroll kept inside the content.
     public func step(_ moment: Moment) {
         let time = book.clock(moment.time), setting = moment.setting
 

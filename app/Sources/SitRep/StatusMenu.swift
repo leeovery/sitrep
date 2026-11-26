@@ -283,7 +283,6 @@ extension EdgeSettings.Show {
     var title: String {
         switch self {
         case .notch: "Notch"
-        case .strip: "Strip"
         case .nothing: "Nothing"
         }
     }

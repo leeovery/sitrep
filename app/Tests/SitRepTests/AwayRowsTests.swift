@@ -10,7 +10,7 @@ import Testing
 /// A session no window holds with an ask waiting, alike on every surface (`Away`): its mark a hollow orange ring 7
 /// across, unglowed, where a held one's is the orange dot; its title and the line under it, or on the card's one line
 /// its count, dimmed by the one factor, so the title stays the brighter of the two, and its time, and on the card its
-/// project, never brighter than its title. On the black card and the strip's, each read from its pixels at 2×.
+/// project, never brighter than its title. On the black card, each read from its pixels at 2×.
 @MainActor
 @Suite(.backstop)
 struct AwayRowsTests {
@@ -64,41 +64,6 @@ struct AwayRowsTests {
         #expect(Double(0x98) * (Away.dim - 0.01) < Double(0x5C))
     }
 
-    // MARK: The black strip
-
-    private static let tab = CGRect(x: 0, y: 0, width: 260, height: 46)
-
-    private static func strip(_ session: Session, _ content: StripFrame.Words.Content) throws -> Drawn {
-        let words = StripFrame.Words(
-            id: 1, key: .count(.working), content: content, frame: tab, scroll: 0, alpha: 1, dy: 0, isPressed: false,
-            pressedRow: nil
-        )
-
-        return try Drawn(StripWordsLayer(words, in: tab, StripScene.resting()).layer)
-    }
-
-    /// A session's tab: its title and the line under it, and its time no brighter than its title.
-    @Test func onTheBlackStripAnAwayTabsTwoLinesDimAsOne() throws {
-        let away = Self.asking(away: true), held = Self.asking(away: false)
-        let at = StripRowLayout(away, note: StripNote(), in: Self.tab.size, now: 0)
-
-        try Self.expectDimmedAsOne(
-            Self.strip(away, .row(away)), Self.strip(held, .row(held)), title: at.title, sub: at.sub
-        )
-        try Self.expectTimeNoBrighter(Self.strip(away, .row(away)), title: at.title, time: at.age)
-    }
-
-    @Test func onTheBlackStripAnAwayCountRowsTwoLinesDimAsOne() throws {
-        let away = Self.asking(away: true), held = Self.asking(away: false)
-        let at = StripRowsLayout(0, width: Self.tab.width)
-
-        try Self.expectDimmedAsOne(
-            Self.strip(away, .rows([away])), Self.strip(held, .rows([held])),
-            title: at.title.offsetBy(dx: at.box.minX, dy: at.box.minY),
-            sub: at.sub.offsetBy(dx: at.box.minX, dy: at.box.minY)
-        )
-    }
-
     // MARK: Not here, in any state
 
     /// A session a window holds that this Mac does not show keeps its state (stage 8's "The rows"): a turn, a working
@@ -123,20 +88,6 @@ struct AwayRowsTests {
         let away = try Self.black(Self.line(kind, away: true)), held = try Self.black(Self.line(kind, away: false))
 
         try Self.expectDimmed(away, held, in: Self.cardLine)
-    }
-
-    @Test(arguments: states)
-    func onTheBlackStripARowNotHereDimsItsTwoLinesWhateverItsState(kind: Session.Kind) throws {
-        let away = Self.line(kind, away: true), held = Self.line(kind, away: false)
-        let tab = StripRowLayout(away, note: StripNote(), in: Self.tab.size, now: 0)
-        let rows = StripRowsLayout(0, width: Self.tab.width)
-
-        try Self.expectDimmed(Self.strip(away, .row(away)), Self.strip(held, .row(held)), in: tab.title)
-        try Self.expectDimmed(Self.strip(away, .row(away)), Self.strip(held, .row(held)), in: tab.sub)
-        try Self.expectDimmed(
-            Self.strip(away, .rows([away])), Self.strip(held, .rows([held])),
-            in: rows.title.offsetBy(dx: rows.box.minX, dy: rows.box.minY)
-        )
     }
 
     // MARK: Reading them

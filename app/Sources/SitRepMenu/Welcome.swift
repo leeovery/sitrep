@@ -229,12 +229,11 @@ public struct WelcomeSounds: Equatable, Sendable {
     }
 }
 
-/// Step 3's grouped form under the two pictures: Style for the notch, or Length for the strip in its place, so the
-/// form keeps its height; then Edge; and under it, Show nothing at the edge. At Nothing neither picture is chosen, and
-/// the rows stay in their place, taking no presses.
+/// Step 3's grouped form under the notch's picture: Style, then Edge; and under it, Show nothing at the edge. At
+/// Nothing the picture is not chosen, and the rows stay in their place, taking no presses.
 public enum WelcomeEdgeForm {
     public enum Row: Hashable, Sendable {
-        case style, length, edge
+        case style, edge
     }
 
     /// Under the form: Show nothing at the edge, a link that sets Nothing; at Nothing, a line in its place, saying what
@@ -245,16 +244,14 @@ public enum WelcomeEdgeForm {
         public var words: String {
             switch self {
             case .showNothing: "Show nothing at the edge"
-            case .nothingShown: "Only the menu bar's light. Choose Notch or Strip to bring it back."
+            case .nothingShown: "Only the menu bar's light. Choose Notch to bring it back."
             }
         }
     }
 
-    public static func rows(_ settings: EdgeSettings) -> [Row] {
-        [settings.show == .strip ? .length : .style, .edge]
-    }
+    public static let rows: [Row] = [.style, .edge]
 
-    /// The picture ringed: the shape Lee chose, none at Nothing.
+    /// The picture ringed: the notch while Lee chose it, none at Nothing.
     public static func chosen(_ settings: EdgeSettings) -> EdgeSettings.Show? {
         settings.show == .nothing ? nil : settings.show
     }
@@ -344,13 +341,12 @@ public enum WelcomePlayback {
         }
     }
 
-    /// "Meniscus notch, left", "Strip, right"; with Nothing, the menu bar's light.
+    /// "Meniscus notch, left"; with Nothing, the menu bar's light.
     public static func atTheEdge(_ settings: EdgeSettings) -> String {
         let edge = settings.edge.title.lowercased()
 
         return switch settings.show {
         case .notch: "\(settings.style.title) notch, \(edge)"
-        case .strip: "Strip, \(edge)"
         case .nothing: "The menu bar's light alone"
         }
     }
@@ -482,7 +478,7 @@ public enum GhosttyOpening: Equatable, Sendable {
     case runs, notInstalled, didNotOpen
 }
 
-/// The callout Done leaves beside the real notch, or the strip, at rest: due once Done closes a welcome, never by any
+/// The callout Done leaves beside the real notch at rest: due once Done closes a welcome, never by any
 /// other close, and gone for good once Lee first points at the edge. Saved apart from what Lee sets, as whether a
 /// welcome has closed is.
 public struct CalloutSettings: SavedValue {

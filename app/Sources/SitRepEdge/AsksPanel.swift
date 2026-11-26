@@ -2,11 +2,11 @@ import CoreGraphics
 import SitRepCore
 import SitRepPanel
 
-/// The asks panel as a run holds it, the notch's beside a panel row or the strip's beside its tab (DESIGN, "Answering
-/// from the panel"): beside which row it is open, and the ask it shows; the answer held, as the answers tell it; the
-/// asks whose answers went, which it shows no more until the board leaves them out; and how its words are set, the
-/// asks it last laid out kept. It shows one session's asks, one at a time, in its row's order, while the panel or the
-/// tab is open; it closes as that goes in, as its row goes, or as its last ask does.
+/// The asks panel as the notch's run holds it beside a panel row (DESIGN, "Answering from the panel"): beside which
+/// row it is open, and the ask it shows; the answer held, as the answers tell it; the asks whose answers went, which it
+/// shows no more until the board leaves them out; and how its words are set, the asks it last laid out kept. It shows
+/// one session's asks, one at a time, in its row's order, while the panel is open; it closes as that goes in, as its
+/// row goes, or as its last ask does.
 struct AsksPanel {
     /// Open beside a row, by its key, at an ask, by its id and its page, among its session's asks as last kept, by
     /// their ids, which tell the ask beside as it slides by its page.
@@ -271,8 +271,8 @@ struct AsksPanel {
         gone = gone.filter { gone in board.asks[gone.session]?.contains { $0.id == gone.ask } == true }
     }
 
-    /// Kept to what shows (`keep`), the panel or the tab it opens beside open or not, and placed as a frame shows it
-    /// (`shown`): beside its row as the ground stands it on the stage, laid out with Snooze ▾ in its foot where Snooze
+    /// Kept to what shows (`keep`), the panel it opens beside open or not, and placed as a frame shows it (`shown`):
+    /// beside its row as the ground stands it on the stage, laid out with Snooze ▾ in its foot where Snooze
     /// `offersSnooze`, kept on the screen, the answer held to its ask sending, and the part of it under `pointer` lit;
     /// and, where what sits under the pointer changed meaning (`Look.meansOther`), when, on the display's clock.
     mutating func place(
@@ -298,10 +298,9 @@ struct AsksPanel {
         point.map { shown?.contains($0) == true } ?? false
     }
 
-    /// The room the run's model is told the pointer is on (`Input.beside`, `StripInput.beside`): the asks panel, or,
-    /// where it went from under a pointer that has not moved since, as it closed or shrank, the room it had, so that is
-    /// no leave until the pointer moves; and the way to it from the list while that holds the pointer
-    /// (`SafeTriangle`).
+    /// The room the run's model is told the pointer is on (`Input.beside`): the asks panel, or, where it went from
+    /// under a pointer that has not moved since, as it closed or shrank, the room it had, so that is no leave until the
+    /// pointer moves; and the way to it from the list while that holds the pointer (`SafeTriangle`).
     mutating func beside(_ pointer: CGPoint?, onList: Bool, at time: Double) -> CGPath? {
         let room = kept(pointer), triangle = way.holding(pointer, onList: onList, toward: shown?.frame, at: time)
 
@@ -430,15 +429,14 @@ struct AsksPanel {
 struct AsksGround {
     let rows: any AsksRows
     let board: PanelBoard
-    /// How far the list is scrolled, which a scroll of the list since it opened closes it by (`scrolled`); none on the
-    /// strip.
-    var scroll = 0.0
+    /// How far the list is scrolled, which a scroll of the list since it opened closes it by (`scrolled`).
+    let scroll: Double
     /// The highest and the lowest it may stand on the stage.
     let visible: ClosedRange<Double>
     let mirror: CGAffineTransform
 }
 
-/// The rows a run lists, as the asks panel opens beside them: the notch's panel rows, or the strip's tab.
+/// The rows a run lists, as the asks panel opens beside them: the notch's panel rows.
 protocol AsksRows {
     /// The session of the row `key`, while it shows.
     func session(ofRow key: String) -> Session?

@@ -11,9 +11,8 @@ import Testing
 /// to read beside Paper's boards E2, F, H3 and A2: the pointer on a Needs you row's words, then on its arrow; the asks
 /// panel on a session's choice, and on a words ask; and an answer sending, its countdown under way; a choice whose
 /// pick wraps to two lines, the pointer off it and on it; and a choice mid-swipe, the yes beside it sliding in. At the
-/// right edge, the pointer on a row's arrow at its left end, and the asks panel open from it; and on the strip, at
-/// either edge, the asks panel open beside a tab. Only when `SITREP_STILLS` names a folder for them, so a run of the
-/// tests writes nothing.
+/// right edge, the pointer on a row's arrow at its left end, and the asks panel open from it. Only when
+/// `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing.
 @MainActor
 @Suite(.backstop, .enabled(if: stills != nil))
 struct AsksPanelStillsTests {
@@ -140,13 +139,6 @@ struct AsksPanelStillsTests {
 
         try Self.open(Self.helpDesk, run, setting)
         try Self.shoot(run, pointer: try Self.onTitle(run, setting), as: "10-right-asks-choice", on: edge)
-    }
-
-    // MARK: The strip
-
-    @Test(arguments: [EdgeSettings.Edge.left, .right])
-    func onTheStripTheAsksPanelOpenBesideATab(_ side: EdgeSettings.Edge) throws {
-        try StripStills.shoot(on: Self.edge(side), board: Self.board(), at: Self.now, into: try #require(stills))
     }
 
     // MARK: The run

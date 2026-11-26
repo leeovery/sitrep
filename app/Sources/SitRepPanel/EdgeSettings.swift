@@ -1,13 +1,14 @@
 import Foundation
 
 /// What Lee sets for the screen's edge: Settings' Edge pane, and the menu's Show (DESIGN, "Settings"). How
-/// the notch and the strip move is not among them; that ships fixed. Read leniently, so settings another version saved
-/// keep what they can: a key missing or unreadable keeps its default, one no longer read is passed over, as Material's
-/// is since the edge is black alone, and anything but an object reads as the defaults.
+/// the notch moves is not among them; that ships fixed. Read leniently, so settings another version saved keep what
+/// they can: a key missing or unreadable keeps its default, so a Show of the strip, gone since 26 November 2026, reads
+/// as the notch; one no longer read is passed over, as Material's is since the edge is black alone, and the strip's
+/// Length and Max since it went; and anything but an object reads as the defaults.
 public struct EdgeSettings: Codable, Equatable, Sendable {
-    /// What shows at the screen's edge: the notch and its light, the strip and its rings, or only the menu bar's glyph.
+    /// What shows at the screen's edge: the notch and its light, or only the menu bar's glyph.
     public enum Show: String, Codable, CaseIterable, Sendable {
-        case notch, strip, nothing
+        case notch, nothing
     }
 
     /// The screen's edge it sits on.
@@ -26,15 +27,13 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
     /// The display it shows on, by the id the app gives it; nil for the main display.
     public var display: String?
     public var style = NotchStyle.meniscus
-    public var length = StripLength.grows
-    public var maxLength = StripMax.full
     /// SitRep's own Reduce motion: the app reduces motion when this or the Mac asks.
     public var reducesMotion = false
 
     public init() {}
 
-    /// Where a drag lets the notch or the strip go from these settings: this far down the screen, where it moved along
-    /// the edge, and on the other edge where it was let go past the screen's middle.
+    /// Where a drag lets the notch go from these settings: this far down the screen, where it moved along the edge,
+    /// and on the other edge where it was let go past the screen's middle.
     public func dropped(along: Double?, across: Bool) -> EdgeMove {
         EdgeMove(edge: across ? edge.other : edge, along: along.map { clamp($0, 0, 1) })
     }
@@ -51,8 +50,6 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
         along = clamp(given.value(.along, or: defaults.along), 0, 1)
         display = given.value(.display, or: defaults.display)
         style = given.value(.style, or: defaults.style)
-        length = given.value(.length, or: defaults.length)
-        maxLength = given.value(.maxLength, or: defaults.maxLength)
         reducesMotion = given.value(.reducesMotion, or: defaults.reducesMotion)
     }
 }
@@ -70,13 +67,8 @@ public enum NotchStyle: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// How long the strip is: as long as its marks need, centred where the notch sits, or the screen's full height.
-public enum StripLength: String, Codable, CaseIterable, Sendable {
-    case grows, full
-}
-
-/// Where a drag left the notch or the strip: its edge, and how far down the screen, where it moved along it. It is all
-/// a drag decides, so it lands on the settings as they stand when it is saved, whatever else changed meanwhile.
+/// Where a drag left the notch: its edge, and how far down the screen, where it moved along it. It is all a drag
+/// decides, so it lands on the settings as they stand when it is saved, whatever else changed meanwhile.
 public struct EdgeMove: Equatable, Sendable {
     public let edge: EdgeSettings.Edge
     public let along: Double?
@@ -91,39 +83,6 @@ public struct EdgeMove: Equatable, Sendable {
         }
 
         return moved
-    }
-}
-
-/// Max, for Grows: the strip's longest, on a slider from five marks' length to Full, kept as how far along the slider
-/// it is. Lee never sees it in marks.
-public struct StripMax: Codable, Equatable, Sendable {
-    /// 0 at five marks' length, 1 at Full.
-    public let share: Double
-
-    public init(share: Double) {
-        self.share = clamp(share, 0, 1)
-    }
-
-    public static let full = StripMax(share: 1)
-
-    public var isFull: Bool { share == 1 }
-
-    /// The most places it leaves a strip whose full height holds `longest`, never more; nil at Full, which leaves what
-    /// fits.
-    func places(longest: Int) -> Int? {
-        isFull ? nil : min(longest, Self.fewest + Int((share * Double(max(0, longest - Self.fewest))).rounded()))
-    }
-
-    /// The slider's left end, in places.
-    static let fewest = 5
-
-    public init(from decoder: any Decoder) throws {
-        try self.init(share: decoder.singleValueContainer().decode(Double.self))
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(share)
     }
 }
 

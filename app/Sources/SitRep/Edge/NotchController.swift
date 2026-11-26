@@ -59,8 +59,8 @@ final class NotchController: NSObject, CalloutShape {
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
 
-    /// On its display, its card's sections folded as `folding` has them, the strip's setting as well, each row's
-    /// Snooze offering what `snoozeSettings` gives as its menu opens.
+    /// On its display, its card's sections folded as `folding` has them, each row's Snooze offering what
+    /// `snoozeSettings` gives as its menu opens.
     init(
         _ settings: EdgeSettings, on display: Display, folding: Folding,
         snoozeSettings: @escaping () -> SnoozeSettings

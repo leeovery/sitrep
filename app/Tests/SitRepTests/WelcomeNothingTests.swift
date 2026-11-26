@@ -35,21 +35,20 @@ struct WelcomeNothingTests {
         #expect(Self.rows(in: nothing) == rows)
     }
 
-    @Test(arguments: [EdgeSettings.Show.notch, .strip])
-    func aTileBringsItsShapeBack(show: EdgeSettings.Show) async {
+    @Test func theNotchsTileBringsItBack() async {
         let made = Made()
 
         made.preferences.edit { $0.show = .nothing }
         made.at(.edge)
         _ = await made.settled()
-        made.welcome.choose(show)
-        #expect(made.preferences.edge.show == show)
+        made.welcome.choose(.notch)
+        #expect(made.preferences.edge.show == .notch)
         expectEvery(Self.segments(in: await made.settled())) { $0.isEnabled }
     }
 
-    /// Done at Nothing leaves no callout waiting for a shape picked later; Done with a shape does.
-    @Test(arguments: [(EdgeSettings.Show.nothing, CalloutSettings.Standing.unshown), (.notch, .due), (.strip, .due)])
-    func doneArmsTheCalloutOnlyWithAShape(show: EdgeSettings.Show, standing: CalloutSettings.Standing) {
+    /// Done at Nothing leaves no callout waiting for the notch picked later; Done with the notch does.
+    @Test(arguments: [(EdgeSettings.Show.nothing, CalloutSettings.Standing.unshown), (.notch, .due)])
+    func doneArmsTheCalloutOnlyWithTheNotch(show: EdgeSettings.Show, standing: CalloutSettings.Standing) {
         let made = Made()
 
         made.preferences.edit { $0.show = show }
@@ -70,7 +69,6 @@ struct WelcomeNothingTests {
             made.at(step)
             _ = await made.settled()
             #expect((stage.surface is NotchSurface) == [.hello, .ask].contains(step), "\(step)")
-            #expect(!(stage.surface is StripSurface), "\(step)")
         }
     }
 
@@ -105,9 +103,9 @@ struct WelcomeNothingTests {
 
     // MARK: The stage's menu bar
 
-    /// SitRep's item lit while the stage's board has its ask, whatever the shape: as the notch is lit from step 3, but
-    /// at rest beside the callout; with no edge, at rest at the sound's step until a sound is chosen.
-    @Test(arguments: [EdgeSettings.Show.notch, .strip, .nothing])
+    /// SitRep's item lit while the stage's board has its ask, whatever Show is: as the notch is lit from step 3, but at
+    /// rest beside the callout; with no edge, at rest at the sound's step until a sound is chosen.
+    @Test(arguments: [EdgeSettings.Show.notch, .nothing])
     func theMenuBarsItemIsLitWhileTheBoardHasItsAsk(show: EdgeSettings.Show) async throws {
         let made = Made()
         let scene = try made.stage.scene
@@ -174,7 +172,7 @@ struct WelcomeNothingTests {
         made.preferences.edit { $0.show = .nothing }
         _ = await made.settled()
         #expect(!stage.scene.isItemLit)
-        made.preferences.edit { $0.show = .strip }
+        made.preferences.edit { $0.show = .notch }
         _ = await made.settled()
         #expect(stage.scene.isItemLit)
     }

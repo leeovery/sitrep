@@ -7,10 +7,9 @@ import SitRepPanel
 /// Needs you's asks and turns (`inPanelOrder`), counts what needs Lee, asks and turns alike, and says them as the panel
 /// does.
 public struct PanelBoard: Equatable, Sendable {
-    /// In the panel's order: the menu's, and the card's and the strip's but for Snoozed.
+    /// In the panel's order: the menu's, and the card's but for Snoozed.
     public let sessions: [Session]
-    /// The card's Snoozed rows, and the strip's (14 November 2026), the soonest to wake first, which the menu leaves
-    /// out.
+    /// The card's Snoozed rows, the soonest to wake first, which the menu leaves out.
     public let snoozed: [Session]
     /// "11 need you": the asks and stops waiting, and the sessions at Lee's turn.
     public let head: Head
@@ -24,9 +23,7 @@ public struct PanelBoard: Equatable, Sendable {
     public let newTurns: Set<String>
     /// What pulses the notch as it comes, as Lee set it: a new ask, Lee's turn, or both.
     public let pulses: Set<Need>
-    /// The strip's words for the board, which it has no head to say: before any board, the head's title; while the
-    /// board is stale, when it was last known current, "as of 12:04".
-    public let unread: String?
+    /// While the board is stale, when it was last known current, "as of 12:04".
     public let asOf: String?
     /// The asks the asks panel answers, a yes, a choice or a words ask, by their Needs you rows' sessions: each row's
     /// asks waiting on Lee, in its lines' order, the newest first, each timed as its line is. A row of Claude Code's
@@ -45,7 +42,7 @@ public struct PanelBoard: Equatable, Sendable {
 
     /// With no `watch` to run, its head says why.
     public init(unrun why: String) {
-        self.init(sessions: [], snoozed: [], head: Head(title: why, count: ""), unread: why)
+        self.init(sessions: [], snoozed: [], head: Head(title: why, count: ""))
     }
 
     /// The board as last heard, the sessions a window holds that this Mac does not show (`notHere`) drawn as away ones
@@ -59,7 +56,7 @@ public struct PanelBoard: Equatable, Sendable {
         guard let board = last.board else {
             let head = last.stale == nil ? Self.looking : Self.unread
 
-            self.init(sessions: [], snoozed: [], head: head, unread: head.title)
+            self.init(sessions: [], snoozed: [], head: head)
             return
         }
 
@@ -97,8 +94,7 @@ public struct PanelBoard: Equatable, Sendable {
 
     private init(
         sessions: [Session], snoozed: [Session], head: Head, need: Need? = nil, new: Set<String> = [],
-        newTurns: Set<String> = [], pulses: Set<Need> = [.ask], unread: String? = nil, asOf: String? = nil,
-        asks: [String: [PanelAsk]] = [:]
+        newTurns: Set<String> = [], pulses: Set<Need> = [.ask], asOf: String? = nil, asks: [String: [PanelAsk]] = [:]
     ) {
         self.sessions = sessions
         self.snoozed = snoozed
@@ -107,7 +103,6 @@ public struct PanelBoard: Equatable, Sendable {
         self.new = new
         self.newTurns = newTurns
         self.pulses = pulses
-        self.unread = unread
         self.asOf = asOf
         self.asks = asks
     }
@@ -147,12 +142,12 @@ public struct PanelBoard: Equatable, Sendable {
     /// twice for one line.
     public var retold: PanelBoard {
         PanelBoard(
-            sessions: sessions, snoozed: snoozed, head: head, need: need, pulses: pulses, unread: unread, asOf: asOf,
+            sessions: sessions, snoozed: snoozed, head: head, need: need, pulses: pulses, asOf: asOf,
             asks: asks
         )
     }
 
-    /// The card's rows and the strip's: the panel's, then Snoozed's.
+    /// The card's rows: the panel's, then Snoozed's.
     public var cardSessions: [Session] { sessions + snoozed }
 
     /// Nothing for the card to list: no row, nor any in Snoozed.
@@ -160,16 +155,15 @@ public struct PanelBoard: Equatable, Sendable {
 }
 
 extension Session {
-    /// A row as the panel draws it, keyed by its session so it keeps its place: its project by name, and core's
-    /// letters for it; its session's name; its lines; and beneath them, needing Lee, its project, else core's second
-    /// line, an away one's saying no window holds it. Not here, a held one is drawn away, keeping its words.
+    /// A row as the panel draws it, keyed by its session so it keeps its place: its project by name; its session's
+    /// name; its lines; and beneath them, needing Lee, its project, else core's second line, an away one's saying no
+    /// window holds it. Not here, a held one is drawn away, keeping its words.
     init(_ row: Board.Row, isHere: Bool = true) {
         let isNamed = row.needsLee && !row.isAway
 
         self.init(
-            id: row.session, project: row.projectName, name: row.name, letters: row.letters,
-            kind: Kind(row.newest.kind), away: row.isAway || !isHere, lines: row.lines.map(Line.init),
-            sub: isNamed ? row.projectName : row.second
+            id: row.session, project: row.projectName, name: row.name, kind: Kind(row.newest.kind),
+            away: row.isAway || !isHere, lines: row.lines.map(Line.init), sub: isNamed ? row.projectName : row.second
         )
     }
 
@@ -177,9 +171,9 @@ extension Session {
     /// its name; when its soonest line wakes in its time's place, none for a turn snoozed until it moves.
     init(_ row: Board.SnoozedRow, isHere: Bool = true) {
         self.init(
-            id: row.session, project: row.projectName, name: row.name, letters: row.letters,
-            kind: row.isTurn ? .snoozedTurn : .snoozed, away: row.isAway || !isHere, lines: row.lines.map(Line.init),
-            sub: row.projectName, wakesAt: row.wakesAt.map { $0.timeIntervalSince1970 * 1000 }
+            id: row.session, project: row.projectName, name: row.name, kind: row.isTurn ? .snoozedTurn : .snoozed,
+            away: row.isAway || !isHere, lines: row.lines.map(Line.init), sub: row.projectName,
+            wakesAt: row.wakesAt.map { $0.timeIntervalSince1970 * 1000 }
         )
     }
 }

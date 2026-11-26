@@ -5,9 +5,5 @@
 app/.build/
 app/.swiftpm/
 
-# The strip recorder's packages, and the recording it makes
-prototypes/strip/node_modules/
-prototypes/strip/recording.json
-
 # The list of Lee's real names the tests may not use, which names them: local
 tests/real-names.txt

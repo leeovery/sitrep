@@ -2,7 +2,7 @@ import AppKit
 import SitRepMenu
 import SwiftUI
 
-/// The notch or the strip, as the callout beside it sees it: whether it shows, where it rests, and each frame it draws.
+/// The notch, as the callout beside it sees it: whether it shows, where it rests, and each frame it draws.
 @MainActor
 protocol CalloutShape: AnyObject {
     var isShown: Bool { get }
@@ -13,12 +13,12 @@ protocol CalloutShape: AnyObject {
     var onDrawn: ((_ isPointedAt: Bool) -> Void)? { get set }
 }
 
-/// The callout a welcome's Done leaves beside the real notch, or the strip, at rest (DESIGN, "The welcome window"):
-/// the stage's own, "Your notch. Point at it.", beside whichever shape shows, while it is due. Due while neither shows,
-/// at Nothing or under a full-screen app, it waits for one to show. The first hover over the shape takes it away for
-/// good, saved, so it shows once. The shapes tell it of their frames only while it is due, so it follows the notch's
-/// front as it lights and goes dark, which the notch takes in its next frame. Where it stands is told to `place`, a
-/// seam, as a test never shows a window.
+/// The callout a welcome's Done leaves beside the real notch at rest (DESIGN, "The welcome window"): the stage's own,
+/// "Your notch. Point at it.", beside the notch while it shows, while it is due. Due while the notch is hidden, at
+/// Nothing or under a full-screen app, it waits for it to show. The first hover over the notch takes it away for good,
+/// saved, so it shows once. The notch tells it of its frames only while it is due, so it follows the notch's front as
+/// it lights and goes dark, which the notch takes in its next frame. Where it stands is told to `place`, a seam, as a
+/// test never shows a window.
 @MainActor
 final class EdgeCallout {
     /// The shape it stands beside, from the edge to the shape's front on the screen, and whether that is the right
@@ -29,18 +29,17 @@ final class EdgeCallout {
     }
 
     private let preferences: Preferences
-    private let shapes: [any CalloutShape]
+    private let shape: any CalloutShape
     private let isRight: () -> Bool
     private let place: (Beside?) -> Void
     private var placed: Beside?
 
-    /// `shapes` in the order they are looked at, the first showing the one it stands beside.
     init(
-        _ preferences: Preferences, shapes: [any CalloutShape], isRight: @escaping () -> Bool,
+        _ preferences: Preferences, shape: any CalloutShape, isRight: @escaping () -> Bool,
         place: @escaping (Beside?) -> Void
     ) {
         self.preferences = preferences
-        self.shapes = shapes
+        self.shape = shape
         self.isRight = isRight
         self.place = place
         preferences.onCallout = { [weak self] _ in
@@ -50,11 +49,11 @@ final class EdgeCallout {
         listen()
     }
 
-    /// The shapes as they now stand: the callout beside the one showing while it is due, else nowhere. Told with each
-    /// board and, while due, each frame: only a change is placed.
+    /// The notch as it now stands: the callout beside it while it shows and the callout is due, else nowhere. Told
+    /// with each board and, while due, each frame: only a change is placed.
     func refresh() {
-        let shape = shapes.first(where: \.isShown)
-        let beside = preferences.callout.shows ? shape.map { Beside(band: $0.restingBand, isRight: isRight()) } : nil
+        let shows = preferences.callout.shows && shape.isShown
+        let beside = shows ? Beside(band: shape.restingBand, isRight: isRight()) : nil
 
         guard beside != placed else {
             return
@@ -64,14 +63,10 @@ final class EdgeCallout {
         place(beside)
     }
 
-    /// The shapes tell of their frames only while the callout is due: the first with the pointer over one takes it
-    /// away for good; any other may have moved the shape's front.
+    /// The notch tells of its frames only while the callout is due: the first with the pointer over it takes it away
+    /// for good; any other may have moved the notch's front.
     private func listen() {
-        let hook: ((Bool) -> Void)? = preferences.callout.shows ? { [weak self] in self?.drawn(isPointedAt: $0) } : nil
-
-        for shape in shapes {
-            shape.onDrawn = hook
-        }
+        shape.onDrawn = preferences.callout.shows ? { [weak self] in self?.drawn(isPointedAt: $0) } : nil
     }
 
     private func drawn(isPointedAt: Bool) {
