@@ -5491,7 +5491,7 @@ that takes Lee to the window a session is in.
 - **A native Mac app**, with no Dock icon. Its surface is **the notch**: a
   black shape at the edge of the screen that opens into a panel of Lee's
   sessions; **the strip** could stand in its place until 26 November 2026
-  (see "The strip"). It replaces the menu
+  (see "The strip"). The notch replaces the menu
   bar's list, first planned as projects opening to their sessions.
 - **The menu bar item stays**, as a native menu: the panel's sessions with a
   click to each, what shows at the screen's edge, Settings and quitting
@@ -6437,19 +6437,19 @@ The private SkyLight call yabai uses would read each display's Space type
 directly. It was left out, as nothing guarantees it across macOS
 releases. In the Swift spike; Lee, putting Paper full screen and back:
 "It works".
-- **Hidden is clear, never ordered out.** The edge was ordered out over
-  full screen and back in after, and came back on one Space only (26
-  October 2026): read through SkyLight, the notch's window was on all 18
-  Spaces as Chrome went full screen, and on the one it came back to once
-  ordered in again, until SitRep restarted. On every other Space it showed
-  for half a second as the Space slid in, then went. Lee: "It flashes,
-  it's there momentarily, and then it disappears". Once pinned, a window
-  stayed pinned through later round trips: Lee, choosing the notch over
-  the strip, saw no notch until a restart. So the edge's window, and the
-  jump's caption's, which hid the same way, are ordered in once, as they
-  are made, and never out: hidden, each is clear and lets every click
-  through, and the turns and sweeps Core Animation runs for it in the
-  render server are paused, to run again as it shows.
+**Hidden is clear, never ordered out.** The edge was ordered out over
+full screen and back in after, and came back on one Space only (26
+October 2026): read through SkyLight, the notch's window was on all 18
+Spaces as Chrome went full screen, and on the one it came back to once
+ordered in again, until SitRep restarted. On every other Space it showed
+for half a second as the Space slid in, then went. Lee: "It flashes,
+it's there momentarily, and then it disappears". Once pinned, a window
+stayed pinned through later round trips: Lee, choosing the notch over
+the strip, saw no notch until a restart. So the edge's window, and the
+jump's caption's, which hid the same way, are ordered in once, as they
+are made, and never out: hidden, each is clear and lets every click
+through, and the turns and sweeps Core Animation runs for it in the
+render server are paused, to run again as it shows.
 
 The shape is one path rebuilt every frame from the springs. As in the
 prototype, they are integrated semi-implicitly in substeps of at most 4ms,
@@ -7444,8 +7444,8 @@ live changed, and how they group.
   - **Notch:** Edge, Left or Right ("or drag it across the middle");
     Display, the main one unless another is chosen; Style, Meniscus or Card
     ("Meniscus pours, Card slides"). Then Motion, then Keys (see "Keys").
-  - **Nothing:** no section; the pane is the Show row's card and
-    Keys' Shortcut alone (see "Keys"), and Show has a line under it, as
+  - **Nothing:** no Notch or Motion section; the pane is the Show row's
+    card and the Keys section's Shortcut alone (see "Keys"), and Show has a line under it, as
     a row's line is set, saying the menu carries the board. Under the
     notch, Show has no line.
 
