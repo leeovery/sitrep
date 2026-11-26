@@ -7,7 +7,8 @@ import Testing
 /// by what it types on the layout, the arrows, Return, keypad Enter and Esc by their codes, and pressed alone; any other
 /// goes through and ends the hold; a key taken is taken whole, its repeats acting again only for the arrows and `k`
 /// `j`, its key-up going nowhere; in a snooze menu on its own, digits choose, `z` closes and `k` `j` go on as arrows;
-/// with nothing holding, or the row's menu open, every key goes through.
+/// `⌘Z` is the one key taken with a modifier, while the asks panel's sending line shows; with nothing holding, or the
+/// row's menu open, every key goes through.
 @Suite(.backstop)
 struct KeyReaderTests {
     private static let holding = KeySnapshot.panel(hold: 1)
@@ -164,6 +165,53 @@ struct KeyReaderTests {
 
         #expect(reader.read(Self.typing("j"), in: .none) == .pass)
         #expect(reader.read(Self.typing("j", [], .again), in: Self.holding) == .pass)
+    }
+
+    // MARK: ⌘Z
+
+    private static let undoing = KeySnapshot.panel(hold: 1, undoes: true)
+
+    /// `⌘Z` is the one key the panel takes with a modifier, only while the asks panel's sending line shows, Caps Lock
+    /// or none: its Undo.
+    @Test(arguments: ["z", "Z"])
+    func commandZIsTheSendingLinesUndoWhileItShows(_ typed: String) {
+        var reader = KeyReader()
+        let flags: CGEventFlags = typed == "Z" ? [.maskCommand, .maskAlphaShift] : .maskCommand
+
+        #expect(reader.read(Self.typing(typed, flags), in: Self.undoing) == .take(.panel(.undo)))
+    }
+
+    /// With no sending line, `⌘Z` is another key: it goes through, to the window in front, and lets go.
+    @Test func withNoSendingLineCommandZGoesThroughAndLetsGo() {
+        var reader = KeyReader()
+
+        #expect(reader.read(Self.typing("z", .maskCommand), in: Self.holding) == .letGo(hold: 1))
+    }
+
+    /// Only ⌘ alone makes `z` Undo: Shift, ⌃ or ⌥ with it make another key, which goes through and lets go.
+    @Test(arguments: [CGEventFlags.maskShift, .maskControl, .maskAlternate])
+    func anotherModifierWithCommandZMakesItAnotherKey(_ modifier: CGEventFlags) {
+        var reader = KeyReader()
+
+        #expect(reader.read(Self.typing("z", [.maskCommand, modifier]), in: Self.undoing) == .letGo(hold: 1))
+    }
+
+    /// The sending line showing takes nothing else with ⌘: `⌘1` and `⌘X` go through and let go; `z` alone is still
+    /// Snooze.
+    @Test func whileItShowsNoOtherKeyWithCommandIsThePanels() {
+        var command = KeyReader(), plain = KeyReader()
+
+        #expect(command.read(Self.typing("1", .maskCommand), in: Self.undoing) == .letGo(hold: 1))
+        #expect(plain.read(Self.typing("z"), in: Self.undoing) == .take(.panel(.snooze)))
+    }
+
+    /// Taken whole: held, its repeats are dropped, so a held `⌘Z` undoes once, and its key-up goes nowhere.
+    @Test func aHeldCommandZUndoesOnce() {
+        var reader = KeyReader()
+
+        #expect(reader.read(Self.typing("z", .maskCommand), in: Self.undoing) == .take(.panel(.undo)))
+        #expect(reader.read(Self.typing("z", .maskCommand, .again), in: Self.undoing) == .take(nil))
+        #expect(reader.read(Self.typing("z", .maskCommand, .up), in: Self.holding) == .take(nil))
     }
 
     // MARK: A snooze menu on its own

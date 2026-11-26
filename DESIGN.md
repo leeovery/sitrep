@@ -6858,12 +6858,20 @@ on the panel, acting on the ask it shows; `s` does nothing there:
   a step, sliding as a dot's click does.
 - `⏎` and `esc` close it; `↑` `↓`, `k` `j` move the lit row and close
   it, as a menu's arrows close its submenu.
-- A digit past its answers, or `z` with no Snooze ▾, does nothing.
+- A digit past its answers, or `z` with no Snooze ▾, does nothing. Nor do
+  `z` and `o` on the ask whose answer is sending, whose foot is the
+  sending line, with no Snooze ▾ or Open in Claude ↗ to click (the build,
+  26 November 2026); `→` or `←` to another ask finds them in its foot.
 - The 300ms beat (see "Answering from the panel") holds keys as it holds
   clicks: within it after a change the keys didn't make, the board's, a
   send's or the pointer's paging, a key does nothing, as a press there
   doesn't land. After a change the keys made, paging among them, a key
-  acts at once.
+  acts at once. Settled in the build, 26 November 2026:
+  - `←` `→` page beat or none, as a dot takes its click.
+  - A key presses no point on the screen, so past the beat it acts though
+    the ask is still sliding into place, where a click lands on nothing
+    until it stops; while fingers carry the asks, a key lands on nothing,
+    as a press does.
 - **Closed by a key** with the pointer on it, the asks panel holds the
   panel as if the pointer rested on its row, as an open menu does, until
   the pointer moves: a pointer leaving its place then starts the panel's
@@ -6876,7 +6884,8 @@ on the panel, acting on the ask it shows; `s` does nothing there:
   its right edge. A row's words always leave it room, padded 40 at the
   right, so nothing moves or wraps as keycaps come and go. They come and
   go at once, with no motion. While an answer is sending, the keycaps go,
-  and the held row's check stands in its keycap's place.
+  and the held row's check stands in its keycap's place. A row past the
+  ninth, which no digit answers, shows none.
 
 **Menus.** A snooze menu `z` opens, from a row or as Snooze ▾'s, is a
 native menu, the right-click menu's `SnoozeMenu` shown on its own:

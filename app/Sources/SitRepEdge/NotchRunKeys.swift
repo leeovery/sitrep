@@ -23,9 +23,10 @@ struct KeyHold {
 /// The panel's keys in the notch's run (DESIGN, "Keys"): the hold the pointer moving on the panel starts, the lit row
 /// the keys move, and what each key does there, by the paths a click takes.
 extension NotchRun {
-    /// What the tap decides each key by: the panel's hold while it holds the keys; else nothing.
+    /// What the tap decides each key by: the panel's hold while it holds the keys, `⌘Z` its while the asks panel's
+    /// sending line shows; else nothing.
     public var keySnapshot: KeySnapshot {
-        hold.isOn ? .panel(hold: hold.number) : .none
+        hold.isOn ? .panel(hold: hold.number, undoes: asking.shown?.sending != nil) : .none
     }
 
     /// Whether the panel holds the keys.
@@ -53,11 +54,10 @@ extension NotchRun {
         keyLitIndex ?? seen.flatMap { item(at: $0, in: setting) }
     }
 
-    /// A key of the set while the panel holds the keys, open, acting on the lit row as its click would. While the asks
-    /// panel is open, `↑` `↓` move the lit row and close it, `⏎` and `esc` close it, and every other key does nothing;
-    /// otherwise each acts on the list (`listKey`). A key with no use at the moment does nothing, as does one heard
-    /// while a menu holds the card, the menu's. `o` ends the hold whether or not it jumps, as the tap ended it as it
-    /// took `o` (`KeyReader`), so the keys typed after it go to the window in front.
+    /// A key of the set while the panel holds the keys, open, acting on the lit row as its click would: on the asks
+    /// panel while it is open (`asksKey`), else on the list (`listKey`). A key with no use at the moment does nothing,
+    /// as does one heard while a menu holds the card, the menu's. `o` ends the hold whether or not it jumps, as the tap
+    /// ended it as it took `o` (`KeyReader`), so the keys typed after it go to the window in front.
     public func key(_ key: PanelKey, _ moment: Moment) -> Press? {
         upToNow(moment)
         guard hold.isOn, notch.phase == .open, menuAt == nil else {
@@ -100,22 +100,41 @@ extension NotchRun {
             notch.clickElsewhere()
             hold.end()
             return nil
-        case .left, .right, .ignore, .digit:
+        case .left, .right, .ignore, .digit, .undo:
             return nil
         }
     }
 
+    /// On the asks panel, wherever the pointer is on the panel: `↑` `↓` move the lit row and close it, as a menu's
+    /// arrows close its submenu; `⏎` and `esc` close it; `s` does nothing; every other key presses its part of it as a
+    /// click on the part does (`AsksPanel.key`).
     private func asksKey(_ key: PanelKey, in setting: Setting) -> Press? {
         switch key {
         case .up, .down:
             move(key == .up ? -1 : 1, from: litRow(in: setting), in: setting)
         case .enter, .escape:
             break
-        case .left, .right, .open, .snooze, .fold, .ignore, .digit:
+        case .fold:
             return nil
+        case .left, .right, .open, .snooze, .ignore, .digit, .undo:
+            return asksPart(pressedBy: key).flatMap { keyAsks($0, in: setting) }
         }
         asking.close()
         return .asks
+    }
+
+    /// The part of the asks panel a key presses: `1`–`9` an answer's row, `x` Ignore, `z` Snooze ▾, `o` Open in Claude,
+    /// `⌘Z` the sending line's Undo, and `←` `→` the dot of the ask before the one shown and of the next.
+    private func asksPart(pressedBy key: PanelKey) -> AsksPart? {
+        switch key {
+        case let .digit(number): .answer(number - 1)
+        case .ignore: .ignore
+        case .snooze: .snooze
+        case .open: .open
+        case .undo: .undo
+        case .left, .right: asking.shown.map { .page($0.page + (key == .left ? -1 : 1)) }
+        case .up, .down, .enter, .escape, .fold: nil
+        }
     }
 
     /// The keys held as the pointer moves: on the open panel, a move on its list or its asks panel holds them, and one

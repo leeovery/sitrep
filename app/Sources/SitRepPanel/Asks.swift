@@ -72,10 +72,10 @@ public struct AsksMeasure: Sendable {
     }
 
     /// A rough measure, for a run that no drawing measures for: a title's line for each 40 characters, an answer's for
-    /// each 45, its pick's tag counting 16, and 7 a character in the foot.
+    /// each 41, its pick's tag counting 16, and 7 a character in the foot.
     public static let estimated = AsksMeasure(
         titleLines: { min(AsksLayout.titleMost, max(1, ($0.count + 39) / 40)) },
-        answerLines: { min(AsksLayout.answerMost, max(1, ($0.count + ($1 ? 16 : 0) + 44) / 45)) },
+        answerLines: { min(AsksLayout.answerMost, max(1, ($0.count + ($1 ? 16 : 0) + 40) / 41)) },
         footWidth: { Double($0.count) * 7 }
     )
 }
@@ -102,12 +102,13 @@ public struct AsksLayout: Equatable, Sendable {
     public static let textLine = 16.0
     public static let titleLine = 22.0, titleMost = 3
     static let ageGap = 4.0
-    /// An answer's row: at least 38 tall, its words 12 in from its sides and 9 from its top and bottom, on lines of 18,
-    /// two at most.
+    /// An answer's row: at least 38 tall, its words 12 in from its left, 40 from its right, which leaves its keycap
+    /// room whether it shows or not, and 9 from its top and bottom, on lines of 18, two at most.
     public static let answerHeight = 38.0, answerRadius = 11.0
-    public static let answerPadSide = 12.0, answerPadTop = 9.0, answerLine = 18.0, answerMost = 2
+    public static let answerPadLeft = 12.0, answerPadRight = 40.0, answerPadTop = 9.0
+    public static let answerLine = 18.0, answerMost = 2
     /// How wide an answer's words are set across its row.
-    public static let answerWidth = inner - 2 * answerPadSide
+    public static let answerWidth = inner - answerPadLeft - answerPadRight
     static let answerGap = 6.0
     static let footHeight = 28.0, footPadLeft = 2.0, footGap = 2.0
     /// A foot's button's room round its words; the outlined pills', Open in Claude's and Undo's.
@@ -329,21 +330,54 @@ public struct AsksLayout: Equatable, Sendable {
 
         return (0 ..< lines).map { line in
             CGRect(
-                x: answerPadSide, y: top + Double(line) * answerLine, width: row.width - 2 * answerPadSide,
+                x: answerPadLeft, y: top + Double(line) * answerLine, width: row.width - answerPadLeft - answerPadRight,
                 height: answerLine
             )
         }
     }
 
-    /// The held answer's check, 11 across, at its row's trailing end on its middle, as a panel row's time is; and the
-    /// room its words leave it there.
-    public static let checkSide = 11.0, checkGap = 8.0
+    /// An answer's keycap while the panel holds the keys (DESIGN, "Keys"): 20 across, its corners 6, 12 in from its
+    /// row's right, centred on its first line; numbered for the first nine answers, `1` to `9`.
+    public static let keycapSide = 20.0, keycapRadius = 6.0, keycapInset = 12.0, keycapsMost = 9
 
-    public static func check(in row: CGSize) -> CGRect {
-        CGRect(
-            x: row.width - answerPadSide - checkSide, y: (row.height - checkSide) / 2, width: checkSide,
-            height: checkSide
+    /// An answer's keycap in a row this big whose words wrap to `lines`, in the row's frame.
+    public static func keycap(in row: CGSize, lines: Int) -> CGRect {
+        let firstLine = (row.height - Double(lines) * answerLine) / 2 + answerLine / 2
+
+        return CGRect(
+            x: row.width - keycapInset - keycapSide, y: firstLine - keycapSide / 2, width: keycapSide,
+            height: keycapSide
         )
+    }
+
+    /// The held answer's check, 11 across, centred in its keycap's room.
+    public static let checkSide = 11.0
+
+    public static func check(in row: CGSize, lines: Int) -> CGRect {
+        let inset = (keycapSide - checkSide) / 2
+
+        return keycap(in: row, lines: lines).insetBy(dx: inset, dy: inset)
+    }
+
+    /// Where a part stands in its own frame, its page dots as a slide between two asks has come to `progress`: where a
+    /// key presses it, as a click there does; none where it has no such part.
+    public func box(of part: AsksPart, progress: Double, of pages: Int) -> CGRect? {
+        switch part {
+        case let .answer(row):
+            return answers.indices.contains(row) ? answers[row] : nil
+        case let .page(page):
+            let dots = dots(at: progress, of: pages)
+
+            return dots.indices.contains(page) ? dots[page] : nil
+        case .ignore:
+            return ignore
+        case .snooze:
+            return snooze
+        case .open:
+            return open
+        case .undo:
+            return undo
+        }
     }
 }
 

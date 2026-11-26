@@ -74,6 +74,10 @@ struct AsksPanel {
     private var isDragHeld = false
     private var look: Look?
     private var lookedAt = -Double.infinity
+    /// Whether the keys made the change of meaning at `lookedAt`, paging it, which a key waits on no beat after; and
+    /// whether they paged it since it was last placed.
+    private var lookedByKeys = false
+    private var keysPaged = false
     /// The row it opened beside, and how far the list was scrolled then.
     private var opened: (row: String, scroll: Double)?
     /// How the drawing sets its words, and the asks it last laid out.
@@ -184,14 +188,18 @@ struct AsksPanel {
         self.open = Open(row: open.row, ask: ids[page], page: page, asks: ids)
     }
 
-    /// At the ask on this page of its row's session's, where it has one, sliding there (DESIGN, "Paging").
-    mutating func page(to page: Int, _ rows: some AsksRows, _ board: PanelBoard, reducesMotion: Bool) {
+    /// At the ask on this page of its row's session's, where it has one, sliding there (DESIGN, "Paging"); paged
+    /// `byKeys`, a key after it waits on no beat (`isSettled(forKeysAt:)`).
+    mutating func page(
+        to page: Int, _ rows: some AsksRows, _ board: PanelBoard, reducesMotion: Bool, byKeys: Bool = false
+    ) {
         guard let open, let asks = asks(of: open.row, in: rows, board), asks.indices.contains(page) else {
             return
         }
 
         slide.slide(from: open.page, to: page, reducesMotion: reducesMotion)
         self.open = Open(row: open.row, ask: asks[page].id, page: page, asks: asks.map(\.id))
+        keysPaged = byKeys
     }
 
     /// Whether a scroll with the pointer here is its: on it, or in a swipe across it under way, which keeps every scroll
@@ -289,8 +297,10 @@ struct AsksPanel {
 
         if look?.meansOther(than: self.look, pointerOn: pointerOn) == true {
             lookedAt = time
+            lookedByKeys = keysPaged
         }
         self.look = look
+        keysPaged = false
     }
 
     /// Whether a point on the stage is on it, as last placed.
@@ -340,9 +350,13 @@ struct AsksPanel {
             return nil
         }
 
+        return part(of: shown, own: shown.ownPoint(point, mirror: mirror), holding: holding)
+    }
+
+    /// What a point in its own frame is on, as shown, however tall it stands as its asks slide.
+    static func part(of shown: AsksShown, own point: CGPoint, holding: Bool) -> AsksPart? {
         let part = shown.layout.part(
-            at: shown.ownPoint(point, mirror: mirror), sending: shown.sending != nil, progress: shown.progress,
-            of: shown.pages
+            at: point, sending: shown.sending != nil, progress: shown.progress, of: shown.pages
         )
 
         switch part {
@@ -358,6 +372,12 @@ struct AsksPanel {
     /// before never lands on what took its place.
     func isSettled(at time: Double) -> Bool {
         time - lookedAt >= Self.settle
+    }
+
+    /// Whether a key takes now (DESIGN, "Keys"): the last change of meaning was the keys' own paging, which a key
+    /// acts at once after; else it has stood `settle` since, as for a press.
+    func isSettled(forKeysAt time: Double) -> Bool {
+        lookedByKeys || isSettled(at: time)
     }
 
     /// How long, ms, what it shows stands before it takes a press.

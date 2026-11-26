@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// A key of the panel's set (DESIGN, "Keys"), pressed alone: what it means wherever it applies.
+/// A key of the panel's set (DESIGN, "Keys"), pressed alone, `⌘Z` aside: what it means wherever it applies.
 public enum PanelKey: Equatable, Sendable {
     /// `↑` or `k`, and `↓` or `j`: the lit row, or a menu's highlight, moved.
     case up, down
@@ -19,13 +19,15 @@ public enum PanelKey: Equatable, Sendable {
     case ignore
     /// `1` to `9`.
     case digit(Int)
+    /// `⌘Z`: the answer the asks panel is sending taken back, as its Undo.
+    case undo
 
     /// Whether held, it acts again at each repeat, as a Mac menu's arrows do: any other's repeats are dropped, so a
     /// held digit answers once.
     var repeats: Bool {
         switch self {
         case .up, .down, .left, .right: true
-        case .enter, .escape, .open, .snooze, .fold, .ignore, .digit: false
+        case .enter, .escape, .open, .snooze, .fold, .ignore, .digit, .undo: false
         }
     }
 }
@@ -66,6 +68,14 @@ public struct TapKey: Equatable, Sendable {
         return Self.byCode[code] ?? Self.byTyping[typed.lowercased()]
     }
 
+    /// The key of the panel's set it is, `⌘Z` among them where the asks panel's sending line `undoes`: ⌘ alone held
+    /// with the key that types z, Caps Lock aside.
+    func panelKey(undoes: Bool) -> PanelKey? {
+        let isUndo = flags.intersection(Self.modifiers) == .maskCommand && typed.lowercased() == "z"
+
+        return undoes && isUndo ? .undo : panelKey
+    }
+
     private static let modifiers: CGEventFlags = [.maskShift, .maskCommand, .maskControl, .maskAlternate]
 
     private static let byCode: [UInt16: PanelKey] = [
@@ -82,8 +92,9 @@ public struct TapKey: Equatable, Sendable {
 public enum KeySnapshot: Equatable, Sendable {
     /// Nothing holds the keys: each goes through.
     case none
-    /// The panel holds them, in its hold of this number: every key of the set is its, and any other ends the hold.
-    case panel(hold: Int)
+    /// The panel holds them, in its hold of this number: every key of the set is its, `⌘Z` too while the asks panel's
+    /// sending line shows and so `undoes`, and any other ends the hold.
+    case panel(hold: Int, undoes: Bool = false)
     /// One of the notch's menus is open: a snooze menu shown on its own, of this many choices, whose digits, `z`, `k`
     /// and `j` the tap takes; or, with none, the row's menu, which keeps AppKit's keys alone.
     case menu(choices: Int?)
@@ -191,11 +202,11 @@ public struct KeyReader: Sendable {
             return .pass
         case let .menu(choices?):
             return Self.menu(key, of: choices)
-        case let .panel(hold):
+        case let .panel(hold, undoes):
             guard hold != ended else {
                 return .pass
             }
-            guard let panelKey = key.panelKey else {
+            guard let panelKey = key.panelKey(undoes: undoes) else {
                 ended = hold
                 return .letGo(hold: hold)
             }
@@ -208,7 +219,7 @@ public struct KeyReader: Sendable {
     }
 
     private func holds(_ snapshot: KeySnapshot) -> Bool {
-        guard case let .panel(hold) = snapshot else {
+        guard case let .panel(hold, _) = snapshot else {
             return false
         }
 

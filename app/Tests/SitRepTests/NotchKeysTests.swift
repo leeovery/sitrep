@@ -9,8 +9,8 @@ import Testing
 /// The notch's keys on the Mac (DESIGN, "Keys"): the tap made as the panel opens where macOS gives the leave, on while
 /// the panel is out or one of its menus is open and off at rest; the panel taking no keys without the leave or under
 /// secure input, read again as macOS turns the tap off for input it can't see; a snooze menu on its own taking its
-/// digits and `z`, the row's menu keeping AppKit's keys; and the keys the tap hands on acting as their clicks. No tap is
-/// real here: the Mac is the test's own.
+/// digits and `z`, the row's menu keeping AppKit's keys; the keys the tap hands on acting as their clicks; and the tap
+/// told `⌘Z` is the panel's while the asks panel's sending line shows. No tap is real here: the Mac is the test's own.
 @MainActor
 @Suite(.backstop)
 struct NotchKeysTests {
@@ -221,7 +221,8 @@ struct NotchKeysTests {
     private static let frameMS = NotchAsksWindowTests.frameMS
     private static let helpDesk = "needs:sr-nw0001", asleep = "snoozed:sr-ct0002"
 
-    /// Help desk redesign of Northwind in Needs you, asking a yes, and Shift schedules of Contoso in Snoozed.
+    /// Help desk redesign of Northwind in Needs you, asking a yes the asks panel answers, and Shift schedules of
+    /// Contoso in Snoozed.
     private static func board() -> PanelBoard {
         let at = Int(Date().timeIntervalSince1970 * 1000)
         let rows = [
@@ -236,10 +237,18 @@ struct NotchKeysTests {
                 lines: [.init("ask:sr-ct0002:k1", ask: "k1", first: "Map the rota?", wakesAt: at + 3_600_000)]
             ),
         ]
+        let projects = [
+            WatchLine.Project(name: "Northwind", sessions: [
+                WatchLine.Session(id: "sr-nw0001", name: "Help desk redesign", state: .needsYou, asks: [
+                    WatchLine.Ask(id: "k1", wants: .yes, yes: "Ship", title: "Ship it?"),
+                ]),
+            ]),
+        ]
         var last = LastBoard()
 
         _ = last.hear(
-            .line(WatchLine(at: at, rows: rows, snoozed: snoozed).text), at: Date(timeIntervalSince1970: Double(at) / 1000)
+            .line(WatchLine(at: at, rows: rows, snoozed: snoozed, projects: projects).text),
+            at: Date(timeIntervalSince1970: Double(at) / 1000)
         )
         return PanelBoard(last)
     }
@@ -369,6 +378,48 @@ struct NotchKeysTests {
         }
         #expect(closing.0.run.phase == .closed)
         #expect(world.taps.last?.isOn == false)
+    }
+
+    /// On the asks panel `1` answers with its row and `⌘Z` takes the answer back, as their clicks do; the tap is told
+    /// `⌘Z` is the panel's while the sending line shows, and not once it goes.
+    @Test func onTheAsksPanelADigitAnswersAndCommandZUndoes() throws {
+        let world = KeysWorld(), (notch, _, next) = try Self.opened(world)
+        let tap = try #require(world.taps.first), undo = TapKey(code: 6, typed: "z", flags: .maskCommand)
+        let ship = Answering(.words("Ship"), to: "k1", of: "sr-nw0001", wanting: .yes)
+        var answered: [Answering] = [], undone = 0
+
+        defer { notch.window.close() }
+        notch.onAnswer = { answered.append($0) }
+        notch.onUndo = { undone += 1 }
+
+        let pointer = try Self.words(Self.helpDesk, notch.run)
+
+        notch.step(at: next(), pointer: pointer)
+        notch.heard(.enter, pointer: pointer)
+        notch.heard(.digit(1), pointer: pointer)
+        #expect(answered == [ship])
+
+        let now = Date()
+
+        // the news comes with the real pointer, off the far-off display: the test's comes back onto the row after it
+        notch.heard(.held(HeldAnswer(answering: ship, heldAt: now, goesAt: now.addingTimeInterval(2))))
+        notch.step(at: next(), pointer: pointer)
+        try #require(notch.run.asksShown?.sending != nil)
+        guard case .panel(_, undoes: true) = tap.snapshot else {
+            Issue.record("the tap was not told the sending line undoes: \(tap.snapshot)")
+            return
+        }
+        #expect(tap.read(undo) == .take(.panel(.undo)))
+        notch.heard(.undo, pointer: pointer)
+        #expect(undone == 1)
+
+        notch.heard(.undone(ship))
+        notch.step(at: next(), pointer: pointer)
+        guard case let .panel(hold, undoes: false) = tap.snapshot else {
+            Issue.record("the tap was still told the sending line undoes: \(tap.snapshot)")
+            return
+        }
+        #expect(tap.read(undo) == .letGo(hold: hold))
     }
 
     /// `z` on a Needs you row offers the row's Snooze times numbered, a choice snoozing its session, naming the asks the
