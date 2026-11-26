@@ -13,37 +13,28 @@ import Testing
 struct EdgePaneChangeTests {
     /// A change to Edge's choices, from where it starts.
     enum Change: CaseIterable, Sendable {
-        case notchToStrip, stripToNothing, growsToFull
+        case notchToNothing, nothingToNotch
 
         func start(_ edge: inout EdgeSettings) {
-            switch self {
-            case .notchToStrip: edge.show = .notch
-            case .stripToNothing, .growsToFull: edge.show = .strip
-            }
+            edge.show = self == .notchToNothing ? .notch : .nothing
         }
 
         func change(_ edge: inout EdgeSettings) {
-            switch self {
-            case .notchToStrip: edge.show = .strip
-            case .stripToNothing: edge.show = .nothing
-            case .growsToFull: edge.length = .full
-            }
+            edge.show = self == .notchToNothing ? .nothing : .notch
         }
 
-        /// The cards once changed: the Show row's 86, then the shape's section, its header's 16 and 10 over its card,
-        /// and Motion's, 26 apart: the strip's four rows with their hairlines; at Full, three, Max gone; at Nothing,
-        /// the Show row's card alone.
+        /// The cards once changed: the Show row's 86, then the notch's section, its header's 16 and 10 over its card,
+        /// and Motion's, 26 apart, the notch's three rows with their hairlines; at Nothing, the Show row's card alone.
         var cards: [ClosedRange<CGFloat>] {
             switch self {
-            case .notchToStrip: [13 ... 99, 151 ... 346.5, 398.5 ... 450.5]
-            case .stripToNothing: [13 ... 99]
-            case .growsToFull: [13 ... 99, 151 ... 294, 346 ... 398]
+            case .notchToNothing: [13 ... 99]
+            case .nothingToNotch: [13 ... 99, 151 ... 294, 346 ... 398]
             }
         }
 
-        /// Motion's card's foot before the change, past which what the pane held is read for what is left of it.
+        /// The last card's foot before the change, past which what the pane held is read for what is left of it.
         var footBefore: CGFloat {
-            self == .notchToStrip ? 398 : 450.5
+            self == .notchToNothing ? 398 : 99
         }
     }
 
@@ -84,25 +75,6 @@ struct EdgePaneChangeTests {
         for (card, expected) in zip(cards, change.cards) {
             #expect(expected.isWithinAPixel(of: card, at: drawn.scale))
         }
-    }
-
-    /// At Strip, Max coming or going keeps the section and the rest of its rows: Edge and Length are the same controls
-    /// after as before, so focus and VoiceOver's cursor on one stay where they were. Rebuilt, the section would make
-    /// each afresh.
-    @Test(arguments: [StripLength.full, .grows])
-    func maxComingOrGoingKeepsTheOtherRows(to length: StripLength) async throws {
-        let (settings, hosted) = await Self.hosted { $0.show = .strip; $0.length = length == .full ? .grows : .full }
-        let before = hosted.all(NSSegmentedControl.self)
-
-        try #require(before.count == 2)
-        settings.preferences.edit { $0.length = length }
-        hosted.hosting.layoutSubtreeIfNeeded()
-
-        let after = hosted.all(NSSegmentedControl.self)
-
-        #expect(hosted.all(NSSlider.self).count == (length == .grows ? 1 : 0))
-        #expect(after.count == before.count)
-        expectEvery(zip(before, after)) { $0 === $1 }
     }
 
     /// How far past the taller pane's foot is read, so a hairline or an edge left just under it is read too.

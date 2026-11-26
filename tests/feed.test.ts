@@ -11,7 +11,6 @@ import {
   foldSession,
   headOf,
   inPanelOrder,
-  lettersOf,
   manifestVersion,
   metaText,
   needsReload,
@@ -219,7 +218,6 @@ test("a session with an ask is a row in Needs you, the ask a line of it, its tit
     project: 'northwind',
     name: 'Help desk redesign',
     projectName: 'Northwind',
-    letters: 'No',
     lines: [
       {
         key: `ask:${META.id}:k1`,
@@ -696,7 +694,6 @@ const row = (session: string, is: RowKind, since: number | number[], isAway = fa
     project: 'p',
     name: 's',
     projectName: 'P',
-    letters: 'Pp',
     lines: times.map(at => ({ key: `${is}:${session}:${at}`, is, first: { lead: session }, since: at })),
     second: 'P · s',
     since: Math.max(...times),
@@ -758,12 +755,6 @@ test('the head counts the lines needing Lee, away ones among them, and the rows,
     ]),
   ).toEqual({ needYou: 5, sessions: 4 })
   expect(headOf([row('turn', 'yourTurn', T0)])).toEqual({ needYou: 0, sessions: 1 })
-})
-
-test("a project's two letters: its capitals where it has two, else its first two", () => {
-  expect(
-    ['SitRep', 'BlueYonder', 'Northwind', 'contoso', 'Adventure Works', 'Wingtip 2'].map(lettersOf),
-  ).toEqual(['SR', 'BY', 'No', 'co', 'AW', 'Wi'])
 })
 
 /** Three sessions of Northwind and one of Contoso, each in a state of its own. */
@@ -1426,7 +1417,6 @@ test('a session Lee snoozed needs Lee no more: its asks and its turn are one row
       project: NORTHWIND.key,
       name: META.name,
       projectName: 'Northwind',
-      letters: 'No',
       lines: [
         {
           key: K1,

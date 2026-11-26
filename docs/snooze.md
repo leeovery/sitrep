@@ -13,7 +13,7 @@ In the terminal view, choose the row and press `z`, then pick Tomorrow. To put o
 ## What happens
 
 - **A row snoozes the whole session.** One ask, from the pane or the asks panel, snoozes only itself. If it was the last ask waiting, your turn waits with it until Claude ends another turn.
-- **Snoozed holds it.** Snoozed is the last section of the panel, folded at first to a count. The count has one line for each ask asleep, and one for a snoozed turn. The strip folds Snoozed the same way, and shows a mark for each session once you unfold it.
+- **Snoozed holds it.** Snoozed is the last section of the panel, folded at first to a count. The count has one line for each ask asleep, and one for a snoozed turn.
 - **The pane keeps the asks in sight.** A snoozed ask stays under ASKS, drawn faint, with `snoozed until tomorrow 09:00` and `wake now`. The heading counts both, such as `1 waiting · 2 snoozed`.
 - **Its time wakes it.** The asks come back to Needs you, with the sound and the pulse a new ask brings. In the Claude Code window running that session, a toast says `● Back from snooze:` and the ask title. Your turn comes back quietly.
 - **Something new wakes a snoozed session sooner:**

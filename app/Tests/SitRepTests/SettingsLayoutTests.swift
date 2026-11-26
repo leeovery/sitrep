@@ -88,17 +88,6 @@ struct SettingsLayoutTests {
         }
     }
 
-    @Test func withTheStripLengthIsGrowsOrFullAndMaxASlider160Wide() async throws {
-        let hosted = await Hosted.pane(.edge, width: 744) { $0.show = .strip }
-        let segmented = hosted.all(NSSegmentedControl.self).map { hosted.frame(of: $0).width }
-        let slider = try hosted.frame(of: #require(hosted.all(NSSlider.self).first))
-
-        // Edge, Length
-        #expect(segmented.map { ($0 * 2).rounded() / 2 } == [106, 117])
-        #expect(slider.size == CGSize(width: 160, height: 16))
-        #expect(abs(slider.maxX - (Self.edge + Self.column(744) - 10)) < 0.5)
-    }
-
     /// Notifications' push buttons at their own widths, as measured in a form, against the right: Send Test 84.5, and
     /// Notification Settings… 158.
     @Test func notificationsPushButtonsKeepTheirOwnWidths() async throws {
@@ -255,15 +244,14 @@ struct SettingsLayoutTests {
         }
     }
 
-    /// Edge ends 20 under Motion's card: the notch's three rows in its card, the strip's four, Max among them. Laid out
-    /// at 2×, its hairlines 0.5 each, as no window holds it to give it the screen's scale.
-    @Test(arguments: [(EdgeSettings.Show.notch, 418.0), (.strip, 470.5)])
-    func edgeEnds20UnderItsLastCard(show: EdgeSettings.Show, height: CGFloat) async {
-        let settings = await Hosted.settings { $0.show = show }
+    /// Edge ends 20 under Motion's card, the notch's three rows in its card. Laid out at 2×, its hairlines 0.5 each,
+    /// as no window holds it to give it the screen's scale.
+    @Test func edgeEnds20UnderItsLastCard() async {
+        let settings = await Hosted.settings { $0.show = .notch }
         let pane = SettingsPaneContent(pane: .edge, settings: settings).environment(\.displayScale, 2)
         let size = NSHostingController(rootView: pane).sizeThatFits(in: CGSize(width: Self.drawingsPane, height: 10_000))
 
-        #expect(abs(size.height - height) <= 0.5)
+        #expect(abs(size.height - 418) <= 0.5)
     }
 
     /// The desktop corner fills the column's width at its 150, whatever the width.

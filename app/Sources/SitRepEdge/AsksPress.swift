@@ -2,7 +2,7 @@ import CoreGraphics
 import SitRepCore
 import SitRepPanel
 
-/// What a press on the asks panel comes to, for the run holding it to act on: the notch's and the strip's alike.
+/// What a press on the asks panel comes to, for the run holding it to act on.
 enum AsksPress: Equatable {
     /// A page dot paged it, and nothing else.
     case paged

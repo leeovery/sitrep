@@ -1,10 +1,9 @@
 import AppKit
 import SitRepPanel
 
-/// A row's arrow in black (board E2; DESIGN, "The row's arrow"), on a panel row or a strip's tab: unlit, its chevron
-/// soft with no fill of its own; lit, filled, its chevron white; pointing toward where the asks panel opens, away from
-/// the screen's edge, and turning to point back while its asks panel is open, over `RowArrow.turning`, or at once under
-/// Reduce motion.
+/// A row's arrow in black (board E2; DESIGN, "The row's arrow"), on a panel row: unlit, its chevron soft with no fill
+/// of its own; lit, filled, its chevron white; pointing toward where the asks panel opens, away from the screen's edge,
+/// and turning to point back while its asks panel is open, over `RowArrow.turning`, or at once under Reduce motion.
 @MainActor
 final class ArrowButton {
     let box = CALayer()

@@ -67,27 +67,6 @@ extension Session {
         case .working, .onItsWork: nil
         }
     }
-
-    /// The group its row is in, the panel's order taking them in turn (Lee, 14 November 2026): Needs you's asks and
-    /// its stopped, Working, those on their own work among them, and Snoozed. A mark on the strip moves at once as its
-    /// session's group changes.
-    var group: RowGroup {
-        switch kind {
-        case .needs: .asks
-        case .turn: .stopped
-        case .working, .onItsWork: .working
-        case .snoozed, .snoozedTurn: .snoozed
-        }
-    }
-
-    /// The key its mark goes by on the strip: its session's id, or in Snoozed, apart from the row a session working,
-    /// or stopped on a prompt, has beside it, `snoozed:` and the id.
-    public var markID: String { Self.markID(of: id, snoozed: isSnoozed) }
-
-    /// The key of a session's mark in Snoozed, or of its mark in any other section.
-    static func markID(of id: String, snoozed: Bool) -> String {
-        snoozed ? "snoozed:\(id)" : id
-    }
 }
 
 extension [Session] {
@@ -141,8 +120,7 @@ public struct Eyebrow: Equatable, Sendable {
     public static let first = 4.0, after = 14.0
 }
 
-/// What Lee folded: the sections folded, on the card to their eyebrows, on the strip each to its count, the one
-/// setting for both (14 November 2026).
+/// What Lee folded: the sections folded on the card to their eyebrows.
 public struct CardFolds: Equatable, Sendable {
     public var sections: Set<BoardSection>
 
@@ -199,9 +177,4 @@ extension Item {
     private static func count(_ rows: [Session], in section: BoardSection) -> Int {
         section.countsLines ? rows.map(\.lines.count).reduce(0, +) : rows.count
     }
-}
-
-/// A row's group (`Session.group`), in the panel's order: its section, and in Needs you, what it waits on Lee for.
-enum RowGroup: Comparable {
-    case asks, stopped, working, snoozed
 }

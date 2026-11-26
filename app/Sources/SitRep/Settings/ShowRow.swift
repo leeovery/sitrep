@@ -3,10 +3,10 @@ import SitRepPanel
 import SwiftUI
 
 /// Edge's first row, on a card of its own, as System Settings sets Appearance's on macOS 26: Show at its left, and at
-/// its right the three pictures of the screen's edge, each named under it: the notch and its light, the strip and its
-/// rings, or only the menu bar's glyph, lit. The one chosen is ringed in the accent; a click on another chooses it. It
-/// is the menu's Show. With Nothing, the line under Show says what carries the board instead. Nothing in the row
-/// answers the pointer, as nothing in Appearance's does: a picture changes only as it is chosen.
+/// its right the two pictures of the screen's edge, each named under it: the notch and its light, or only the menu
+/// bar's glyph, lit. The one chosen is ringed in the accent; a click on the other chooses it. It is the menu's Show.
+/// With Nothing, the line under Show says what carries the board instead. Nothing in the row answers the pointer, as
+/// nothing in Appearance's does: a picture changes only as it is chosen.
 struct ShowRow: View {
     @Binding var show: EdgeSettings.Show
 

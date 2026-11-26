@@ -114,7 +114,7 @@ struct SettingsStillsTests {
         )
     }
 
-    @Test(arguments: [EdgeSettings.Show.strip, .nothing])
+    @Test(arguments: [EdgeSettings.Show.nothing])
     func edgeAtEachChoice(show: EdgeSettings.Show) async throws {
         let settings = await Self.settings(Self.preferences { $0.show = show }, windows: Self.current)
 

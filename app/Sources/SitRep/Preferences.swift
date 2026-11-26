@@ -101,9 +101,8 @@ final class Preferences {
         snoozeFile?.write(snooze)
     }
 
-    /// A change Lee makes to the edge's settings: the edge takes it, and it is saved, unless it is one step of a drag
-    /// that `save` ends.
-    func edit(saving: Bool = true, _ change: (inout EdgeSettings) -> Void) {
+    /// A change Lee makes to the edge's settings: the edge takes it, and it is saved.
+    func edit(_ change: (inout EdgeSettings) -> Void) {
         var edited = edge
 
         change(&edited)
@@ -112,18 +111,11 @@ final class Preferences {
         }
 
         edge = edited
-        if saving {
-            save()
-        }
+        savedEdge.save(edited)
         onEdge(edited)
     }
 
-    /// The edge's settings as they stand, saved: at the end of a drag whose steps were not.
-    func save() {
-        savedEdge.save(edge)
-    }
-
-    /// Where a drag left the notch or the strip, which has already placed itself there: saved, for Settings to show.
+    /// Where a drag left the notch, which has already placed itself there: saved, for Settings to show.
     func moved(_ settings: EdgeSettings) {
         edge = settings
         savedEdge.save(settings)

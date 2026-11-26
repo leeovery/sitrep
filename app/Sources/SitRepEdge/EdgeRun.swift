@@ -1,8 +1,8 @@
 import CoreGraphics
 import SitRepPanel
 
-/// When an input comes to a run, the notch's or the strip's: the time, the pointer on the stage and when it was read,
-/// whether it shows, and what it runs in.
+/// When an input comes to the notch's run: the time, the pointer on the stage and when it was read, whether it shows,
+/// and what it runs in.
 public struct RunMoment<Setting: Sendable>: Sendable {
     public var time: Double
     public var pointer: CGPoint?
@@ -22,9 +22,9 @@ public struct RunMoment<Setting: Sendable>: Sendable {
 
 /// What frames showed that the drawing must show once, though it draws only some of them.
 public struct RunShown: Equatable, Sendable {
-    /// The notch or the strip swapped edges, after a drop across.
+    /// The notch swapped edges, after a drop across.
     public var swappedEdge = false
-    /// When a click's jump drained, the panel going in or the strip's spin over: what the caption waits for.
+    /// When a click's jump drained, the panel going in: what the caption waits for.
     public var jumpDrained: Double?
 }
 
@@ -34,9 +34,8 @@ public struct RunDrop: Equatable, Sendable {
     public let isAcross: Bool
 }
 
-/// What the notch's run and the strip's keep alike, each holding its own: the display's clock, which never goes back;
-/// the clicks that ask for a jump, the latest's answer the one heard; and what frames showed for the drawing to show
-/// once.
+/// What the notch's run keeps: the display's clock, which never goes back; the clicks that ask for a jump, the
+/// latest's answer the one heard; and what frames showed for the drawing to show once.
 struct RunBook {
     /// The display's clock, ms, as the frames and what comes between them have it. The main link's frames are stamped
     /// up to a refresh ahead of what comes between them, and an input after one takes its time.

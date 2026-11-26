@@ -66,7 +66,7 @@ public struct ScreenEdge: Equatable, Sendable {
     }
 
     /// The band from the edge to this far into the screen, level with the notch's home, on the screen: what stands
-    /// beside the notch or the strip at rest stands past its front, wherever either is moving to.
+    /// beside the notch at rest stands past its front, wherever it is moving to.
     public func homeBand(reaching front: Double) -> CGRect {
         screenRect(CGRect(x: 0, y: stage.notchY, width: front, height: 0))
     }
@@ -81,7 +81,7 @@ public struct ScreenEdge: Equatable, Sendable {
 
     /// The window, `wide` while the asks panel is open beside the panel, for it and its shadow (`wideDepth`).
     public func window(wide: Bool) -> CGRect {
-        against(depth: wide ? Self.wideDepth : Self.depth, height: frame.height)
+        against(depth: wide ? Self.wideDepth : Self.depth)
     }
 
     /// The stage into the window's flipped content, the window `wide` or not.
@@ -92,38 +92,9 @@ public struct ScreenEdge: Equatable, Sendable {
     /// How far into the screen the window reaches while the asks panel is open.
     public static let wideDepth = max(depth, AsksLayout.reach)
 
-    /// The screen as the strip sees it: the menu bar the difference between its top and the visible frame's.
-    public var stripStage: StripStage {
-        StripStage(
-            width: frame.width, height: frame.height, menu: frame.maxY - visible.maxY,
-            visibleBottom: frame.maxY - visible.minY
-        )
-    }
-
-    /// The strip's window: against the edge, from under the menu bar to the screen's bottom, as deep as its tabs reach.
-    /// Its flipped content is the stage from under the menu bar.
-    public var stripWindow: CGRect { stripWindow(wide: false) }
-
-    /// The strip's stage into its window's flipped content, as `mirror` is the notch's.
-    public var stripMirror: CGAffineTransform { stripMirror(wide: false) }
-
-    /// The strip's window, `wide` while the asks panel is open beside its tab (`stripWideDepth`).
-    public func stripWindow(wide: Bool) -> CGRect {
-        against(depth: wide ? Self.stripWideDepth : Strip.depth, height: visible.maxY - frame.minY)
-    }
-
-    /// The strip's stage into its window's flipped content, the window `wide` or not.
-    public func stripMirror(wide: Bool) -> CGAffineTransform {
-        mirror(depth: wide ? Self.stripWideDepth : Strip.depth)
-    }
-
-    /// How far into the screen the strip's window reaches while the asks panel is open beside a tab, however far the
-    /// tab reaches.
-    public static let stripWideDepth = max(Strip.depth, AsksLayout.reach(beside: Strip.depth))
-
-    /// A window this deep against the edge, from the screen's bottom.
-    private func against(depth: Double, height: Double) -> CGRect {
-        CGRect(x: edge == .left ? frame.minX : frame.maxX - depth, y: frame.minY, width: depth, height: height)
+    /// A window this deep against the edge, the screen's full height.
+    private func against(depth: Double) -> CGRect {
+        CGRect(x: edge == .left ? frame.minX : frame.maxX - depth, y: frame.minY, width: depth, height: frame.height)
     }
 
     private func mirror(depth: Double) -> CGAffineTransform {

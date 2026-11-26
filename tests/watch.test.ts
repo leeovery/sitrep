@@ -290,7 +290,6 @@ test('the first line is the board as every surface shows it, with nothing new, n
           project: PROJECT.key,
           name: 'Help desk redesign',
           projectName: 'Northwind',
-          letters: 'No',
           lines: [
             {
               key: `ask:${META.id}:k1`,
@@ -715,7 +714,6 @@ test('a snooze running out is a line the moment it does, though no file changed:
       project: PROJECT.key,
       name: META.name,
       projectName: PROJECT.name,
-      letters: 'No',
       lines: [
         {
           key: k1,
@@ -808,7 +806,6 @@ test("an old line's snooze of a turn is a line, its row leaving the rows for Sno
       project: PROJECT.key,
       name: META.name,
       projectName: PROJECT.name,
-      letters: 'No',
       lines: [
         {
           key: turn,

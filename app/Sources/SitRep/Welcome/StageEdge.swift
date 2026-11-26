@@ -4,12 +4,11 @@ import SitRepEdge
 import SitRepMenu
 import SitRepPanel
 
-/// SitRep's own edge on the welcome's stage (DESIGN, "The welcome window"): the notch or the strip as Lee set them,
-/// the real runs drawing into the real surfaces, fed a made-up board (`WelcomeBoard`), never a picture or a video, so
-/// the stage cannot drift from the app. They run on a screen of the stage's own, its menu bar the stage's, at the
-/// size the step plays them, the notch's home, and the strip's centre, where Paper's boards put the notch, and follow
-/// the real settings: notch, strip or nothing, style and edge, each change drawn at once, the window in front
-/// or not.
+/// SitRep's own edge on the welcome's stage (DESIGN, "The welcome window"): the notch as Lee set it, the real run
+/// drawing into the real surface, fed a made-up board (`WelcomeBoard`), never a picture or a video, so the stage
+/// cannot drift from the app. It runs on a screen of the stage's own, its menu bar the stage's, at the size the step
+/// plays it, its home where Paper's boards put the notch, and follows the real settings: notch or nothing, style and
+/// edge, each change drawn at once, the window in front or not.
 /// Frames run while the window is in front and something moves, as the real edge's do: the shape, the light, which
 /// alone redraws on its slow refresh, or the loop's pointer; between them the stage sleeps until the loop's next beat
 /// or a sound chosen. Behind, frames run only until a change settles, the loop's clock held. Under Reduce motion, the
@@ -85,9 +84,6 @@ final class StageEdge: NSView {
     private var chimedAt: Double?
     /// The ask's row's middle on the stage, once the loop's panel shows it: internal only for the tests.
     private(set) var row: CGPoint?
-    /// A change of Lee's settings may have moved the row since it was found, so it is found again on the shape as it
-    /// now is.
-    private var rowIsStale = false
     /// The callout's place as last told the desktop.
     private var placed: StageCallout.Place?
     /// Whether SitRep's item was last told lit: internal only for the tests.
@@ -223,22 +219,14 @@ final class StageEdge: NSView {
     }
 
     /// The ask's row, found on the shape as the last frame laid it out, before the pointer is placed on it: while the
-    /// loop's pointer goes to it, first and each frame the shape moves; and through the glide off it too, once the
-    /// strip's length, Max or edge has moved it (`movesRow`), whenever Lee changed it, so the pointer never goes by
-    /// where the row was.
+    /// loop's pointer goes to it, first and each frame the shape moves.
     private func findRow(at time: Double) {
-        guard let loop = play.loop else {
-            return
-        }
-
-        let looks = loop.findsRow(at: loopTime) && (row == nil || shape.pace(at: time, staged) == .moving)
-
-        guard looks || (rowIsStale && loop.holdsRow(at: loopTime)) else {
+        guard let loop = play.loop, loop.findsRow(at: loopTime), row == nil || shape.pace(at: time, staged) == .moving
+        else {
             return
         }
 
         row = shape.middle(of: WelcomeBoard.asking, on: edge, staged)
-        rowIsStale = false
     }
 
     /// Step 2's click on the ask's row, pressed as the real notch takes a click, so the row presses in; then the jump
@@ -320,7 +308,6 @@ final class StageEdge: NSView {
         loopTime = 0
         lastTime = nil
         isPressing = false
-        rowIsStale = false
         chimedAt = nil
         chimeEnds?.invalidate()
         chimeEnds = nil
@@ -426,11 +413,10 @@ final class StageEdge: NSView {
         }
     }
 
-    /// Lee's settings, as they stand, which the runs take each frame. While a loop plays, a change of the whole
-    /// surface, the other shape or the notch restyled, plays the loop again from its start on the surface as it now
-    /// is: the notch closes its panel to change, and a glide off one shape's row has nowhere to go on another's. Else
-    /// the other shape is made in place, and a change that moves the ask's row has it found again on the shape as it
-    /// now is before the pointer next goes by it, the loop paused or not (`findRow`).
+    /// Lee's settings, as they stand, which the run takes each frame. While a loop plays, the notch restyled plays
+    /// the loop again from its start, as the notch closes its panel to change. Else the notch, or no edge at Nothing,
+    /// is made in place. Nothing else moves the ask's row: it is found in the edge's own points, so the edge leaves it
+    /// where it is; and the place along the edge, the stage's own, the display and Reduce motion move nothing.
     private func follow(_ settings: EdgeSettings) {
         guard settings != self.settings else {
             return
@@ -447,24 +433,12 @@ final class StageEdge: NSView {
         if reshapes {
             return replace(with: Self.shape(settings.show, play))
         }
-        if movesRow(from: last) {
-            rowIsStale = true
-        }
         place(shape)
         shape.apply(staged, at: clock.now, edge)
     }
 
-    /// Whether a change moves the ask's row: on the strip, its length, Max or edge, which move its mark. Nothing moves
-    /// the notch's row but a restyle, which plays the loop again: its row is found in the edge's own points, so the
-    /// edge leaves it where it is, and looking again late in the glide, its panel folding, would lose it. The place
-    /// along the edge, the stage's own, the display and Reduce motion move neither.
-    private func movesRow(from last: EdgeSettings) -> Bool {
-        shape is StageStrip
-            && (settings.length != last.length || settings.maxLength != last.maxLength || settings.edge != last.edge)
-    }
-
-    /// Lee's settings as the stage runs them: the place along the edge the stage's own, so the strip centres where
-    /// Paper puts the notch, as the notch sits there, wherever he dragged his own.
+    /// Lee's settings as the stage runs them: the place along the edge the stage's own, so the notch sits where Paper
+    /// puts it, wherever he dragged his own.
     private var staged: EdgeSettings {
         var staged = settings
 
@@ -493,23 +467,18 @@ final class StageEdge: NSView {
     }
 
     private enum Kind {
-        case notch, strip, none
+        case notch, none
     }
 
-    /// The shape the stage shows for what Lee chose, as the step plays it: the notch, the strip, or no edge at Nothing.
-    /// Steps 1 and 2's loops show the notch at Nothing too, as they teach what it does before step 3 offers the choice.
+    /// The shape the stage shows for what Lee chose, as the step plays it: the notch, or no edge at Nothing. Steps 1
+    /// and 2's loops show the notch at Nothing too, as they teach what it does before step 3 offers the choice.
     private static func kind(_ show: EdgeSettings.Show, _ play: WelcomeStage) -> Kind {
-        switch show {
-        case .strip: .strip
-        case .nothing where play.loop == nil: .none
-        case .notch, .nothing: .notch
-        }
+        show == .nothing && play.loop == nil ? .none : .notch
     }
 
     private static func shape(_ show: EdgeSettings.Show, _ play: WelcomeStage) -> any StageShape {
         switch kind(show, play) {
         case .notch: StageNotch()
-        case .strip: StageStrip()
         case .none: StageNoEdge()
         }
     }
@@ -551,7 +520,7 @@ enum StagePace {
     case moving, light, still
 }
 
-/// The notch or the strip on the stage: its run, and the surface it draws into, which the real edge's window holds.
+/// The notch on the stage, or no edge: its run, and the surface it draws into, which the real edge's window holds.
 @MainActor
 protocol StageShape: AnyObject {
     var surface: NSView { get }
@@ -693,92 +662,6 @@ final class StageNotch: StageShape {
 
     private static func setting(_ edge: ScreenEdge, _ settings: EdgeSettings) -> NotchRun.Setting {
         .on(edge, settings)
-    }
-}
-
-/// The strip on the stage.
-@MainActor
-final class StageStrip: StageShape {
-    private let strip = StripSurface()
-    private var run: StripRun?
-
-    var surface: NSView { strip }
-
-    func window(on edge: ScreenEdge) -> CGRect { edge.stripWindow }
-
-    /// Its resting width at the notch's home, as the real strip places its callout, however far it has grown.
-    func resting(on edge: ScreenEdge) -> CGRect {
-        CGRect(x: 0, y: edge.stage.notchY, width: Strip.restingWidth, height: 0)
-    }
-
-    /// The strip has no panel: its row is the session's mark, where the layout puts it, never a place it slides
-    /// through, which may be by another's.
-    func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint? {
-        markTarget(of: session)
-    }
-
-    /// On the session's mark too, so only its own tab pours: every point along the marks is near enough one to pour
-    /// it, so with no mark of its own, nowhere.
-    func home(of session: String, on edge: ScreenEdge) -> CGPoint? {
-        markTarget(of: session)
-    }
-
-    /// Where the mark of the session's row, by the mark's key, is going (`StripRun.markTarget`): its row in the
-    /// panel's sections, never Snoozed.
-    private func markTarget(of session: String) -> CGPoint? {
-        run.flatMap { run in
-            run.board.sessions.first { $0.id == session }.flatMap { run.markTarget(ofMark: $0.markID) }
-        }
-    }
-
-    func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {
-        if let run {
-            run.place(settings, Self.moment(time, nil, edge, settings))
-        } else {
-            run = StripRun(at: time, in: .on(edge, settings), settings, measure: StripWordsLayer.measure)
-        }
-    }
-
-    func show(_ board: PanelBoard, at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings) {
-        guard let run else {
-            return
-        }
-
-        run.show(board, Self.moment(time, nil, edge, settings))
-        draw(run, edge, settings)
-    }
-
-    func step(at time: Double, pointer: CGPoint?, _ edge: ScreenEdge, _ settings: EdgeSettings) {
-        guard let run else {
-            return
-        }
-
-        run.step(Self.moment(time, pointer, edge, settings))
-        draw(run, edge, settings)
-    }
-
-    /// The strip has no row to press: its loop's pointer rests on the ask's mark, and Ghostty comes forward alone.
-    func press(at time: Double, pointer: CGPoint, _ edge: ScreenEdge, _ settings: EdgeSettings) {}
-
-    func jumped(at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings) {}
-
-    /// The strip's marks light with their frames: no light of its own.
-    func drawLight(at time: Double, _ settings: EdgeSettings) {}
-
-    func pace(at time: Double, _ settings: EdgeSettings) -> StagePace {
-        run?.frame.isMoving == true ? .moving : .still
-    }
-
-    /// Nothing to tell of what it showed: the stage has no window to save a crossing for, nor a caption.
-    private func draw(_ run: StripRun, _ edge: ScreenEdge, _ settings: EdgeSettings) {
-        _ = run.takeShown()
-        strip.draw(run, in: .on(edge, settings), mirror: edge.stripMirror)
-    }
-
-    private static func moment(
-        _ time: Double, _ pointer: CGPoint?, _ edge: ScreenEdge, _ settings: EdgeSettings
-    ) -> StripRun.Moment {
-        StripRun.Moment(time: time, pointer: pointer, pointerAt: time, setting: .on(edge, settings))
     }
 }
 

@@ -6,8 +6,8 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
-/// What Lee sets, kept in one place: a change saves as it is made, but a drag's steps only once it ends; Snooze's
-/// choices are written for the pane in Claude Code as SitRep starts and as they change.
+/// What Lee sets, kept in one place: a change saves as it is made; Snooze's choices are written for the pane in Claude
+/// Code as SitRep starts and as they change.
 @MainActor
 @Suite(.backstop)
 struct PreferencesTests {
@@ -17,27 +17,10 @@ struct PreferencesTests {
         var taken: [EdgeSettings.Show] = []
 
         preferences.onEdge = { taken.append($0.show) }
-        preferences.edit { $0.show = .strip }
+        preferences.edit { $0.show = .nothing }
 
-        #expect(taken == [.strip])
-        #expect(SavedEdgeSettings(defaults).read().show == .strip)
-    }
-
-    @Test func aDragsStepsReachTheEdgeAtOnceAndAreSavedOnceAsItEnds() {
-        let defaults = MemoryDefaults()
-        let preferences = Preferences(defaults)
-        var taken: [Double] = []
-
-        preferences.onEdge = { taken.append($0.maxLength.share) }
-        preferences.edit(saving: false) { $0.maxLength = StripMax(share: 0.3) }
-        preferences.edit(saving: false) { $0.maxLength = StripMax(share: 0.6) }
-
-        #expect(taken == [0.3, 0.6])
-        #expect(defaults.data(forKey: SavedEdgeSettings.key) == nil)
-
-        preferences.save()
-
-        #expect(SavedEdgeSettings(defaults).read().maxLength == StripMax(share: 0.6))
+        #expect(taken == [.nothing])
+        #expect(SavedEdgeSettings(defaults).read().show == .nothing)
     }
 
     /// A file of a test's own, in a folder not there yet, gone with the folder once the test is done.

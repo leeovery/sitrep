@@ -145,10 +145,8 @@ extension SettingsRow {
         let lights = pulses ? "the notch swells and lights" : "the notch lights"
         let instead = switch (need, show) {
         case (.ask, .notch): lights
-        case (.ask, .strip): "the strip flashes"
         case (.ask, .nothing): "the menu bar's light comes on"
         case (.turn, .notch): "\(lights) blue"
-        case (.turn, .strip): "its mark on the strip turns blue"
         case (.turn, .nothing): "the menu bar's light turns blue"
         }
 
@@ -241,6 +239,6 @@ extension PluginTrouble {
         }
     }
 
-    /// The two in a line: the plugin row's, and the notch's, the strip's and the window's with no plugin to run.
+    /// The two in a line: the plugin row's, and the notch's and the window's with no plugin to run.
     public var line: String { "\(title). \(detail)" }
 }

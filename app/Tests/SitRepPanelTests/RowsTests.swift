@@ -175,14 +175,6 @@ struct RowsTests {
         #expect(content.entries[7].jumps, "an away row's carries its session on")
     }
 
-    @Test func aSessionTakesTheLettersItIsGivenElseMakesItsOwn() {
-        let given = Session(id: "", project: "Trey Research", letters: "Tr", kind: .turn, title: "", sub: "", since: 0)
-        let made = Session(id: "", project: "Trey Research", kind: .turn, title: "", sub: "", since: 0)
-
-        #expect(given.letters == "Tr")
-        #expect(made.letters == "TR")
-    }
-
     @Test(arguments: [(0.0, 60_000.0), (59_999, 60_000), (60_000, 120_000), (-30_000, 60_000), (5_400_000, 5_460_000)])
     func aRowsTimeMayNextReadDifferentlyAtItsNextWholeMinute(_ age: Double, changes: Double) {
         let session = Session(id: "", project: "Trey Research", kind: .turn, title: "", sub: "", since: 1000)
@@ -223,36 +215,15 @@ struct RowsTests {
         let agents = Session(id: "", project: "Trey Research", kind: .onItsWork, title: "Waiting on ", subject: "3", sub: "", since: 0)
 
         #expect(agents.changes(after: 40_000) == agents.lines[0].ageChanges(after: 40_000))
-        #expect(agents.countdownChanges(after: 40_000) == nil)
+        #expect(agents.lines[0].countdownChanges(after: 40_000) == nil)
     }
 
-    /// Its reading now, then the widest of each smaller unit to come, as days give way to hours and hours to minutes.
-    @Test(arguments: [
-        (0.0, ["in 3d", "in 23h", "in 59m"]), (86_400_000, ["in 2d", "in 23h", "in 59m"]),
-        (Self.wake - 86_400_000, ["in 1d", "in 23h", "in 59m"]), (Self.wake - 86_340_000, ["in 23h", "in 59m"]),
-        (Self.wake - 3_600_000, ["in 1h", "in 59m"]), (Self.wake - 3_540_001, ["in 1h", "in 59m"]),
-        (Self.wake - 3_540_000, ["in 59m"]), (Self.wake - 1, ["in 1m"]), (Self.wake, ["now"]),
-    ] as [(Double, [String])])
-    func aRowLeavesRoomForTheWidestItsWakesCountdownMayYetRead(_ now: Double, room: [String]) {
-        let wake = Session(id: "", project: "Litware", kind: .onItsWork, title: "Wakes ", until: Self.wake, sub: "", since: 0)
-
-        #expect(wake.countdownRoom(after: now) == room)
-    }
-
-    /// Three days on from 0, ms.
-    private static let wake = 3 * 86_400_000.0
-
-    @Test func aRowWithNoWakeLeavesNoRoomForACountdown() {
-        #expect(Session(id: "", project: "Litware", kind: .onItsWork, title: "Waiting on ", subject: "3 agents", sub: "", since: 0)
-            .countdownRoom(after: 0).isEmpty)
-    }
-
-    /// Alone, as a count's rows show no time: a minute before the wake, then as it comes due, then never.
+    /// Alone, apart from the row's time: a minute before the wake, then as it comes due, then never.
     @Test(arguments: [(0.0, 40_000.0), (970_000, 1_000_000), (1_000_000, nil), (2_000_000, nil)] as [(Double, Double?)])
     func aWakesCountdownAloneNextReadsDifferentlyUntilItIsDue(_ now: Double, changes: Double?) {
         let wake = Session(id: "", project: "Litware", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
 
-        #expect(wake.countdownChanges(after: now) == changes)
+        #expect(wake.lines[0].countdownChanges(after: now) == changes)
     }
 
     @Test func eachItemIsKeyedBySessionTheHairlineByItself() {

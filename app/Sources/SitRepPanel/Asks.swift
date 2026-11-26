@@ -321,12 +321,7 @@ public struct AsksLayout: Equatable, Sendable {
     }
 
     /// How far from the edge the asks panel and its shadow reach, beside the open panel: what its window must hold.
-    public static let reach = reach(beside: Tuning.panelDepth)
-
-    /// How far from the edge the asks panel and its shadow reach beside a list whose front is this far from it.
-    public static func reach(beside front: Double) -> Double {
-        front - overlap + width + 40
-    }
+    public static let reach = Tuning.panelDepth - overlap + width + 40
 
     /// Where an answer's lines go in a row this big, as many as it wraps to, on its middle.
     public static func answerBoxes(in row: CGSize, lines: Int) -> [CGRect] {
@@ -354,15 +349,10 @@ public struct AsksLayout: Equatable, Sendable {
 
 /// A Needs you row's arrow (DESIGN, "The row's arrow"), at the end of its row it points toward, where the asks panel
 /// opens: on the left edge a button 40 by 26 at the row's right end, in its time's place, 3 in from the row's lift; on
-/// the right edge 26 by 26 at its left end, in its dot's place, centred on the dot. Each on the row's middle. A strip's
-/// tab has its arrow 40 by 26 at its front end on either edge, the tab's words making room for it.
+/// the right edge 26 by 26 at its left end, in its dot's place, centred on the dot. Each on the row's middle.
 public enum RowArrow {
     public static let size = CGSize(width: 40, height: 26)
     public static let radius = 8.0, inset = 3.0
-    /// How far its far side stands in from the front of what its row stands in: 3 in from a notch row's end, which sits
-    /// 14 inside the list's front (`Content.paddingSide`). So the asks panel, overlapping that front by 8
-    /// (`AsksLayout.overlap`), leaves 9 between them, and a strip's tab's arrow stands as far in from the tab's front.
-    public static let fromFront = inset + Content.paddingSide
     /// How far from a row's left its dot's centre stands, where the right edge's arrow stands (`SessionRowLayout`).
     public static let dotSlot = 16.0
     /// How long, in seconds, its chevron takes to turn as its asks panel opens or closes.
@@ -372,36 +362,15 @@ public enum RowArrow {
     /// left, on the right edge, centred on its dot.
     public static func box(in row: CGSize, pointsLeft: Bool = false) -> CGRect {
         guard pointsLeft else {
-            return box(in: row, pointsLeft: false, in: inset)
+            return CGRect(
+                x: row.width - inset - size.width, y: (row.height - size.height) / 2, width: size.width,
+                height: size.height
+            )
         }
 
         let side = size.height
 
         return CGRect(x: dotSlot - side / 2, y: (row.height - side) / 2, width: side, height: side)
-    }
-
-    /// Its box in a strip's tab's words this big, in their own frame, read left to right: at their end it points
-    /// toward, as far in as a notch row's stands from the list's front (`fromFront`), whole beside the asks panel.
-    public static func tabBox(in words: CGSize, pointsLeft: Bool) -> CGRect {
-        box(in: words, pointsLeft: pointsLeft, in: fromFront)
-    }
-
-    /// Where a click on a strip's tab's arrow lands, in their own frame: its box, stretched out to the words' front end,
-    /// so a pointer coming from the strip that overshoots it still opens the asks panel rather than jumping.
-    public static func tabHitBox(in words: CGSize, pointsLeft: Bool) -> CGRect {
-        let box = tabBox(in: words, pointsLeft: pointsLeft)
-
-        return pointsLeft
-            ? CGRect(x: 0, y: box.minY, width: box.maxX, height: box.height)
-            : CGRect(x: box.minX, y: box.minY, width: words.width - box.minX, height: box.height)
-    }
-
-    /// Its box on the middle of what is this big, this far in from the end it points toward.
-    private static func box(in whole: CGSize, pointsLeft: Bool, in inset: Double) -> CGRect {
-        CGRect(
-            x: pointsLeft ? inset : whole.width - inset - size.width, y: (whole.height - size.height) / 2,
-            width: size.width, height: size.height
-        )
     }
 
     /// Its chevron, 6 by 10, centred in a box this big, in the box's own frame, pointing right, or left, away from the

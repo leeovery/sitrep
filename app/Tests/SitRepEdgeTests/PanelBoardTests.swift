@@ -178,11 +178,11 @@ struct PanelBoardTests {
 
         #expect(board.sessions == [
             Session(
-                id: "sr-n0tch1", project: "Trey Research", name: "Build the desktop app", letters: "TR", kind: .needs,
+                id: "sr-n0tch1", project: "Trey Research", name: "Build the desktop app", kind: .needs,
                 ask: "k1ap", title: "Approve the caption", sub: "Trey Research", since: 1_792_452_732_636
             ),
             Session(
-                id: "sr-d6k1vt", project: "Woodgrove", name: "Report caching", letters: "Wo", kind: .needs,
+                id: "sr-d6k1vt", project: "Woodgrove", name: "Report caching", kind: .needs,
                 away: true, ask: "k2pc", title: "Pick the cache size", sub: "No window holds it. Carry it on in Claude.",
                 since: 1_792_451_832_636
             ),
@@ -190,13 +190,6 @@ struct PanelBoardTests {
         #expect(board.head == Head(title: "2 need you", count: "2 sessions"))
         #expect(board.needsLee)
         #expect(board.new.isEmpty)
-    }
-
-    @Test func aRowNamesItsProjectAsTheBoardDoesWithCoresLetters() {
-        let sessions = Self.board(Self.heard(.line(Lines.twoAsks))).sessions
-
-        #expect(sessions.map(\.project) == ["Trey Research", "Woodgrove"])
-        #expect(sessions.map(\.letters) == ["TR", "Wo"])
     }
 
     /// A row names its project and its session by core's own fields, whatever projects the line lists.
@@ -208,7 +201,6 @@ struct PanelBoardTests {
             "Plan the launch", "Report caching and snags", "Close out the remaining questions", "The installer",
             "Build the desktop app", "Fix the reversed error totals",
         ])
-        expectEvery(sessions) { $0.letters == "Pr" }
     }
 
     @Test func beforeTheFirstLineThePanelIsLookingWithNothingNeedingLee() {
@@ -269,19 +261,11 @@ struct PanelBoardTests {
         #expect(Self.board(back).asOf == nil)
     }
 
-    /// The strip has no head: before any board, its notch at rest says what the panel's head says.
-    @Test func beforeAnyBoardTheStripSaysWhatThePanelsHeadSays() {
-        #expect(Self.board(LastBoard()).unread == "Looking for sessions…")
-        #expect(Self.board(Self.heard(.unstartable("no such file"))).unread == "SitRep can't read the board")
-        #expect(Self.board(Self.heard(.line(watchLine))).unread == nil)
-    }
-
-    /// While the board is stale the strip says as of when, as the panel's head does; while it is current, nothing.
-    @Test func withWatchStoppedTheStripSaysAsOfWhen() {
+    /// While the board is stale it says as of when; while it is current, nothing.
+    @Test func withWatchStoppedTheBoardSaysAsOfWhen() {
         let stopped = Self.heard(.line(watchLine), .exited(.status(1), stderr: ""))
 
         #expect(Self.board(stopped).asOf == "as of 12:01")
-        #expect(Self.board(stopped).unread == nil)
         #expect(Self.board(Self.heard(.line(watchLine))).asOf == nil)
     }
 }

@@ -4,12 +4,10 @@ import SitRepPanel
 import SwiftUI
 
 /// Edge (DESIGN, "Settings"): the Show row's card, then the sections that apply to the choice (`EdgePane`), the
-/// shape's and Motion, each arriving and leaving at once, the pane taking its new height with them; with Nothing, the
+/// notch's and Motion, each arriving and leaving at once, the pane taking its new height with them; with Nothing, the
 /// Show row's card alone. It reads the displays as it appears and as they change, for Display.
 struct EdgePaneView: View {
     let settings: SettingsModel
-
-    @State private var isSliding = false
 
     var body: some View {
         let sections = EdgePane.sections(preferences.edge)
@@ -18,7 +16,6 @@ struct EdgePaneView: View {
             SettingsCard {
                 ShowRow(show: preferences.binding(\.show))
             }
-            // By name alone: Max coming or going at Strip keeps the section, and Length with it, its focus too.
             ForEach(sections, id: \.name) { section in
                 SettingsSection(name: section.name) {
                     SettingsCard {
@@ -50,21 +47,6 @@ struct EdgePaneView: View {
             CardRow(label: "Style", line: "Meniscus pours, Card slides") {
                 segmented("Style", \.style, NotchStyle.allCases, \.title)
             }
-        case .length:
-            CardRow(label: "Length", line: "Grows with what's on it, or runs the screen's height") {
-                segmented("Length", \.length, StripLength.allCases, \.title)
-            }
-        case .max:
-            CardRow(label: "Max", line: "How long it grows; its right end is Full") {
-                Slider(value: maxShare, in: 0 ... 1) { Text("Max") } onEditingChanged: { isSliding in
-                    self.isSliding = isSliding
-                    if !isSliding {
-                        preferences.save()
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 160)
-            }
         case .reduceMotion:
             CardRow(label: "Reduce motion", line: "SitRep follows the Mac's own setting either way") {
                 MiniSwitch(label: "Reduce motion", isOn: preferences.binding(\.reducesMotion))
@@ -87,14 +69,6 @@ struct EdgePaneView: View {
         let id = preferences.binding(\.display)
 
         return Binding(get: { choices.first { $0.id == id.wrappedValue } ?? .main }, set: { id.wrappedValue = $0.id })
-    }
-
-    /// Max, as how far along its slider it is: its right end is Full. The edge follows a drag as it goes, and it is
-    /// saved once, as the drag ends.
-    private var maxShare: Binding<Double> {
-        Binding(get: { preferences.edge.maxLength.share }, set: { share in
-            preferences.edit(saving: !isSliding) { $0.maxLength = StripMax(share: share) }
-        })
     }
 
     private func segmented<Value: Hashable>(
