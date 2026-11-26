@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-11-26
+
+Answer asks from the notch or strip without leaving what you're doing, with two seconds to undo.
+
+💥 Breaking
+- The Glass material for the notch and strip is gone, along with the Material setting — the edge is now always black, and a saved Material choice is ignored.
+
+✨ Added
+- Asks panel beside the notch and the strip — point at a session with an ask, click its arrow, and answer a yes or a choice in one click, with Claude's pick marked and an Undo for two seconds before it's sent.
+- Ignore, Snooze ▾ and Open in Claude on the asks panel — put off one ask on its own, ignore it, or jump to its session.
+- Page between a session's asks on the panel with dots, a trackpad swipe or the mouse wheel.
+- Answer a words ask from the CLI with `sitrep answer`, and check what the ask wanted with `--wants` so an ask Claude has since reshaped is refused.
+- Snooze a single ask from the CLI with `sitrep snooze --ask <id> --until <time>` — the session's other asks stay waiting.
+- Banners for a new ask are taken down once the ask no longer waits on you.
+
+🔧 Changed
+- Snoozing from the board pane now puts off just that ask instead of the whole session — your own prompt in a window no longer wakes an ask you snoozed alone.
+- A choice's options list Claude's recommended option first on every surface.
+- Parked on the board shows newest first, folds to the latest few, and keeps open any item you're acting on.
+- Quitting SitRep first sends an answer that is being held, so it isn't lost.
+- Claude is told that rewording an ask you commented on hands it back to you, waiting again.
+
+🐛 Fixed
+- Tool calls from Claude no longer fail when the board is busy — they're answered within Claude Code's time limit, or told to send again.
+- Background timers no longer pile up behind a slow Mac and delay tool calls.
+
 ## [0.10.0] - 2026-11-23
 
 Image and document attachments on replies now wait in Ready to send like any other reply, instead of forcing the prompt through at once.
