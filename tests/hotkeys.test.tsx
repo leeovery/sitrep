@@ -6,22 +6,33 @@
  * hotkey the later wins, so no drawing ever holds two on one key: only the
  * item the pane holds open carries any.
  */
-import { expect, test, tier } from './kit'
+import { expect, test, tier, type FoundElement } from './kit'
+import { PANE } from '../hooks/pane'
 import { itemKey } from '../hooks/places'
-import { FRAMES, LEDGER, MIN, THEMES } from './data'
-import { park, yesAsk } from './lines'
-import { asked, postedId, SURFACES, toProject, world, type Board } from './world'
+import { DAY, FRAMES, HELD, heldItem, LEDGER, meta, MIN, PROJECT, T0, THEMES, W3 } from './data'
+import { finish, park, reply, snoozeSession, yesAsk, type Line } from './lines'
+import { pane, sceneFrom, type Desk } from './render'
+import { asked, DOCKED, postedId, SURFACES, toProject, world, type Board } from './world'
 
 tier('user')
 
-/** Every drawn button carrying a hotkey, as its key and its hotkey, in the order drawn. */
-const hotkeysOf = async (ui: Board) =>
+/** A drawing to read: mounted through the engine, or drawn from a scene alone. */
+type Read = Pick<Board, 'findAll'>
+
+/** Every drawn button carrying a hotkey, as what `named` reads of it and its hotkey, in the order drawn. */
+const withHotkeys = async (ui: Read, named: (button: FoundElement) => unknown) =>
   (await ui.findAll({ type: 'Button' }))
     .filter(each => each.props.hotkey !== undefined)
-    .map(each => [each.key, each.props.hotkey])
+    .map(each => [named(each), each.props.hotkey])
+
+/** Every drawn button carrying a hotkey, as its key and its hotkey, in the order drawn. */
+const hotkeysOf = (ui: Read) => withHotkeys(ui, each => each.key)
+
+/** Every drawn button carrying a hotkey, as its label and its hotkey, in the order drawn. */
+const labelledHotkeysOf = (ui: Read) => withHotkeys(ui, each => each.props.label)
 
 /** The drawing's hotkeys, each asserted drawn on one button at most. */
-const uniqueHotkeys = async (ui: Board, why: string) => {
+const uniqueHotkeys = async (ui: Read, why: string) => {
   const drawn = await hotkeysOf(ui)
   const keys = drawn.map(([, hotkey]) => hotkey)
 
@@ -112,18 +123,112 @@ test("an opened words ask numbers its ✎ Answer 1, and the pane's buttons look 
   }
 })
 
-test('on every surface, the hotkeys an opened ask carries are each on one button', async ($, on) => {
+test('each surface numbers what it draws of an opened choice: the desktop, writing nothing back, its options alone; mobile its comment too', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
-  await asked(w, choiceOf(4, 'Option 3'))
+  await asked(w, choiceOf(3, 'Option 3'))
 
-  for (const surface of SURFACES) {
-    const ui = await w.pane(surface)
+  const options = [
+    ['Option 3', '1'],
+    ['Option 1', '2'],
+    ['Option 2', '3'],
+  ]
+  const drawn: Record<(typeof SURFACES)[number] | 'mobile', string[][]> = {
+    terminal: [...options, ['✎ comment', '4'], ['✕ ignore', 'x'], ['snooze', 'z']],
+    desktop: [...options, ['✕ ignore', 'x'], ['snooze', 'z']],
+    mobile: [...options, ['✎ comment', '4'], ['✕ ignore', 'x'], ['snooze', 'z']],
+  }
+  const mounted = {
+    terminal: () => w.pane('terminal'),
+    desktop: () => w.pane('desktop'),
+    mobile: () =>
+      $.ui.mount({
+        plugin: 'sitrep',
+        surface: 'mobile',
+        component: 'Pane',
+        requestId: PANE,
+        props: DOCKED,
+      }),
+  }
 
-    expect((await uniqueHotkeys(ui, surface)).length, surface).toBeGreaterThan(0)
+  for (const [surface, mount] of Object.entries(mounted)) {
+    const ui = await mount()
+
+    await uniqueHotkeys(ui, surface)
+    expect(await labelledHotkeysOf(ui), surface).toEqual(drawn[surface as keyof typeof drawn])
     await ui.unmount()
   }
+})
+
+/** The held session's ask `k1`, a yes, opened, with what else the desk holds, drawn as the docked board draws it. */
+const openedYes = (desk: Desk = {}, more: readonly Line[] = []) =>
+  pane(
+    sceneFrom({
+      lines: [[T0, yesAsk('k1', 'Review the import mapping')], ...more],
+      now: T0 + MIN,
+      ...desk,
+      pane: { selected: heldItem('k1'), ...desk.pane },
+    }),
+  )
+
+/** The held session's yes, `k1`, as a reply to it is drawn: Lee's, its id `r1`. */
+const AT_K1 = { project: PROJECT.key, session: HELD.id, item: 'k1' }
+
+/** A session of Northwind's Claude finished, an ask of its left open. */
+const DONE = meta('sr-nw0001', 'Data import', W3)
+
+test('an opened ask whose buttons are gone carries no hotkey: its reply queued, its answer on its way, answered in the prompt, or no reply reaching it', async () => {
+  const queued = openedYes({ queue: [{ ...AT_K1, verdict: 'yes' }] })
+
+  expect(await queued.find({ key: `undo:${heldItem('k1')}` }), 'its reply queued').toBeDefined()
+  expect(await hotkeysOf(queued)).toEqual([])
+
+  const sent = openedYes({}, [[T0, reply('r1', 'k1', 'yes')]])
+
+  expect(await sent.find({ type: 'Text', text: '· on its way' }), 'on its way').toBeDefined()
+  expect(await hotkeysOf(sent)).toEqual([])
+
+  const answering = openedYes({
+    answering: { ...AT_K1, as: 'comment', title: 'Review the import mapping', surface: 'terminal' },
+  })
+
+  expect(await answering.find({ type: 'Text', text: /answering in the prompt/ })).toBeDefined()
+  expect(await hotkeysOf(answering)).toEqual([])
+
+  const unreachable = pane(
+    sceneFrom({
+      now: T0 + MIN,
+      around: [
+        {
+          meta: DONE,
+          lines: [
+            [T0, yesAsk('k1', 'Check the import totals')],
+            [T0, finish('claude', 'Imported')],
+          ],
+        },
+      ],
+      pane: {
+        place: { level: 'session', project: PROJECT.key, session: DONE.id },
+        selected: itemKey(DONE.id, 'k1'),
+      },
+    }),
+  )
+
+  expect(await unreachable.find({ type: 'Text', text: /can't be answered/ })).toBeDefined()
+  expect(await hotkeysOf(unreachable)).toEqual([])
+})
+
+test('an opened snoozed ask keeps its digits and its x, and has no z', async () => {
+  const ui = openedYes({}, [[T0, snoozeSession(T0 + DAY, 'k1')]])
+  const item = heldItem('k1')
+
+  expect(await ui.find({ key: `wake:${item}` }), 'snoozed').toBeDefined()
+  expect(await uniqueHotkeys(ui, 'a snoozed ask')).toEqual([
+    [`yes:${item}`, '1'],
+    [`comment:${item}`, '2'],
+    [`ignore:${item}`, 'x'],
+  ])
 })
 
 test("Snooze's question numbers its times in order, cancel bare, and the ask's buttons gone with their keys", async ($, on) => {
