@@ -10,11 +10,11 @@ You can answer a yes or a choice from the notch, without leaving the app you are
 
 ## What happens
 
-- **A click on the row itself still jumps.** Only the arrow, or `⏎` on the chosen row, opens the asks panel, and the arrow then turns to point back. Click the arrow again to close the asks panel, or another row's arrow to move it. A click anywhere else on the panel only closes the asks panel.
-- **The asks panel shows one ask at a time.** The session name and project come first, then the ask title and its age, such as "Asked 4m ago". If the session has several asks, dots at the top show which one you're on. Click a dot, or swipe sideways with two fingers, to see another ask. After an answer, the next ask shows.
-- **Each answer is a row of its words.** A yes has one row, in the verb Claude gave. A choice has a row for each option. The option Claude recommends comes first, filled in lilac and marked "Recommended". A long answer wraps to two lines. A words ask has no rows: **Open in Claude ↗** takes you to the window.
+- **A click on the row itself still jumps.** Only the arrow opens the asks panel, and the arrow then turns to point back. Click the arrow again to close the asks panel, or another row's arrow to move it. A click anywhere else on the panel only closes the asks panel.
+- **The asks panel shows one ask at a time.** The session name and project come first, then the ask title and its age, such as "Asked 4m ago". If the session has several asks, dots at the top show which one you're on, the first nearest the notch. Click a dot to see another ask, or swipe two fingers toward the notch for the next. After an answer, the next ask shows.
+- **Each answer is a row of its words.** A yes has one row, in the verb Claude gave. A choice has a row for each option. The option Claude recommends comes first, filled in lilac and marked "Recommended". A words ask has no rows: **Open in Claude ↗** takes you to the window.
 - **You get two seconds to undo.** The row you click fills, with a check at its end, and the foot counts down beside **Undo**. **Ignore** waits the same two seconds, and the foot reads "Ignoring". Leaving the notch doesn't stop the answer.
-- **Keys answer too.** While the panel holds the keys, each answer row shows its number in a keycap at the right. Press `1` for the first row: on a choice, the option Claude recommends, if it marked one. While an answer sends, `⌘Z` is **Undo**. See [Same keys, wherever the board shows](keys.md).
+- **Keys answer too.** The arrow key pointing away from the notch opens the asks panel and pages on. While the panel holds the keys, each answer row shows its number in a keycap at the right. Press `1` for the first row: on a choice, the option Claude recommends, if it marked one. While an answer sends, `⌘Z` is **Undo**. See [Same keys, wherever the board shows](keys.md).
 - **The answer reaches Claude as your own message.** The answer goes into that session's inbox. The Claude Code window running that session sends it on, starting "From the board:". The ask leaves Needs you once the answer is on its way.
 
 ## Good to know
@@ -41,7 +41,7 @@ You can answer a yes or a choice from the notch, without leaving the app you are
 | Snooze | This ask only |
 | Keys | `1`–`9` answer; `x` ignores |
 
-**Snooze ▾** puts off only the ask on screen, until a time the pane offers. The asks panel then closes. With every Snooze time off or passed for today, Snooze ▾ hides. See [Putting a session off](snooze.md).
+**Snooze ▾** puts off only the ask on screen, until a time the pane offers. The asks panel then closes. See [Putting a session off](snooze.md).
 
 ## Related
 
