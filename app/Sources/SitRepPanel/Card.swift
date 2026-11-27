@@ -27,6 +27,7 @@ public final class Card: Notch {
     var jumping: String?
     var awaitsPointer = false
     var ownPointer: Vec?
+    var isStill = false
     /// A drag has the card, ...
     var isCarried = false
     /// ... or let it go across the screen's middle, and it moves to the other edge once it is home, ...
@@ -147,6 +148,7 @@ public final class Card: Notch {
 
         notchY = home
         S.y.snap(notchY)
+        isStill = true
     }
 
     /// The live card, from the springs: the nudge adds to the depth, and a drag lifts it out by up to 2 more.
@@ -165,6 +167,7 @@ public final class Card: Notch {
         }
 
         springTo(\.h, NotchShape.needs.h, feel.sp(.follow))
+        isStill = true
         swell()
     }
 
@@ -188,6 +191,7 @@ public final class Card: Notch {
         }
 
         flash = t
+        isStill = true
         let home = resting.w
         guard !reducesMotion else {
             return setShape(w: home)
@@ -207,6 +211,7 @@ public final class Card: Notch {
         to(\.light, 1, 160)
         if phase == .closed {
             setShape(w: resting.w, h: resting.h, 450)
+            isStill = true
         }
     }
 

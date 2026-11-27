@@ -120,6 +120,34 @@ struct ShortcutRunTests {
         #expect(Self.rows(run).first == Self.helpDesk)
     }
 
+    /// Its lit row stays the first in Needs you under a pointer resting on another row, Shift schedules, or on the black
+    /// by the screen's edge, though the pointer moved while the panel was in: no hover opened it. The Meniscus runs the
+    /// black's case under reduced motion, where no tongue reaches the pointer there.
+    @Test(arguments: [
+        (NotchStyle.meniscus, false, true), (.card, false, true), (.meniscus, true, false), (.card, false, false),
+    ])
+    func itsLitRowStaysTheFirstInNeedsYouUnderARestingPointer(
+        style: NotchStyle, reducesMotion: Bool, onRow: Bool
+    ) throws {
+        let setting = Self.setting(style, reducesMotion: reducesMotion), run = Self.closed(setting)
+
+        Self.frames(run, for: 3000, Self.onTheNotch, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open)
+
+        let shifts = try Self.words("needs:\(AsksBoard.shifts)", run)
+        let near = onRow ? shifts : try PanelBlack.end(top: true, of: run.frame, inset: 3)
+        let resting = CGPoint(x: near.x, y: near.y + 1)
+
+        run.step(Self.at(run, near, setting))
+        Self.press(.escape, run, near, setting)
+        try #require(Self.closes(run, at: near, setting))
+        run.step(Self.at(run, resting, setting))
+        run.summon(Self.at(run, resting, setting))
+        Self.frames(run, for: 3000, resting, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open && run.frame.shape.contains(resting))
+        #expect(Self.lit(run, setting) == Self.helpDesk)
+    }
+
     /// With nothing in Needs you, the first row.
     @Test func withNothingInNeedsYouItsLitRowIsTheFirstRow() throws {
         let run = try Self.summoned(board: Self.workingAlone())

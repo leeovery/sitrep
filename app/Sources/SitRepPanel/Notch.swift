@@ -41,6 +41,9 @@ public protocol Notch: AnyObject {
     var mayCarry: Bool { get }
     /// The notch at rest, its home this far down the stage, inside the band: a drag's ghost on the other edge.
     func restingOutline(at y: Double) -> CGPath
+    /// The notch came back, or another took its place, under the pointer where it stands: until the pointer moves of
+    /// itself from there, nothing opens it (`isStill`).
+    func stillUnder(_ pointer: CGPoint?)
 }
 
 extension Notch {
@@ -106,6 +109,12 @@ protocol NotchModel: Notch, SimModel where TimerName: ClickTimers {
     var awaitsPointer: Bool { get set }
     /// The pointer as last seen of itself, not a menu's held place.
     var ownPointer: Vec? { get set }
+    /// The pointer touching the notch's hit area, which opens it.
+    var contact: Contact { get set }
+    /// The notch's hit area grew, came back or moved by itself under the pointer, which has not moved of itself since:
+    /// a swell, the notch shown again, another style, a new screen or home. Until it moves, nothing the pointer touches
+    /// or the tongue reaches opens the notch: only Lee opens it.
+    var isStill: Bool { get set }
 
     /// The panel comes out, as a hover or the shortcut opens it.
     func open()
@@ -147,14 +156,24 @@ extension NotchModel {
     }
 
     /// Whether the pointer at `p` moved of itself: not a menu's held place (`isHeld`), and elsewhere than it last was
-    /// of itself, so a menu closing, which hands the model the pointer again where it rested, is no move. Noted.
+    /// of itself, so a menu closing, which hands the model the pointer again where it rested, is no move. Noted; a
+    /// move ends `isStill`, a pointer resting on the notch then touching it afresh.
     func movedOfItself(to p: Vec?, isHeld: Bool) -> Bool {
-        guard !isHeld else {
+        guard !isHeld, p != ownPointer else {
             return false
         }
 
-        defer { ownPointer = p }
-        return p != ownPointer
+        ownPointer = p
+        if isStill {
+            isStill = false
+            contact.touching = false
+        }
+        return true
+    }
+
+    public func stillUnder(_ pointer: CGPoint?) {
+        ownPointer = pointer.map { Vec(max(0, $0.x), $0.y) }
+        isStill = true
     }
 
     @discardableResult

@@ -114,7 +114,7 @@ extension Meniscus {
             attract.armed = true
         }
         let slip = abs(trailVelocity().y - S.by.v)
-        if attract.armed, attract.gap < feel.reach, S.ba.x >= Tuning.catch * A.reach, slip < Tuning.captureV {
+        if !isStill, attract.armed, attract.gap < feel.reach, S.ba.x >= Tuning.catch * A.reach, slip < Tuning.captureV {
             snapOpen(sp)
         }
     }
@@ -132,7 +132,7 @@ extension Meniscus {
         switch contact.update(sp, hitRect(g), approach: approachSpeed()) {
         case .left:
             cancel(.dwell)
-        case let .touched(fast) where isFree && (phase == .closed || phase == .closing):
+        case let .touched(fast) where isFree && !isStill && (phase == .closed || phase == .closing):
             cancel(.grace)
             if fast {
                 open()

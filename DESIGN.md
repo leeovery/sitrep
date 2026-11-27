@@ -6862,14 +6862,23 @@ ends as the pointer leaves the black (Lee found the flares holding
 nothing, 27 November 2026).
 
 The hover that opened the panel counts, wherever the pointer rests on it:
-the panel comes open holding the keys, no row lit, so `↓` lights the
-first with no further move (Lee's decision, 27 November 2026). Until
-then, from 26 November, a panel that opened under a resting pointer held
-nothing until the pointer moved. Lee hovered onto the notch against the
-screen's edge, stopped there, and `↓` did nothing: held against the edge,
-the pointer had not moved. A panel coming open with the pointer off its
+the panel comes open holding the keys, with no further move (Lee's
+decision, 27 November 2026). With the pointer off the rows, no row is
+lit, so `↓` lights the first; on a row, that row is lit. Until then, from
+26 November, a panel that opened under a resting pointer held nothing
+until the pointer moved. Lee hovered onto the notch against the screen's
+edge, stopped there, and `↓` did nothing: held against the edge, the
+pointer had not moved. A panel coming open with the pointer off its
 black, on the notch's strip past its end, holds nothing until the pointer
 moves onto it. The shortcut's panel keeps its own hold.
+
+Only the pointer's own move opens the notch. Its hit area grows with a
+new ask's swell, comes back as the notch shows again, changes with
+another style, and moves with a new screen or home along the edge. None
+of these opens it under a pointer that has not moved since: only Lee
+opens it, never the notch's own growth or return (27 November 2026). The
+pointer's next move there opens it as ever: touching it after the dwell,
+or the Meniscus's tongue reaching it.
 
 A move is any the Mac hears, though the pointer stays where it was:
 pushed on against the screen's edge, AppKit keeps it in place, and that

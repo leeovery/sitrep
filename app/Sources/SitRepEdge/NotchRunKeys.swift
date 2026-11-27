@@ -1,8 +1,8 @@
 import CoreGraphics
 import SitRepPanel
 
-/// Whether the panel holds the keys (DESIGN, "Keys"), and whose hold it is: the pointer's, which the pointer moving on
-/// the panel starts and moving off it ends, or the shortcut's, which holds every key until the panel closes, the
+/// Whether the panel holds the keys (DESIGN, "Keys"), and whose hold it is: the pointer's, which the hover's panel
+/// coming open under it or the pointer moving on the panel starts and moving off it ends, or the shortcut's, which holds every key until the panel closes, the
 /// pointer's moves aside. Each hold numbered, so the tap tells the hold a key it let go of ended from the next.
 struct KeyHold {
     enum Kind {
@@ -16,8 +16,8 @@ struct KeyHold {
 
     var isShortcut: Bool { kind == .shortcut }
 
-    /// The pointer moved, on the open list or its asks panel or off them: on, it holds; off, it holds no more. A
-    /// shortcut's hold stays the shortcut's.
+    /// The pointer moved, or the hover's panel came open under it, on the panel's black or its asks panel or off them:
+    /// on, it holds; off, it holds no more. A shortcut's hold stays the shortcut's.
     mutating func moved(onPanel: Bool) {
         guard !isShortcut else {
             return
@@ -40,8 +40,8 @@ struct KeyHold {
     }
 }
 
-/// The panel's keys in the notch's run (DESIGN, "Keys"): the hold the pointer moving on the panel starts, the lit row
-/// the keys move, and what each key does there, by the paths a click takes.
+/// The panel's keys in the notch's run (DESIGN, "Keys"): the hold the hover's panel coming open under the pointer or
+/// the pointer moving on the panel starts, the lit row the keys move, and what each key does there, by the paths a click takes.
 extension NotchRun {
     /// What the tap decides each key by: the panel's hold while it holds the keys, `⌘Z` its while the asks panel takes
     /// it (`AsksPanel.takesUndo`), every key its in the shortcut's; else nothing.
@@ -251,9 +251,12 @@ extension NotchRun {
     /// nothing.
     func holdKeys(_ moment: Moment) {
         let isHeld = notch.phase == .open || hold.isShortcut && notch.phase == .opening
+        let isFeltMove = moment.pointer != felt || movedSinceFelt
 
-        if notch.phase == .closed || notch.phase == .closing {
-            hoverOpens = true
+        switch notch.phase {
+        case .closing: hoverOpens = isFeltMove
+        case .closed, .opening: hoverOpens = hoverOpens || isFeltMove && !hold.isShortcut
+        case .open: break
         }
         guard moment.isShown, isHeld, moment.setting.takesKeys else {
             letGo()
@@ -267,7 +270,7 @@ extension NotchRun {
         if isHoverOpening {
             hoverOpens = false
         }
-        guard menuAt == nil, moment.pointer != felt || movedSinceFelt || isHoverOpening else {
+        guard menuAt == nil, isFeltMove || isHoverOpening else {
             return
         }
 

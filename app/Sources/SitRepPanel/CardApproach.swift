@@ -37,7 +37,7 @@ extension Card {
         switch contact.update(sp, hitRect(g), approach: approachSpeed()) {
         case .left:
             cancel(.dwell)
-        case let .touched(fast) where isFree && (phase == .closed || phase == .closing):
+        case let .touched(fast) where isFree && !isStill && (phase == .closed || phase == .closing):
             if fast {
                 open()
             } else {

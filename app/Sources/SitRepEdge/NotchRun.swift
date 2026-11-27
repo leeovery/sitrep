@@ -137,8 +137,8 @@ public final class NotchRun: Framed {
     /// The Mac heard the pointer move since the moments last gave it, though it may stand where it was felt
     /// (`pointerMoved`).
     var movedSinceFelt = false
-    /// Whether the panel coming out is the pointer's to open, the shortcut having opened none since it was last in: the
-    /// hover's hold starts as it comes open.
+    /// Whether the pointer moved while the panel was in, since it last went in, and the shortcut has opened none since:
+    /// the panel coming out is the hover's, whose hold starts as it comes open.
     var hoverOpens = false
 
     /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
@@ -223,7 +223,7 @@ public final class NotchRun: Framed {
     }
 
     /// Hidden, the notch's time ran on: it is taken on to now (`Notch.runOn`), the pointer away, and the frame after
-    /// shows it.
+    /// shows it, under the pointer where it stands, which opens nothing until it moves (`Notch.stillUnder`).
     public func catchUp(_ moment: Moment) {
         let from = time, to = book.clock(moment.time)
         let input = { [board, list] (time: Double) in
@@ -231,6 +231,7 @@ public final class NotchRun: Framed {
         }
 
         frame = notch.runOn(from: from, to: to, input) { latch($1, at: $0) }
+        notch.stillUnder(moment.pointer)
         placeAsks(in: moment.setting)
         holdKeys(moment)
     }
@@ -544,6 +545,7 @@ public final class NotchRun: Framed {
         } else if notch.phase == .closed, !frame.isMoving {
             style = chosen
             notch = style.notch(input)
+            notch.stillUnder(input.pointer)
             frame = notch.frame(input)
         }
     }
