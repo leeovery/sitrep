@@ -20,7 +20,7 @@ diff_exclude = [
 # a release's upload knows plugin.json's version line for mint's bookkeeping.
 version_file = '.claude-plugin/plugin.json'
 version_pattern = '"version": "{version}"'
-diff_exclude = [".press.toml", "screens/", "app/screens", "art/screens/", "CONTRIBUTING.md", ".gitignore", "tsconfig.json", "design/", "cli/frames/", "docs/"]
+diff_exclude = [".press.toml", "screens/", "app/screens", "art/screens/", "CONTRIBUTING.md", ".gitignore", "tsconfig.json", "design/", "cli/frames/", "docs/", "prototypes/"]
 
 [release.hooks]
 # No CI runs the tests or builds a release, so both happen here, before the
