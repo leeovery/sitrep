@@ -134,6 +134,9 @@ public final class NotchRun: Framed {
     /// The pointer as the moments last gave it, which the keys' hold tells a move by; a menu's place holding the
     /// card is none.
     var felt: CGPoint?
+    /// The Mac heard the pointer move since the moments last gave it, though it may stand where it was felt
+    /// (`pointerMoved`).
+    var movedSinceFelt = false
 
     /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
     /// time zone, followed as it changes (`WakeTime.calendar`), and the asks panel's words as `measure` sets them.

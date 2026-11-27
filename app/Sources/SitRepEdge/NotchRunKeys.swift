@@ -238,30 +238,43 @@ extension NotchRun {
 
     /// The keys held as the pointer moves: on the open panel, a move on its black (`Frame.shape`), the flares by the
     /// screen's edge as much as the rows, or on its asks panel holds them, and one off both holds them no more, the row
-    /// the keys lit going back to the pointer either way. A panel opening under a resting pointer holds nothing, nor
-    /// while a menu holds the card, nor while a jump is under way. The shortcut's hold holds on, from its opening,
-    /// wherever the pointer goes, a move on the panel taking the lit row back. Hidden, closing or closed, or while the
-    /// Mac lets the panel take no keys, it holds nothing.
+    /// the keys lit going back to the pointer either way; a move is the pointer elsewhere than it was felt, or one the
+    /// Mac heard (`pointerMoved`). A panel opening under a resting pointer holds nothing, nor while a menu holds the
+    /// card, nor while a jump is under way. The shortcut's hold holds on, from its opening, wherever the pointer goes, a
+    /// move on the panel taking the lit row back. Hidden, closing or closed, or while the Mac lets the panel take no
+    /// keys, it holds nothing.
     func holdKeys(_ moment: Moment) {
         let isHeld = notch.phase == .open || hold.isShortcut && notch.phase == .opening
 
         guard moment.isShown, isHeld, moment.setting.takesKeys else {
             letGo()
-            felt = moment.pointer
+            feel(moment)
             return
         }
-        guard menuAt == nil, moment.pointer != felt else {
+        guard menuAt == nil, moment.pointer != felt || movedSinceFelt else {
             return
         }
 
         let isJumping = frame.panel?.pressed != nil
         let onPanel = !isJumping && moment.pointer.map { frame.shape.contains($0) || asking.isOn($0) } ?? false
 
-        felt = moment.pointer
+        feel(moment)
         if onPanel || !hold.isShortcut {
             keyLit = nil
         }
         hold.moved(onPanel: onPanel)
+    }
+
+    /// The Mac heard the pointer move: the next moment is a move for the keys' hold, though it gives the pointer where
+    /// it was felt, as pushed on against the screen's edge, where AppKit keeps it in place (Lee's live run, 27
+    /// November 2026).
+    public func pointerMoved() {
+        movedSinceFelt = true
+    }
+
+    private func feel(_ moment: Moment) {
+        felt = moment.pointer
+        movedSinceFelt = false
     }
 
     /// The hold ended, whichever it was, and the row the keys lit let go: the one way the panel lets go of the keys, as

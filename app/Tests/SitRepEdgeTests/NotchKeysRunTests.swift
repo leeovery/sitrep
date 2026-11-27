@@ -207,6 +207,74 @@ struct NotchKeysRunTests {
         #expect(run.holdsKeys)
     }
 
+    /// A run over the asks' board, its panel opened by the pointer held against the screen's edge on the notch, at x =
+    /// 0 as AppKit gives it there, and at rest under it.
+    private static func openedAgainstTheEdge(_ setting: NotchRun.Setting) -> (run: NotchRun, pinned: CGPoint) {
+        let run = NotchRun(at: 1000, in: setting, folding: Folding())
+        let pinned = CGPoint(x: 0, y: setting.stage.notchY)
+
+        _ = run.show(AsksBoard.board(), at(run, nil, setting))
+        frames(run, for: 3000, pinned, setting) { run.phase == .open && !run.frame.isMoving }
+        return (run, pinned)
+    }
+
+    /// Lee's path, 27 November 2026: the panel opened under the pointer held against the screen's edge on the notch,
+    /// which holds nothing, then the pointer pushed on against the edge, a move the Mac hears that leaves it where it
+    /// was felt: the move holds the keys, lighting no row, and `↓` lights the first. On either edge, in either style.
+    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
+    func aMovePushingAgainstTheScreensEdgeHoldsTheKeys(style: NotchStyle, right: Bool) throws {
+        let setting = Self.setting(style, right: right), (run, pinned) = Self.openedAgainstTheEdge(setting)
+
+        try #require(run.phase == .open)
+        Self.frames(run, for: 500, pinned, setting)
+        #expect(!run.holdsKeys)
+
+        run.pointerMoved()
+        run.step(Self.at(run, pinned, setting))
+        #expect(run.holdsKeys && Self.lit(run, setting) == nil)
+        Self.press(.down, run, pinned, setting)
+        #expect(Self.lit(run, setting) == Self.rows(run).first)
+    }
+
+    /// Moves the Mac hears as the panel pours, the pointer held against the screen's edge, are no move of the open
+    /// panel's: it opens holding nothing until the pointer moves again.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func movesAsThePanelPoursAreNoMoveOfTheOpenPanels(style: NotchStyle) throws {
+        let setting = Self.setting(style), run = NotchRun(at: 1000, in: setting, folding: Folding())
+        let pinned = CGPoint(x: 0, y: setting.stage.notchY)
+
+        _ = run.show(AsksBoard.board(), Self.at(run, nil, setting))
+        Self.frames(run, for: 3000, pinned, setting) { run.phase == .opening }
+        try #require(run.phase == .opening)
+        while run.phase == .opening, run.frame.openness < 0.5 {
+            run.pointerMoved()
+            run.step(Self.at(run, pinned, setting))
+        }
+        try #require(run.phase == .opening)
+        Self.frames(run, for: 2000, pinned, setting)
+        #expect(run.phase == .open && !run.holdsKeys)
+    }
+
+    /// Small moves along the screen's edge, x from 0 to 4, at the notch's height and at a row's, each hold the keys,
+    /// and `↓` lights the first row, on either edge, in either style.
+    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
+    func smallMovesAlongTheScreensEdgeHoldTheKeys(style: NotchStyle, right: Bool) throws {
+        let setting = Self.setting(style, right: right)
+        let rowY = try Self.words(Self.shifts, Self.opened(setting), setting).y
+
+        for y in [setting.stage.notchY, rowY] {
+            for x in [0.0, 1, 2, 4] {
+                let (run, pinned) = Self.openedAgainstTheEdge(setting), along = CGPoint(x: x, y: y + 2)
+
+                try #require(run.phase == .open && along != pinned)
+                run.step(Self.at(run, along, setting))
+                #expect(run.holdsKeys, "x \(x), y \(y)")
+                Self.press(.down, run, along, setting)
+                #expect(Self.lit(run, setting) == Self.rows(run).first, "x \(x), y \(y)")
+            }
+        }
+    }
+
     @Test func movingOnTheAsksPanelHoldsTheKeysToo() throws {
         let run = Self.opened(), setting = Self.setting()
 

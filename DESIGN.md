@@ -6861,7 +6861,11 @@ ends as the pointer leaves the black (Lee found the flares holding
 nothing, 27 November 2026).
 
 A panel that opens under a resting pointer holds nothing until the pointer
-moves. With the pointer on an eyebrow, the black between rows or the black
+moves. A move is any the Mac hears once the panel is open, though the
+pointer stays where it was: pushed on against the screen's edge, AppKit
+keeps it in place, and that push holds the keys too (Lee found the edge
+holding nothing, 27 November 2026). Moves heard as the panel pours are no
+move of the open panel's. With the pointer on an eyebrow, the black between rows or the black
 by the screen's edge, no row is lit: `↑` `↓` light the first or the last
 row, `s` folds, and a key needing a row does nothing. A key of the set
 with no use at that moment, `z` on a working row, the outward arrow on a

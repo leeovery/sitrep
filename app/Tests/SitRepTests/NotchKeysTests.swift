@@ -308,6 +308,49 @@ struct NotchKeysTests {
         #expect(tap.snapshot == .panel(hold: 1))
     }
 
+    /// Lee's path, 27 November 2026: the panel opened by the pointer held against the screen's edge on the notch, at
+    /// rest under it, then the pointer pushed on against the edge, a move AppKit hears that leaves it where it was. The
+    /// move holds the keys, the tap is told, and `↓` lights the first row, on either edge, in either style; the right
+    /// edge has the pointer within a point of it.
+    @Test(arguments: [EdgeSettings.Edge.left, .right], [NotchStyle.meniscus, .card])
+    func aMovePushingAgainstTheScreensEdgeHoldsTheKeys(side: EdgeSettings.Edge, style: NotchStyle) throws {
+        var settings = EdgeSettings()
+
+        settings.edge = side
+        settings.style = style
+
+        let world = KeysWorld(), edge = ScreenEdge(Self.display, settings)
+        let notch = NotchController(settings, on: Self.display, folding: Folding(), keys: world.mac) { SnoozeSettings() }
+        let pinned = CGPoint(
+            x: side == .left ? edge.frame.minX : edge.frame.maxX - 1, y: edge.frame.maxY - edge.stage.notchY
+        )
+        var time = Displays.now
+
+        defer { notch.window.close() }
+        notch.mouseLocation = { pinned }
+        notch.isShown = true
+        notch.show(Self.board())
+        while time < Displays.now + 3000, notch.run.phase != .open || notch.run.frame.isMoving {
+            time += Self.frameMS
+            notch.step(at: time)
+        }
+
+        let tap = try #require(world.taps.first), stage = try #require(edge.stagePoint(pinned))
+
+        try #require(notch.run.phase == .open && notch.run.frame.shape.contains(stage))
+        try #require(!notch.run.holdsKeys && tap.snapshot == KeySnapshot.none)
+
+        notch.heard(clickElsewhere: false)
+        notch.step(at: time + Self.frameMS)
+        #expect(notch.run.holdsKeys && tap.snapshot == .panel(hold: 1))
+
+        notch.heard(.down)
+
+        let first = notch.run.list.content.entries.first(where: \.jumps)?.item.key
+
+        #expect(notch.run.lit(in: .on(edge, settings)).flatMap { notch.run.list.item($0)?.key } == first)
+    }
+
     /// `⏎` or `o` on a row, as the tap reads it, then `⏎` within the jump: the tap ends the hold as it takes the first,
     /// and is told at once that the panel holds nothing, before a frame draws, so the second goes through to the window
     /// jumped to, and the pointer moving on the draining panel starts no hold.
