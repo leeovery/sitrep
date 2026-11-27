@@ -6822,8 +6822,8 @@ though."
   ask for it: its step 5 stays two things to allow.
 
 **The panel holds the keys once the pointer moves on it.** Once the
-pointer moves on the open panel's list or its asks panel, the keys are
-the panel's, acting on the lit row, until:
+pointer moves anywhere on the open panel's black or on its asks panel,
+the keys are the panel's, acting on the lit row, until:
 - the pointer leaves the panel, which closes it;
 - a key the panel doesn't take is pressed: that key goes through to the
   window in front, and the panel takes none until the pointer moves
@@ -6850,9 +6850,16 @@ stays open under the menu, holding nothing. A hold ending,
 however it ends, lets go of the row the keys lit: the row under the
 pointer is lit again, or none.
 
+The panel's black is all the black drawn, in either style: the Meniscus's
+flares, reaching along the screen's edge past the rows, as much as the
+rows. The tongue the open edge stretches after a pointer leaving it is no
+part of it, so the hold ends as the pointer leaves the black (Lee found
+the flares holding nothing, 27 November 2026). A move onto the black is
+the pointer coming onto the panel the shortcut opened, too.
+
 A panel that opens under a resting pointer holds nothing until the pointer
-moves. With the pointer on an eyebrow or the black between rows, no row is
-lit: `↑` `↓` light the first or the last row, `s` folds, and a key needing
+moves. With the pointer on an eyebrow, the black between rows or the black
+by the screen's edge, no row is lit: `↑` `↓` light the first or the last row, `s` folds, and a key needing
 a row does nothing. A key of the set with no use at that moment, `z` on a
 working row, the outward arrow on a row with no arrow drawn, or the arrow
 back toward the notch on the list, is taken and does nothing, so a key

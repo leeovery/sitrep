@@ -211,6 +211,21 @@ struct ShortcutRunTests {
         #expect(!run.holdsKeys)
     }
 
+    /// A move on the black by the screen's edge, the Meniscus's flare past the rows' clip, is the pointer coming onto
+    /// it: it takes the lit row back, lighting none, `↓` lights the first row, and leaving the panel closes it.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func aMoveOnTheBlackByTheScreensEdgeIsThePointerComingOntoIt(style: NotchStyle) throws {
+        let setting = Self.setting(style), run = try Self.summoned(setting)
+        let margin = try PanelBlack.end(top: true, of: run.frame, inset: 3)
+
+        run.step(Self.at(run, margin, setting))
+        #expect(Self.lit(run, setting) == nil)
+        #expect(run.keySnapshot == .panel(hold: 1, takesAll: true))
+        Self.press(.down, run, margin, setting)
+        #expect(Self.lit(run, setting) == Self.rows(run).first)
+        #expect(Self.closes(run, at: Self.away, setting))
+    }
+
     /// A menu's held place is no move of the pointer's: `z` opens the row's snooze menu, which holds the panel at the
     /// row as it shows, and closed, the pointer is where it was, which is no move either. The panel stays open as the
     /// pointer, away or resting on the panel, then moves off.

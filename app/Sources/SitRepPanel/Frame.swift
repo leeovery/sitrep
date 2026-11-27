@@ -83,6 +83,10 @@ public struct Frame {
     public let phase: Phase
     /// The black, notch or panel: one closed path, starting and ending a little past the screen's edge.
     public let outline: CGPath
+    /// The black's own shape: the outline less any bump the open edge bows, stretches or dents with toward the pointer.
+    /// The pointer inside it is on the black, as the open edge has it, while the tongue following a leaving pointer is
+    /// no part of it.
+    public let shape: CGPath
     /// How opaque it is: below 1 only while it cross-fades in under reduced motion, ...
     public let outlineAlpha: Double
     /// ... from the outline it was, fading out.
@@ -103,12 +107,14 @@ public struct Frame {
     public let swapsEdge: Bool
 
     init(
-        time: Double, phase: Phase, outline: CGPath, outlineAlpha: Double = 1, fading: Fading? = nil, panel: Panel?,
-        light: Light, hitRect: CGRect, isMoving: Bool, lift: Double = 0, swapsEdge: Bool = false
+        time: Double, phase: Phase, outline: CGPath, shape: CGPath? = nil, outlineAlpha: Double = 1,
+        fading: Fading? = nil, panel: Panel?, light: Light, hitRect: CGRect, isMoving: Bool, lift: Double = 0,
+        swapsEdge: Bool = false
     ) {
         self.time = time
         self.phase = phase
         self.outline = outline
+        self.shape = shape ?? outline
         self.outlineAlpha = outlineAlpha
         self.fading = fading
         self.panel = panel

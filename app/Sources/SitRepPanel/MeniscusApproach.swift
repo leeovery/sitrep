@@ -26,11 +26,17 @@ extension Meniscus {
         if let p {
             trail.add(p, at: time)
         }
-        if awaitsPointer, isOwnMove, hoverOf(p) != nil {
+        if awaitsPointer, isOwnMove, hoverOf(p) != nil || isOnShape(p) {
             awaitsPointer = false
             hover = nil
         }
         rehover()
+    }
+
+    /// Whether a point is on the black's own shape as last drawn: the flares by the screen's edge too, outside the
+    /// content.
+    private func isOnShape(_ p: Vec?) -> Bool {
+        p.map { lastShape?.contains(CGPoint($0)) == true } ?? false
     }
 
     /// What the pointer is over, read again, and the grace started or cancelled as it changes: as the pointer moves,
