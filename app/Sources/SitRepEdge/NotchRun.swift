@@ -226,7 +226,7 @@ public final class NotchRun: Framed {
     }
 
     /// Hidden, the notch's time ran on: it is taken on to now (`Notch.runOn`), the pointer away, and the frame after
-    /// shows it.
+    /// shows it. The pointer is felt where it is now, which no hover reached: its moves went unheard while hidden.
     public func catchUp(_ moment: Moment) {
         let from = time, to = book.clock(moment.time)
         let input = { [board, list] (time: Double) in
@@ -236,6 +236,7 @@ public final class NotchRun: Framed {
         frame = notch.runOn(from: from, to: to, input) { latch($1, at: $0) }
         placeAsks(in: moment.setting)
         holdKeys(moment)
+        lastMoveIn = nil
     }
 
     /// What a frame at this time showed, for the drawing: the edge swapped, and the panel going in for a click's jump.

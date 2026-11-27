@@ -317,22 +317,18 @@ struct NotchKeysTests {
         (NotchStyle.meniscus, false), (.meniscus, true), (.card, false), (.card, true),
     ])
     func theHoverAgainstTheScreensEdgeHoldsTheKeys(side: EdgeSettings.Edge, look: (NotchStyle, Bool)) throws {
-        var settings = EdgeSettings()
-
-        settings.edge = side
-        (settings.style, settings.reducesMotion) = look
-
-        let world = KeysWorld(), edge = ScreenEdge(Self.display, settings)
-        let notch = NotchController(settings, on: Self.display, folding: Folding(), keys: world.mac) { SnoozeSettings() }
-        let pinned = CGPoint(
-            x: side == .left ? edge.frame.minX : edge.frame.maxX - 1, y: edge.frame.maxY - edge.stage.notchY
-        )
+        let world = KeysWorld(), (notch, edge, settings, pinned) = Self.againstTheEdge(side, look, world)
         var time = Displays.now
 
         defer { notch.window.close() }
-        notch.mouseLocation = { pinned }
         notch.isShown = true
         notch.show(Self.board())
+        for _ in 0 ..< 10 {
+            time += Self.frameMS
+            notch.step(at: time)
+        }
+        notch.mouseLocation = { pinned }
+        notch.heard(clickElsewhere: false)
         while time < Displays.now + 3000, notch.run.phase != .open || notch.run.frame.isMoving {
             time += Self.frameMS
             notch.step(at: time)
@@ -355,6 +351,60 @@ struct NotchKeysTests {
         notch.heard(clickElsewhere: false)
         notch.step(at: time + 3 * Self.frameMS)
         #expect(tap.snapshot == .panel(hold: 2))
+    }
+
+    /// The pointer moved onto the notch, against the screen's edge, while a full-screen app hid it, unheard: the notch
+    /// shown again opens under it, but no hover opened it, so it holds nothing until the pointer moves. On either
+    /// edge, in either style.
+    @Test(arguments: [EdgeSettings.Edge.left, .right], [NotchStyle.meniscus, .card])
+    func aPanelOpeningAsTheNotchShowsAgainHoldsNothingUntilAMove(side: EdgeSettings.Edge, style: NotchStyle) throws {
+        let world = KeysWorld(), (notch, _, _, pinned) = Self.againstTheEdge(side, (style, false), world)
+        var time = Displays.now
+
+        defer { notch.window.close() }
+        notch.isShown = true
+        notch.show(Self.board())
+        for _ in 0 ..< 10 {
+            time += Self.frameMS
+            notch.step(at: time)
+        }
+        notch.isShown = false
+        notch.mouseLocation = { pinned }
+        notch.isShown = true
+        while time < Displays.now + 3000, notch.run.phase != .open || notch.run.frame.isMoving {
+            time += Self.frameMS
+            notch.step(at: time)
+        }
+
+        let tap = try #require(world.taps.first)
+
+        try #require(notch.run.phase == .open, "the notch shown again opened under the pointer")
+        #expect(!notch.run.holdsKeys && tap.snapshot == KeySnapshot.none)
+
+        notch.mouseLocation = { CGPoint(x: pinned.x, y: pinned.y - 2) }
+        notch.heard(clickElsewhere: false)
+        notch.step(at: time + Self.frameMS)
+        #expect(notch.run.holdsKeys && tap.snapshot == .panel(hold: 1))
+    }
+
+    /// A notch on the far-off display, on this edge in this style and motion, its pointer at the screen's middle, and
+    /// where AppKit has the pointer held against the edge on the notch: at x = 0 on the left, a point in on the right.
+    private static func againstTheEdge(
+        _ side: EdgeSettings.Edge, _ look: (NotchStyle, Bool), _ world: KeysWorld
+    ) -> (NotchController, ScreenEdge, EdgeSettings, CGPoint) {
+        var settings = EdgeSettings()
+
+        settings.edge = side
+        (settings.style, settings.reducesMotion) = look
+
+        let edge = ScreenEdge(Self.display, settings)
+        let notch = NotchController(settings, on: Self.display, folding: Folding(), keys: world.mac) { SnoozeSettings() }
+        let pinned = CGPoint(
+            x: side == .left ? edge.frame.minX : edge.frame.maxX - 1, y: edge.frame.maxY - edge.stage.notchY
+        )
+
+        notch.mouseLocation = { CGPoint(x: edge.frame.midX, y: edge.frame.midY) }
+        return (notch, edge, settings, pinned)
     }
 
     /// `⏎` or `o` on a row, as the tap reads it, then `⏎` within the jump: the tap ends the hold as it takes the first,

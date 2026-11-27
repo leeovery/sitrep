@@ -61,10 +61,12 @@ extension NotchRun {
     }
 
     /// The panel holds the keys no more, whichever hold it is, until the pointer moves again: as the screens sleep, the
-    /// session goes to another user or a window takes secure input. The shortcut's panel stays open, no row lit.
+    /// session goes to another user or a window takes secure input. The shortcut's panel stays open, no row lit, and
+    /// a panel the hover pours comes open holding nothing, the move before forgotten.
     public func letGoOfKeys(_ moment: Moment) {
         upToNow(moment)
         letGo()
+        lastMoveIn = nil
     }
 
     /// The item lit, by its index: the row the keys lit, while it shows, else the item under the pointer, which an

@@ -276,6 +276,26 @@ struct NotchKeysRunTests {
         #expect(Self.lit(run, setting) == Self.rows(run).first)
     }
 
+    /// The keys let go as the hover's panel pours, as the screens sleep or a window takes secure input: it comes open
+    /// holding nothing, the pointer resting, until the pointer moves.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func aLetGoAsThePanelPoursForgetsTheHover(style: NotchStyle) throws {
+        let setting = Self.setting(style), run = NotchRun(at: 1000, in: setting, folding: Folding())
+        let pinned = CGPoint(x: 0, y: setting.stage.notchY)
+
+        _ = run.show(AsksBoard.board(), Self.at(run, nil, setting))
+        Self.frames(run, for: 3000, pinned, setting) { run.phase == .opening }
+        try #require(run.phase == .opening)
+        run.letGoOfKeys(Self.at(run, pinned, setting))
+        Self.frames(run, for: 3000, pinned, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open)
+        #expect(!run.holdsKeys)
+
+        run.pointerMoved()
+        run.step(Self.at(run, pinned, setting))
+        #expect(run.holdsKeys)
+    }
+
     /// A new ask's swell growing the notch over a pointer parked beside it for longer than `NotchRun.hoverWindow`
     /// opens the panel, as the notch does, but no hover opened it: it holds nothing until the pointer moves, and a move
     /// then holds. The Card, with motion or without, and the Meniscus without, whose tongue would reach the pointer
