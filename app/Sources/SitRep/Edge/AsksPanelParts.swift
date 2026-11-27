@@ -23,8 +23,8 @@ enum AsksPanelParts {
 
     static func top(_ asks: AsksShown) -> Top {
         let box = asks.layout.top, line = AsksLayout.textLine, gap = 8.0, y = box.midY - line / 2
-        let firstDot = asks.layout.dots(page: asks.page, of: asks.pages).first
-        let room = (firstDot.map { $0.minX - gap } ?? box.maxX) - box.minX
+        let dotsStart = asks.dots.map(\.minX).min()
+        let room = (dotsStart.map { $0 - gap } ?? box.maxX) - box.minX
         let whole = TextLine.width(TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink))
         let projectX = box.minX + min(whole, room) + gap
 
@@ -35,9 +35,9 @@ enum AsksPanelParts {
     }
 
     /// The page dots at the top line's right where the session has more than one ask, the current one wide, as far as
-    /// its asks have slid: their run as long throughout, so the words before them never move.
+    /// its asks have slid, lying as its asks lie: their run as long throughout, so the words before them never move.
     static func dots(_ asks: AsksShown) -> [Dot] {
-        asks.layout.dots(at: asks.progress, of: asks.pages).enumerated().map { index, box in
+        asks.dots.enumerated().map { index, box in
             Dot(box: box, current: AsksLayout.nearness(of: index, to: asks.progress))
         }
     }
@@ -61,8 +61,8 @@ enum AsksPanelParts {
         }
     }
 
-    /// An answer's row as it shows (Paper's board H3): Claude's pick, in lilac, or not; and its ground, held, lifted
-    /// under the pointer, or filled.
+    /// An answer's row as it shows (Paper's board H3): Claude's pick, in lilac, or not; its ground, held, lifted
+    /// under the pointer, or filled; and the number its keycap shows, while it shows one (DESIGN, "Keys").
     struct AnswerRow: Equatable {
         enum Ground {
             /// The answer held.
@@ -74,15 +74,20 @@ enum AsksPanelParts {
 
         let ground: Ground
         let isPick: Bool
+        let number: Int?
 
         var isHeld: Bool { ground == .held }
     }
 
+    /// An answer's row as it shows: numbered while the asks panel shows keycaps, the first nine alone.
     static func answerRow(_ index: Int, of asks: AsksShown) -> AnswerRow {
         let isHeld = asks.sending.map { $0.row == index } ?? false
         let ground: AnswerRow.Ground = isHeld ? .held : asks.hover == .answer(index) ? .lifted : .filled
 
-        return AnswerRow(ground: ground, isPick: asks.ask.answers[index] == asks.ask.recommended)
+        return AnswerRow(
+            ground: ground, isPick: asks.ask.answers[index] == asks.ask.recommended,
+            number: asks.keycaps && index < AsksLayout.keycapsMost ? index + 1 : nil
+        )
     }
 
     /// One line of an answer's words on its row, and Claude's pick's tag after them where it falls on this line.
@@ -95,13 +100,13 @@ enum AsksPanelParts {
     static let pickTag = "  ·  Recommended", pickTagAlone = "Recommended"
 
     /// An answer's lines on its row as they show, each with its box in the row's frame and the slack past it that
-    /// words set whole take: across the row; held, before its check, on no more lines than the layout left it, so the
-    /// row keeps its height. A tag on a line of its own is lowered onto the words' baseline.
+    /// words set whole take: across the row short of its keycap's room, held or not, keycaps or none, on no more lines
+    /// than the layout left it, so the row keeps its height and its words their lines. A tag on a line of its own is
+    /// lowered onto the words' baseline.
     static func answerLines(_ index: Int, of asks: AsksShown) -> [(line: AnswerLine, box: CGRect)] {
         let row = asks.layout.answers[index].size, shows = answerRow(index, of: asks)
-        let check = shows.isHeld ? AsksLayout.checkSide + AsksLayout.checkGap : 0
         let lines = answerLines(
-            asks.ask.answers[index], isPick: shows.isPick, width: AsksLayout.answerWidth - check,
+            asks.ask.answers[index], isPick: shows.isPick, width: AsksLayout.answerWidth,
             most: asks.layout.answerLines[index]
         )
         let boxes = AsksLayout.answerBoxes(in: row, lines: lines.count)
@@ -226,13 +231,22 @@ enum AsksPanelParts {
         )
     }
 
-    /// The held answer's check, 11 across, at its row's trailing end (`AsksLayout.check`): its box in the row's frame,
-    /// its path in the box's.
-    static func check(in row: CGSize) -> (box: CGRect, path: CGPath) {
+    /// The held answer's check, 11 across, in its keycap's room (`AsksLayout.check`), in a row this big whose words
+    /// wrap to `lines`: its box in the row's frame, its path in the box's.
+    static func check(in row: CGSize, lines: Int) -> (box: CGRect, path: CGPath) {
         let path = CGMutablePath()
 
         path.addLines(between: [CGPoint(x: 2, y: 5.8), CGPoint(x: 4.4, y: 8.2), CGPoint(x: 9, y: 3)])
-        return (AsksLayout.check(in: row), path)
+        return (AsksLayout.check(in: row, lines: lines), path)
+    }
+
+    /// A keycap's number, 11 semibold in the soft grey, centred in the keycap: its words, and their box in the
+    /// keycap's frame.
+    static func keycapNumber(_ number: Int) -> (text: NSAttributedString, box: CGRect) {
+        let text = TextLine.text("\(number)", EdgeStyle.asksKeycap, EdgeStyle.ink2)
+        let width = TextLine.width(text), side = AsksLayout.keycapSide, line = AsksLayout.textLine
+
+        return (text, CGRect(x: (side - width) / 2, y: (side - line) / 2, width: width + Self.slack, height: line))
     }
 
     static let checkWidth = 1.6, strokeWidth = 1.5

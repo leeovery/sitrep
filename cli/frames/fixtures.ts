@@ -106,7 +106,6 @@ const named = (name: string, project: string, isAway: boolean) => ({
   project: project.toLowerCase(),
   name,
   projectName: project,
-  letters: CODES[project]?.toUpperCase() ?? '',
   second: `${project} · ${name}`,
 })
 

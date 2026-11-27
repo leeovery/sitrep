@@ -2,8 +2,7 @@
 /// name close to its own, so the port can be read beside it. Lengths are points (the prototype's px), times ms,
 /// speeds points per ms. `BEZEL` has no counterpart: the model works from the screen's edge itself.
 enum Tuning {
-    /// The notch's home on the edge, this share of the way down the screen (meniscus.html's and card.html's), where
-    /// the strip centres at Grows too.
+    /// The notch's home on the edge, this share of the way down the screen (meniscus.html's and card.html's).
     static let notchAt = 0.42
     /// The panel keeps this far inside the screen's visible frame, top and bottom.
     static let margin = 40.0

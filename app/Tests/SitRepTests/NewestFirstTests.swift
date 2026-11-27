@@ -1,11 +1,9 @@
-import CoreGraphics
 import Foundation
 @testable import SitRepCore
 import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
-import SitRepPanelTestSupport
 import SitRepTestSupport
 import Testing
 
@@ -38,20 +36,5 @@ struct NewestFirstTests {
 
     @Test func theMenuListsNorthwindFirstAtItsNewestLinesTime() {
         Self.expectNewestFirst(MenuBoard(Self.last).items.compactMap(\.session))
-    }
-
-    /// The strip's places from its top end down: Northwind's mark over Contoso's.
-    @Test func theStripPlacesNorthwindFirstAtItsNewestLinesTime() {
-        let sessions = PanelBoard(Self.last).sessions
-        let measure = StripMeasure.uniform(200)
-        let stage = StripStage(width: 1512, height: 982, menu: 37)
-        let strip = Strip(
-            length: .full, maxLength: .full, along: 0.42, sessions: sessions, measure: measure,
-            StripInput(time: 0, pointer: nil, stage: stage)
-        )
-        let marks = strip.frame(StripInput(time: 3000, pointer: nil, stage: stage)).marks.sorted { $0.centre.y < $1.centre.y }
-
-        #expect(marks.map(\.key) == Self.order.map(MarkKey.session))
-        Self.expectNewestFirst(sessions)
     }
 }

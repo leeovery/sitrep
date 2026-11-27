@@ -3,9 +3,9 @@ import SitRepCore
 import SitRepPanel
 import SitRepRelay
 
-/// A row of Settings' General, Notifications and Claude Code panes as it stands (DESIGN, "Settings"): its label, the
-/// line under it, and what sits in the controls' column. A dot when it's fine, a button when it's Lee's: all well, the
-/// row says so with a green dot and a word, and nothing to press; when something wants Lee, its line says what is
+/// A row of Settings' General, Edge, Notifications and Claude Code panes as it stands (DESIGN, "Settings"): its label,
+/// the line under it, and what sits in the controls' column. A dot when it's fine, a button when it's Lee's: all well,
+/// the row says so with a green dot and a word, and nothing to press; when something wants Lee, its line says what is
 /// wrong and a push button takes him to the fix.
 public struct SettingsRow: Equatable, Sendable {
     public let label: String
@@ -34,6 +34,10 @@ public struct SettingsRow: Equatable, Sendable {
         case allowGhostty
         /// General › Login Items, where macOS waits on Lee's approval.
         case loginItems
+        /// Privacy & Security › Accessibility, where SitRep's leave for the panel's keys is.
+        case accessibility
+        /// macOS's own prompt for the Accessibility leave, before SitRep has asked.
+        case allowKeys
     }
 
     public init(label: String, line: String?, side: Side) {
@@ -130,6 +134,23 @@ extension SettingsRow {
         }
     }
 
+    /// Edge's Accessibility row, in Keys (DESIGN, "Keys"), from whether macOS gives the Accessibility leave, nil before
+    /// it is read: Allowed with it; without it, why the panel takes no keys, with Allow… until SitRep has `asked`,
+    /// which brings up macOS's prompt, and the way to it in System Settings after.
+    public static func keys(_ isAllowed: Bool?, asked: Bool) -> SettingsRow {
+        switch isAllowed {
+        case nil:
+            SettingsRow(label: "Accessibility", line: nil, side: .none)
+        case true?:
+            SettingsRow(label: "Accessibility", line: nil, side: .fine("Allowed"))
+        case false?:
+            SettingsRow(
+                label: "Accessibility", line: "Not allowed, so the notch's panel takes no keys",
+                side: asked ? .button("Open System Settings…", .accessibility) : .button("Allow…", .allowKeys)
+            )
+        }
+    }
+
     /// Notify me of a new ask, or when Claude stops: the switch keeps what Lee left it at, but greys while macOS stops
     /// SitRep's notifications, its line saying what tells him instead, for what shows at the edge, the notch swelling
     /// only while its pulse for that need is on.
@@ -145,10 +166,8 @@ extension SettingsRow {
         let lights = pulses ? "the notch swells and lights" : "the notch lights"
         let instead = switch (need, show) {
         case (.ask, .notch): lights
-        case (.ask, .strip): "the strip flashes"
         case (.ask, .nothing): "the menu bar's light comes on"
         case (.turn, .notch): "\(lights) blue"
-        case (.turn, .strip): "its mark on the strip turns blue"
         case (.turn, .nothing): "the menu bar's light turns blue"
         }
 
@@ -241,6 +260,6 @@ extension PluginTrouble {
         }
     }
 
-    /// The two in a line: the plugin row's, and the notch's, the strip's and the window's with no plugin to run.
+    /// The two in a line: the plugin row's, and the notch's and the window's with no plugin to run.
     public var line: String { "\(title). \(detail)" }
 }

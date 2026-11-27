@@ -1,9 +1,9 @@
 /**
  * A session's state across its windows, what it is doing, and the rows the
- * notch's panel, the strip, the menu and the SitRep window show of the
- * board, in their order, each in its section with its lines and its time
- * (see "A session's state" and "The rows" in DESIGN.md). The app draws them
- * as they come: what a surface shows is decided here.
+ * notch's panel, the menu and the terminal view show of the board, in their
+ * order, each in its section with its lines and its time (see "A session's
+ * state" and "The rows" in DESIGN.md). The app draws them as they come: what
+ * a surface shows is decided here.
  *
  * A row is a session, which shows once, in one row.
  * - A session needing Lee is a row in Needs you, with a line for each ask
@@ -88,8 +88,6 @@ type Named = {
   name: string
   /** Its project's name, which a Needs you row shows under its title. */
   projectName: string
-  /** The project's two letters, as the strip's mark shows them. */
-  letters: string
   /** Its project and session, `Northwind · Help desk redesign`, under a Working or Your turn row's line; an away row's says no window holds it. */
   second: string
 }
@@ -232,18 +230,6 @@ export const sessionState = (session: Session, now: number): SessionState => {
   return held.some(isOnItsWork) ? 'onItsWork' : 'yourTurn'
 }
 
-/**
- * A project's two letters, as the strip's marks show them: its capitals
- * where it has two (SitRep SR, BlueYonder BY), else its first two letters or
- * digits (Northwind No, contoso co).
- */
-export const lettersOf = (name: string) => {
-  const capitals = name.match(/\p{Lu}/gu) ?? []
-  const letters = capitals.length >= 2 ? capitals : (name.match(/[\p{L}\p{N}]/gu) ?? [])
-
-  return letters.slice(0, 2).join('')
-}
-
 /** A tool's subject as a row shows it: a file's path from the project's directory, where it lies under it. */
 const subjectOf = ({ name, subject }: ToolShown, project: Project) => {
   const under = project.directory === undefined ? undefined : `${directoryOf(project.directory)}/`
@@ -351,7 +337,6 @@ const namedRow = (project: Project, session: Session, isAway: boolean): Named =>
     project: project.key,
     name,
     projectName: project.name,
-    letters: lettersOf(project.name),
     second: isAway ? AWAY_LINE : `${project.name} · ${name}`,
   }
 }

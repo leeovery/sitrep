@@ -204,7 +204,6 @@ const named = (session: string, { name = session, project = 'Northwind', isAway 
   project: project.toLowerCase(),
   name,
   projectName: project,
-  letters: project.slice(0, 2),
   second: `${project} · ${name}`,
 })
 

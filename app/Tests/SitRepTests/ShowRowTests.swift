@@ -18,9 +18,9 @@ struct ShowRowTests {
         page - 20
     }
 
-    /// The pictures' lefts, Notch, Strip and Nothing: 67 wide, 15 apart, the last 13.5 in from the card's right.
+    /// The pictures' lefts, Notch and Nothing: 67 wide, 15 apart, the last 13.5 in from the card's right.
     private static func lefts(_ page: CGFloat) -> [CGFloat] {
-        [2.0, 1, 0].map { right(page) - 13.5 - 67 - $0 * 82 }
+        [1.0, 0].map { right(page) - 13.5 - 67 - $0 * 82 }
     }
 
     /// The ground these pictures were measured over: under the card's fill, the white at 4.7% of the system's
@@ -58,8 +58,7 @@ struct ShowRowTests {
     }
 
     /// Across the pictures' middle, Notch chosen: its ring, 3 wide past a gap of the raise, 0.5, round its picture,
-    /// then Strip's and Nothing's, each 67 wide, 15 apart, the last 13.5 in from the card's right, whatever the
-    /// width.
+    /// then Nothing's, each 67 wide, 15 apart, the last 13.5 in from the card's right, whatever the width.
     @Test(arguments: [516.0, 744, 1200])
     func thePicturesKeepTheirSizeAndPlaceAtAnyWidth(page: CGFloat) async throws {
         let drawn = try await Self.page(page)
@@ -69,7 +68,7 @@ struct ShowRowTests {
         )
         let expected = [
             lefts[0] - 3.5 ... lefts[0] - 0.5, lefts[0] ... lefts[0] + 67, lefts[0] + 67.5 ... lefts[0] + 70.5,
-            lefts[1] ... lefts[1] + 67, lefts[2] ... lefts[2] + 67,
+            lefts[1] ... lefts[1] + 67,
         ]
 
         #expect(across.count == expected.count)
@@ -78,8 +77,8 @@ struct ShowRowTests {
         }
     }
 
-    /// A choice changes the tiles at once, as Appearance's do: drawn as soon as Show is the strip, the ring is whole
-    /// round the strip's picture and gone from the notch's.
+    /// A choice changes the tiles at once, as Appearance's do: drawn as soon as Show is Nothing, the ring is whole
+    /// round Nothing's picture and gone from the notch's.
     @Test(.tags(.thisMac))
     func aChoiceChangesTheTilesAtOnce() async throws {
         let settings = await Hosted.settings()
@@ -90,15 +89,15 @@ struct ShowRowTests {
         NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
             accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? accent
         }
-        settings.preferences.edit { $0.show = .strip }
+        settings.preferences.edit { $0.show = .nothing }
         hosted.hosting.layoutSubtreeIfNeeded()
 
         let drawn = try Drawn(hosted.hosting).atTwice()
-        let strip = try #require(drawn.colour(at: CGPoint(x: lefts[1] - 2, y: Self.top + 35)))
+        let nothing = try #require(drawn.colour(at: CGPoint(x: lefts[1] - 2, y: Self.top + 35)))
         let notch = try #require(drawn.colour(at: CGPoint(x: lefts[0] - 2, y: Self.top + 35)))
         let raise = try #require(drawn.colour(at: Self.raisePoint))
 
-        for (drawn, expected) in zip(strip.channels, accent.channels) {
+        for (drawn, expected) in zip(nothing.channels, accent.channels) {
             #expect(abs(drawn - expected) < 0.02)
         }
         for (drawn, expected) in zip(notch.channels, raise.channels) {
@@ -187,11 +186,11 @@ struct ShowRowTests {
     }
 
     /// With Nothing chosen, the card is the Show row alone, 86 tall, its line under Show in the secondary colour saying
-    /// what carries the board; with the notch or the strip, Show has no line.
+    /// what carries the board; with the notch, Show has no line.
     @Test(arguments: [516.0, 744])
     func withNothingTheCardIsTheShowRowWithItsLine(page: CGFloat) async throws {
         let nothing = try await Self.page(page, over: .black) { $0.show = .nothing }
-        let strip = try await Self.page(page, over: .black) { $0.show = .strip }
+        let notch = try await Self.page(page, over: .black)
         // down the gap between the row's words and its pictures
         let x = Self.right(page) - 256
         let card = try #require(nothing.litSpans(atX: x).first)
@@ -203,32 +202,12 @@ struct ShowRowTests {
         #expect(abs(card.upperBound - (Self.top + 86)) < pixel)
         #expect(nothing.lines(atX: x, in: card).isEmpty)
         try nothing.expectWords(in: line, .secondaryLabelColor, over: Self.raise(nothing))
-        #expect(try strip.ink(in: line, over: Self.raise(strip)) == nil)
+        #expect(try notch.ink(in: line, over: Self.raise(notch)) == nil)
     }
 
     /// A picture at the Show row's size.
     private static func picture(_ show: EdgeSettings.Show) throws -> Drawn {
         try Drawn(EdgePicture(show: show), size: CGSize(width: 67, height: 44))
-    }
-
-    /// The strip's rings drawn no finer than half a point, so your turn's, blue, lights a whole pixel at 2× somewhere
-    /// round it in full, where its line drawn to scale, 0.27, would light at most about half of one.
-    @Test func theStripsRingsAreNoFinerThanHalfAPoint() throws {
-        // round the lower half of your turn's ring: its middle 4.05 in and 15.5 down, 1.5 out
-        let turn = try Self.picture(.strip).brightest(in: CGRect(x: 2, y: 15.5, width: 4.1, height: 2.5))
-
-        #expect(turn.blueComponent > 0.9 && turn.redComponent < 0.4)
-    }
-
-    /// The strip's picture has Needs you as the strip has it (14 November 2026): the ask's ring and the turn's over the
-    /// hairline, the working rings under it, spaced as the strip spaces its marks.
-    @Test func theStripsPictureHasTheTurnOverTheHairlineWithTheAsk() {
-        let rings = StripPicture.rings, hairline = StripPicture.hairline
-
-        #expect(rings.map(\.ring) == [.needs, .turn, .working, .working])
-        expectEvery(rings.prefix(2)) { $0.y < hairline }
-        expectEvery(rings.suffix(2)) { $0.y > hairline }
-        #expect(abs(rings[1].y - rings[0].y - 30 / 4) < 1e-9 && abs(rings[2].y - rings[1].y - 2 * 21.5 / 4) < 1e-9)
     }
 
     /// Nothing's menu bar seen closer, until the glyph's housing stands 5 tall: the orange bar in it 3.6 tall, its
@@ -286,7 +265,7 @@ struct ShowRowTests {
     /// Round a picture not chosen, its edge as Appearance draws its unchosen thumbnails': a soft shadow, darkest at
     /// the picture, gone 4 out, alike on every side, so with no offset; no hairline.
     @Test func aPictureNotChosenStandsOnAppearancesSoftShadow() throws {
-        let drawn = try Self.tile(.strip, isChosen: false)
+        let drawn = try Self.tile(.nothing, isChosen: false)
         // the picture's edges, in pixels: left 27, right 160, top 27, foot 114; down its side at 71, across at 47
         let sides: [(edge: (x: Int, y: Int), step: (x: Int, y: Int))] = [
             ((27, 71), (-1, 0)), ((160, 71), (1, 0)), ((47, 27), (0, -1)), ((47, 114), (0, 1)),

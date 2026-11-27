@@ -20,7 +20,6 @@ struct SnoozedTests {
         #expect(row.project == "tailspin")
         #expect(row.name == "Finish the Tailspin migration")
         #expect(row.projectName == "Tailspin")
-        #expect(row.letters == "Ta")
         #expect(row.second == "No window holds it. Carry it on in Claude.")
         #expect(row.lines.map(\.key) == ["ask:sr-4t2kq8:k1", "ask:sr-4t2kq8:k2"])
         #expect(row.lines.map(\.ask) == ["k1", "k2"])

@@ -40,7 +40,6 @@ struct BoardTests {
         #expect(stop.newest.since == at(1_792_445_500_000))
         #expect(stop.second == "Woodgrove · Report caching and snags")
         #expect(stop.since == at(1_792_445_500_000))
-        #expect(stop.letters == "Wo")
         #expect(stop.project == "woodgrove-5c3e91f0")
         #expect(stop.session == "sr-y6m1pr")
         #expect(!stop.isAway)

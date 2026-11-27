@@ -6,12 +6,12 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
-/// The callout a welcome's Done leaves beside the real edge, as `Edge` wires it to the notch and the strip, over shapes
-/// of the test's own: no window shows, and the pointer is the test's.
+/// The callout a welcome's Done leaves beside the real edge, as `Edge` wires it to the notch, over a shape of the
+/// test's own: no window shows, and the pointer is the test's.
 @MainActor
 @Suite(.backstop)
 struct EdgeCalloutTests {
-    /// The notch or the strip, as the edge has it: shown or not, where it rests, and its frames' hook.
+    /// The notch, as the edge has it: shown or not, where it rests, and its frames' hook.
     @MainActor
     final class Shape: CalloutShape {
         var isShown = false
@@ -25,19 +25,18 @@ struct EdgeCalloutTests {
             restingBand = band
         }
 
-        /// A frame drawn, the pointer over the shape or not, as the real ones tell it.
+        /// A frame drawn, the pointer over the shape or not, as the real one tells it.
         func draw(pointedAt: Bool = false) {
             onDrawn?(pointedAt)
         }
     }
 
-    /// The edge's callout over a notch and a strip, as `Edge` makes it, and where it was placed, in turn.
+    /// The edge's callout over a notch, as `Edge` makes it, and where it was placed, in turn.
     @MainActor
     final class Made {
         let defaults = MemoryDefaults()
         let preferences: Preferences
         let notch = Shape(CGRect(x: 0, y: 434, width: 7, height: 0))
-        let strip = Shape(CGRect(x: 0, y: 434, width: 36, height: 0))
         var isRight = false
         var placed: [EdgeCallout.Beside?] = []
         private(set) var callout: EdgeCallout?
@@ -45,87 +44,87 @@ struct EdgeCalloutTests {
         init(_ standing: CalloutSettings.Standing = .unshown) {
             preferences = Preferences(defaults)
             preferences.callout = CalloutSettings(standing)
-            callout = EdgeCallout(preferences, shapes: [notch, strip], isRight: { [unowned self] in isRight }) {
+            callout = EdgeCallout(preferences, shape: notch, isRight: { [unowned self] in isRight }) {
                 [unowned self] in placed.append($0)
             }
         }
 
-        /// The edge showing this shape, or neither, as Lee chose it, at Nothing or under a full-screen app.
-        func show(_ shape: Shape?) {
-            notch.isShown = shape === notch
-            strip.isShown = shape === strip
+        /// The notch shown, or hidden, as Lee chose Nothing or a full-screen app has the display.
+        func show(_ isShown: Bool) {
+            notch.isShown = isShown
             callout?.refresh()
         }
 
-        func beside(_ shape: Shape) -> EdgeCallout.Beside {
-            EdgeCallout.Beside(band: shape.restingBand, isRight: isRight)
+        var beside: EdgeCallout.Beside {
+            EdgeCallout.Beside(band: notch.restingBand, isRight: isRight)
         }
     }
 
-    @Test func onlyOnceDueDoesItStandBesideTheShapeShowing() {
+    @Test func onlyOnceDueDoesItStandBesideTheNotchShowing() {
         let made = Made()
 
-        made.show(made.notch)
+        made.show(true)
         #expect(made.placed.isEmpty)
         made.preferences.callout.done(.notch)
-        #expect(made.placed == [made.beside(made.notch)])
+        #expect(made.placed == [made.beside])
     }
 
-    /// Beside the strip as the notch would be, on the side Lee chose; neither showing, nowhere.
-    @Test func itStandsBesideWhicheverShowsOnItsSide() {
+    /// Beside the notch, on the side Lee chose; with the notch hidden, nowhere.
+    @Test func itStandsBesideTheNotchOnItsSide() {
         let made = Made(.due)
 
-        made.show(made.strip)
+        made.show(true)
         made.isRight = true
-        made.show(made.notch)
-        made.show(nil)
+        made.show(true)
+        made.show(false)
         #expect(made.placed == [
-            EdgeCallout.Beside(band: made.strip.restingBand, isRight: false), made.beside(made.notch), nil,
+            EdgeCallout.Beside(band: made.notch.restingBand, isRight: false), made.beside, nil,
         ])
     }
 
-    /// Done with neither showing, at Nothing or under a full-screen app, it waits for one to show, however long.
-    @Test func dueWhileNeitherShowsItWaitsForOneToShow() {
+    /// Done with the notch hidden, at Nothing or under a full-screen app, it waits for the notch to show, however
+    /// long.
+    @Test func dueWhileTheNotchIsHiddenItWaitsForItToShow() {
         let made = Made()
 
-        made.show(nil)
+        made.show(false)
         made.preferences.callout.done(.notch)
         #expect(made.placed.isEmpty)
-        made.show(made.strip)
-        #expect(made.placed == [made.beside(made.strip)])
+        made.show(true)
+        #expect(made.placed == [made.beside])
     }
 
-    /// The first hover over either shape takes it away for good, saved; from then on the shapes tell it nothing.
-    @Test func theFirstHoverTakesItAwayForGoodAndUnhooksTheShapes() {
+    /// The first hover over the notch takes it away for good, saved; from then on the notch tells it nothing.
+    @Test func theFirstHoverTakesItAwayForGoodAndUnhooksTheNotch() {
         let made = Made(.due)
 
-        made.show(made.strip)
-        #expect(made.notch.isHooked && made.strip.isHooked)
-        made.strip.draw()
+        made.show(true)
+        #expect(made.notch.isHooked)
+        made.notch.draw()
         #expect(made.preferences.callout.shows)
-        made.strip.draw(pointedAt: true)
-        #expect(made.placed == [made.beside(made.strip), nil])
+        made.notch.draw(pointedAt: true)
+        #expect(made.placed == [made.beside, nil])
         #expect(Preferences(made.defaults).callout.standing == .gone)
-        #expect(!made.notch.isHooked && !made.strip.isHooked)
+        #expect(!made.notch.isHooked)
     }
 
-    /// Until Done leaves it, the shapes tell it of no frame; Done hooks them.
-    @Test func theShapesAreHookedOnlyOnceItIsDue() {
+    /// Until Done leaves it, the notch tells it of no frame; Done hooks it.
+    @Test func theNotchIsHookedOnlyOnceItIsDue() {
         let made = Made()
 
-        made.show(made.notch)
-        #expect(!made.notch.isHooked && !made.strip.isHooked)
+        made.show(true)
+        #expect(!made.notch.isHooked)
         made.preferences.callout.done(.notch)
-        #expect(made.notch.isHooked && made.strip.isHooked)
-        #expect(made.placed == [made.beside(made.notch)])
+        #expect(made.notch.isHooked)
+        #expect(made.placed == [made.beside])
     }
 
-    /// Gone already as SitRep starts, the shapes are never hooked at all.
+    /// Gone already as SitRep starts, the notch is never hooked at all.
     @Test func goneAlreadyItHooksNothing() {
         let made = Made(.gone)
 
-        made.show(made.notch)
-        #expect(!made.notch.isHooked && !made.strip.isHooked)
+        made.show(true)
+        #expect(!made.notch.isHooked)
         #expect(made.placed.isEmpty)
     }
 
@@ -135,7 +134,7 @@ struct EdgeCalloutTests {
     @Test func theNotchsFrontMovingPlacesItAgain() {
         let made = Made(.due)
 
-        made.show(made.notch)
+        made.show(true)
         made.notch.restingBand.size.width = 15
         made.callout?.refresh()
         made.notch.draw()
@@ -159,13 +158,13 @@ struct EdgeCalloutTests {
         #expect(right.maxX - room == 1476 - 14 && right.midY == 430)
     }
 
-    /// The real shapes rest from targets: the notch's home band and the strip's resting width, whatever its frame.
-    @Test func theShapesRestLevelWithTheNotchsHome() {
+    /// The real notch rests from targets: its home band, level with its home, whatever its frame.
+    @Test func theNotchRestsLevelWithItsHome() {
         let edge = ScreenEdge(
             frame: CGRect(x: 0, y: 0, width: 1512, height: 982), visible: .zero, edge: .right, along: 0.5
         )
 
-        #expect(edge.homeBand(reaching: Strip.restingWidth) == CGRect(x: 1476, y: 491, width: 36, height: 0))
+        #expect(edge.homeBand(reaching: 15) == CGRect(x: 1497, y: 491, width: 15, height: 0))
     }
 
     /// The real notch at rest, from its home band: further out the moment an ask lights it. Its going dark waits on
@@ -175,7 +174,7 @@ struct EdgeCalloutTests {
             id: "A", frame: CGRect(x: -20000, y: -20000, width: 1512, height: 982),
             visible: CGRect(x: -20000, y: -20000, width: 1512, height: 958)
         )
-        let notch = NotchController(EdgeSettings(), on: display, folding: Folding()) { SnoozeSettings() }
+        let notch = NotchController(EdgeSettings(), on: display, folding: Folding(), keys: .none) { SnoozeSettings() }
         let now = Displays.wallNow
 
         defer { notch.window.close() }

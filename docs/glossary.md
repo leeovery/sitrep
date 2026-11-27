@@ -28,7 +28,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **session id**: The id the board gives a session, such as `sr-nw0001`. Claude uses it to join a session. The pane and the Mac app never show it, but the `sitrep` command does. It is not Claude Code's own session id, which names one conversation and changes on `/clear`.
 
-**Snooze menu**: The list of snooze choices, each with the time it wakes, then Until it moves. In the Mac app, it opens from **Snooze** when you right-click a row. In the terminal view, `z` opens it under the chosen row. **Snooze ▾** in the asks panel offers the times only, for one ask.
+**Snooze menu**: The list of snooze choices, each with the time it wakes, then Until it moves. On the notch and in the terminal view, `z` opens it for the chosen row, with a number for each choice. A right-click on a row opens it under **Snooze**, with no numbers. **Snooze ▾** in the asks panel offers the times only, for one ask, numbered too.
 
 **snoozed**: Put off by you until a time you pick: a whole session, or one ask. In a snoozed session, the asks and your turn there stop counting until it wakes, and a new ask wakes it at once. A session can also snooze until it moves. A snoozed ask stops counting by itself, and nothing new wakes it. Only you can snooze: Claude has no way to.
 
@@ -46,7 +46,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **drop**: Taking a parked item off the board from the pane, once you confirm. Claude learns only that the item is gone.
 
-**the pane**: The board inside Claude Code, opened with `/sitrep` or from the band. It has two tabs: one named for this session, such as "⌂ Help desk redesign", and All projects.
+**the pane**: The board inside Claude Code, opened with `/sitrep` or from the band. It has two tabs: one named for this session, such as "⌂ Help desk redesign", and All projects. After ctrl+x tab or a click on it, the pane holds the keyboard until you press Escape.
 
 **permission prompt**: Claude Code asking you in the window to allow a tool. A question Claude Code puts to you there counts the same way. SitRep counts a window waiting at one, beside the asks.
 
@@ -60,19 +60,25 @@ Each word below means one thing on every page of these docs. The words are group
 
 ## In the Mac app
 
-**asks panel**: What the arrow on a row opens, beside the panel or the tab on the strip: one session's asks, one at a time. A click answers a yes or a choice, with two seconds to undo. A words ask shows there too, with **Open in Claude ↗** to answer it in Claude.
+**Accessibility**: The macOS setting that lets SitRep read keys while the panel is open. You allow it from Settings › Edge, and System Settings keeps it under Privacy & Security › Accessibility.
+
+**asks panel**: What the arrow on a row opens, beside the panel, as does the arrow key pointing away from the notch: one session's asks, one at a time. A click answers a yes or a choice, with two seconds to undo. A words ask shows there too, with **Open in Claude ↗** to answer it in Claude.
 
 **banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. A click on one takes you to the session. Both are off until you turn them on in Settings › Notifications. **Turn On…** in the welcome window also turns on the banner for a new ask. A failure banner, such as "SitRep could not jump", "Not snoozed" or "Not answered", shows even with both switches off.
 
-**dimmed session**: A session drawn dimmed, because it isn't open on the device you're looking from. In the panel and on the strip, that device is this Mac's screen, so a session you reach only over SSH is dimmed. In the terminal view, that device can be a phone or iPad over SSH, and a dimmed session in Needs you has a hollow dot. Its asks still count. While SitRep isn't running, the terminal view dims only a session no window runs.
+**chosen row**: The row the keys act on. In the panel, it is the row under the pointer, until `↑` `↓` choose another. In the terminal view, the arrows or a click choose it.
 
-**mark**: A session on the strip: a ring holding two letters of its project. The colour of the ring says where the session stands.
+**dimmed session**: A session drawn dimmed, because it isn't open on the device you're looking from. In the panel, that device is this Mac's screen, so a session you reach only over SSH is dimmed. In the terminal view, that device can be a phone or iPad over SSH, and a dimmed session in Needs you has a hollow dot. Its asks still count. While SitRep isn't running, the terminal view dims only a session no window runs.
+
+**holding the keys**: The panel taking its keys, so none reaches the window in front, even one with no use at that moment. It starts when the panel opens under the pointer, or when the pointer moves onto the panel. It ends at the first key that isn't one of the panel's keys. Opened with the shortcut, the panel holds every key until it closes.
+
+**keycap**: The number at the right end of an answer row in the asks panel, while the panel is holding the keys. Press that number to answer with the row.
 
 **the menu bar item**: The SitRep icon in the menu bar, and its menu. The menu lists your sessions under one total, such as "3 need you". The icon lights the same way the notch does. SitRep has no Dock icon, so this is where you reach it.
 
 **Needs you**: The first section of the panel and of the terminal view: the sessions waiting on you. An orange row has asks, or a window waiting at a permission prompt. The terminal view shows the same with an orange dot. A blue row or dot is Stopped.
 
-**the notch**: The SitRep shape at the left or right edge of your screen, black by default, on every Space. It opens into the panel when you hover over it. Its light is orange while an orange row waits in Needs you. With none, it is blue while a session is Stopped.
+**the notch**: The black SitRep shape at the left or right edge of your screen, on every Space. It opens into the panel when you hover over it. Its light is orange while an orange row waits in Needs you, and otherwise blue while a session is Stopped. You choose Notch or Nothing under Show, in the menu or in Settings › Edge. With Nothing, the menu bar item's menu carries the board.
 
 **the panel**: What the notch opens: your sessions, in Needs you, Working and Snoozed. A click on a session takes you to it.
 
@@ -80,9 +86,9 @@ Each word below means one thing on every page of these docs. The words are group
 
 **row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines until you expand it. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing. In Snoozed, the second line holds the thing that wakes soonest instead, the oldest if several wake together.
 
-**row's arrow**: The button on a row in Needs you that opens the asks panel. It sits at the end of the row nearer the middle of the screen. At the left edge it takes the place of the time, and at the right edge the place of the dot. It shows only if the session has an ask: a yes, a choice or a words ask. It shows while the pointer is on the row, and stays lit while the asks panel for that row is open. A tab on the strip shows it at that end too.
+**row's arrow**: The button on a row in Needs you that opens the asks panel. It sits at the end of the row nearer the middle of the screen. At the left edge it takes the place of the time, and at the right edge the place of the dot. It shows only if the session has an ask: a yes, a choice or a words ask. It shows while the pointer is on the row, and stays lit while the asks panel for that row is open.
 
-**the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
+**the shortcut**: The key that opens the panel holding the keys, from any app: ⌃⌥S by default. You change or clear it in Settings › Edge. With Show set to Nothing, it opens the menu of the menu bar item.
 
 **the welcome window**: The window SitRep opens at its first start. It shows what SitRep does, and sets your first choices, such as the sound. The first time, it also turns on Open at login. It also asks macOS for banners and control of Ghostty, both optional. Show Welcome Window, in the menu, opens it again.
 

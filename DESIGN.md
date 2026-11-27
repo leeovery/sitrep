@@ -40,9 +40,9 @@ Settled with Lee on 16 October 2026.
 | **finished** | A session Claude or Lee finished, once it was complete with nothing left on it; what it parked is its project's, and stays. | |
 | **notch** | The SitRep notch, where it needs telling from the camera's: the black shape at the edge of the screen that opens into the panel. | |
 | **panel** | What the notch opens, the notch panel or the SitRep panel: a glance at the board, and a jump. | |
-| **row's arrow** | A Needs you row's button at its end toward the asks panel, its right on the left edge and its left on the right, shown while the pointer is on the row, that opens the asks panel (24 November 2026); a strip's tab takes it too (25 November 2026). | |
-| **asks panel** | The panel beside the list, or beside the strip's tab, that shows one session's asks, one at a time, to answer from; a Needs you row's arrow opens it (24 November 2026; see "Answering from the panel"). | |
-| **strip** | The alternative to the notch and its panel: a narrow strip the height of the screen. | |
+| **row's arrow** | A Needs you row's button at its end toward the asks panel, its right on the left edge and its left on the right, shown while the pointer is on the row, that opens the asks panel (24 November 2026); the strip's tab took it too, from 25 November 2026 until the strip went. | |
+| **asks panel** | The panel beside the list that shows one session's asks, one at a time, to answer from; a Needs you row's arrow opens it (24 November 2026; see "Answering from the panel"). | |
+| **strip** | The alternative to the notch and its panel, a narrow strip the height of the screen, until it was removed on 26 November 2026 (see "The strip"). | |
 | **menu bar item** | SitRep's icon in the menu bar, and its menu. | |
 | **Settings** | Where Lee sets SitRep up. | |
 | **pane** | The view of the board inside Claude Code. | board: `show board`, `hide board` |
@@ -354,7 +354,7 @@ Built so (17 November 2026):
   project", under Delivery).
 - **SitRep follows at its next line.** `watch` files the session as every
   reader does, so the line after its look has it under the new project: its
-  row's project and letters, its windows' project, and its board's
+  row's project, its windows' project, and its board's
   `project`. A project renamed is a new line too, though no session of its
   folder changed, since a session moved to it goes by its name. No field
   changes and `v` does not move; the jump goes by the session and its
@@ -396,7 +396,7 @@ notch and its panel").
   on the tabs or the band, in `list` or `board --json`, nor in `watch`'s
   head and rows, so the notch does not swell for it. Its session's state is
   then what its windows make it: an away one with nothing else waiting
-  leaves the panel and the strip. The ask
+  leaves the panel. The ask
   itself still shows among its session's asks, saying its reply is on its
   way, until the delivered mark settles it; an ask whose reply went void
   waits on Lee again, as does one whose reply reached Claude after an edit
@@ -3080,7 +3080,7 @@ changes by time alone (see "Expiry"), and folds every session afresh then.
 **Where it counts.** A snoozed ask counts nowhere on Lee's surfaces: not in
 a session's or a project's waiting, on the pane's tabs or the band, in `list`
 or `board --json`'s `waiting`, nor in `watch`'s head and rows; so not in
-Needs you, on the strip, in the menu or on its icon, in the notch's light or
+Needs you, in the menu or on its icon, in the notch's light or
 swell, nor in a macOS notification. A snoozed turn leaves Your turn and its
 count the same way. A snoozed session with no stop stands as its windows
 leave it, out of Needs you; it still waits as posted (`asked`), so it keeps
@@ -3093,8 +3093,8 @@ it: Snoozed is an exception to "each session appears once", as Projects is.
   `snoozed`, beside `rows` and apart from them: a separate list, not a
   fourth `section`, since the app reads `section` strictly and one built
   before it would refuse every line. A row is a session, one each: its
-  `session`, `isAway`, project key, `name`, `projectName`, `letters` and
-  `second` as a Needs you row's; its `lines`, one per ask snoozed, each its
+  `session`, `isAway`, project key, `name`, `projectName` and `second` as a
+  Needs you row's; its `lines`, one per ask snoozed, each its
   `key` (`ask:<session>:<ask>`, the key it has in Needs you), `is` `ask`, its
   `ask`, its title as `first`, `since` its posting or reopening, and
   `wakesAt`, and at its turn one more, the turn's (see "The row snoozes");
@@ -3103,8 +3103,8 @@ it: Snoozed is an exception to "each session appears once", as Projects is.
 - It is the card's last section, under Your turn. It is folded at first, to
   its eyebrow and its count, the lines it holds (**proposed**), and a fold of
   it is kept as any is; unfolded, each row says when it wakes. The menu
-  shows none; the strip shows them, as marks under a hairline of their own
-  (14 November 2026; see "The strip"), and until then showed none either.
+  shows none; the strip showed them, as marks under a hairline of their
+  own, from 14 November 2026 until it went (see "The strip").
   How it looks is drawn in Paper.
 - **Snooze, from a row:** a right-click on a card's Needs you row whose
   lines hold asks, or on a your-turn row, offers Snooze, then the choices
@@ -3123,17 +3123,15 @@ so an ask's line back from a snooze of three hours would come back
 unremarked. So a line in Snoozed is kept among those shown however long it
 sleeps, and its absence alone never makes it new; once its time runs out,
 each ask's line in Needs you carries the snooze's `wokeAt`, and the watch
-takes it as new. Its row arrives as a new ask's does: the notch swells, the
-strip flashes, its row washes on the card, Needs you unfolds on the card
-while Lee has the notch show the board, and a macOS notification goes where
-they are on; with the strip chosen, Needs you folded stays folded and its
-count on the strip flashes (see "Folding"). Its time still counts from its
-posting. A turn's line is never new, as on Your turn. Woken by Lee, or
-early, the asks come back as shown, unflashed, as Lee pressed it, and `new`
-means not yet shown to Lee; their row moves at once wherever the wake
-changes its group, as any row does (Lee, 14 November 2026; see "Moving"
-under the strip). An ask new enough to wake it is new as any is. One woken
-while no `watch` ran, the app quit, brings no swell, as any line then.
+takes it as new. Its row arrives as a new ask's does: the notch swells, its
+row washes on the card, Needs you unfolds on the card whatever Show is set
+to (see "Folding"), and a macOS notification goes where they are on. Its
+time still counts from its posting. A turn's line is never new, as on Your
+turn. Woken by Lee, or early, the asks come back as shown, unflashed, as Lee
+pressed it, and `new` means not yet shown to Lee; their row moves wherever
+the wake changes its group, as any row does (Lee, 14 November 2026). An ask
+new enough to wake it is new as any is. One woken while no `watch` ran, the
+app quit, brings no swell, as any line then.
 
 **In the pane.**
 - It reads each ask's `snoozedUntil`, in the held session's fold and in the
@@ -3270,7 +3268,6 @@ sitrep wake [--session <id>]
   "snoozed": [
     { "session": "sr-7t2k9d", "isAway": false, "project": "tailspin",
       "name": "Finish the Tailspin modernisation", "projectName": "Tailspin",
-      "letters": "Ta",
       "lines": [ { "key": "ask:sr-7t2k9d:k1", "is": "ask", "ask": "k1",
                    "first": { "lead": "Review the plan", "mono": null,
                               "subject": null, "more": null, "until": null },
@@ -4081,7 +4078,7 @@ it:
   tools go on working; an upgrade quits SitRep, and so do a restart and a
   crash.
 - **SitRep is a window onto the board, and does the Mac's own work.** The
-  notch, the strip, the menu bar item and the banners show the board;
+  notch, the menu bar item and the banners show the board;
   finding a session's window and bringing it forward are the Mac's.
 - **The plugin ships inside SitRep.** Installing it alone is possible, but
   not supported (27 October 2026; see "Where it lives").
@@ -4733,7 +4730,6 @@ truth. There is still no background service. None of it is built now. Lee:
           { "session": "sr-k3f9qa", "section": "needsYou",
             "isAway": false, "project": "switchboard",
             "name": "Dashboard redesign", "projectName": "Switchboard",
-            "letters": "Sw",
             "lines": [
               { "key": "ask:sr-k3f9qa:k1", "is": "ask", "ask": "k1",
                 "writer": null,
@@ -4790,15 +4786,14 @@ truth. There is still no background service. None of it is built now. Lee:
           "sr-zzzzzz": null } }
       ```
 
-    - `rows` are the panel's, the strip's and the menu's, in their order
+    - `rows` are the panel's and the menu's, in their order
       (see "The rows"), a row a session (`v` 2, 22 October 2026). A row is
       its `session`, which names it for as long as it stands, so the app
       keeps a row's place by it; its `section` (`needsYou`, `yourTurn` or
       `working`; on its own work is in `working`, at its end), and
       `isAway`, a Needs you row of a session no window holds; its project's
-      key, its session's `name` and its project's (`projectName`), the
-      strip's two `letters` (the project's capitals where it has two, else
-      its first two), its `lines`, its `second` line, and `since`, the
+      key, its session's `name` and its project's (`projectName`), its
+      `lines`, its `second` line, and `since`, the
       instant its time counts from: its newest line's on Needs you, else its
       one line's. Needs you's newest first, and Your turn above Working,
       changed only the order and that instant (4 November 2026): `v` did not
@@ -4931,9 +4926,8 @@ truth. There is still no background service. None of it is built now. Lee:
       line. Since rows went by session a row keeps its key through all
       three, so an arrival is this, not a key new to the app, as it was
       while each ask and stop was a row of its own (22 October 2026). An
-      arrival swells the notch, washes its row on the card, and on the strip
-      moves its mark into Needs you at once, flashing, or flashes it where it is
-      already in Needs you. A row **changes section** when its session
+      arrival swells the notch and washes its row on the card. A row
+      **changes section** when its session
       comes into Needs you or leaves it: on the card, while it is out, it
       leaves its held place for its place in its new section (see "The
       rows"). The first line has none, so the app does not swell at its
@@ -5019,7 +5013,11 @@ truth. There is still no background service. None of it is built now. Lee:
       plan (4 November 2026, see "A turn snoozes too"): `snoozed`'s lines
       gained `is`, and a turn's holds `ask` and `wakesAt` null, `v` staying
       3, the app taking it in the same change, so an app built before it
-      refuses a line holding a turn asleep until it is built again.
+      refuses a line holding a turn asleep until it is built again. The
+      strip's `letters`, its project's two, left the rows and Snoozed's on
+      26 November 2026, with the strip, `v` staying 3, the app reading them
+      no more in the same change, so an app built before it refuses a line
+      holding a row until it is built again.
     - **The loop.** It looks every second, as the mod's readers do, and at
       once on a line on its standard input: a file is read again only once
       its size or time moved, a folder listed again only once its time
@@ -5491,7 +5489,8 @@ that takes Lee to the window a session is in.
 
 - **A native Mac app**, with no Dock icon. Its surface is **the notch**: a
   black shape at the edge of the screen that opens into a panel of Lee's
-  sessions, or **the strip** in its place (below). It replaces the menu
+  sessions; **the strip** could stand in its place until 26 November 2026
+  (see "The strip"). The notch replaces the menu
   bar's list, first planned as projects opening to their sessions.
 - **The menu bar item stays**, as a native menu: the panel's sessions with a
   click to each, what shows at the screen's edge, Settings and quitting
@@ -5674,8 +5673,8 @@ light inside. It opens into a black panel:
 - front corners of radius 24, and flares of 18 into the bezel;
 - kept 40 from the top and bottom of the screen's visible frame.
 
-**Black only** (25 November 2026). The notch, its panel, the asks panel
-and the strip are drawn in black alone. Until then Settings' Material
+**Black only** (25 November 2026). The notch, its panel and the asks panel
+are drawn in black alone. Until then Settings' Material
 offered Glass beside Black, macOS 26's Liquid Glass, drawn in SwiftUI over
 the same layouts; Lee removed it after his second live try of the asks
 panel: "Glass actually looks really shit. Let's just remove that
@@ -5685,8 +5684,8 @@ version is passed over, so a Glass saved draws in black, with nothing
 asked.
 
 It sits on the left edge by default, at Lee's asking, 0.42 of the way down
-the screen, a little above the middle, as the prototypes have it and where
-the strip centres at Grows. On this Mac the left edge of the main display is
+the screen, a little above the middle, as the prototypes have it. On this
+Mac the left edge of the main display is
 a hard edge: the built-in display sits to its right. A drag moves it along
 the edge, and past the middle to the other
 edge; never to the bottom. The form is Paper's round 1 "Bezel". The light's
@@ -5700,8 +5699,8 @@ past the screen's middle, it drains into this edge in 150ms, swaps to the
 other at 160 and grows out of it over 300, its ghost fading over 420; no
 press takes it again until it is home there.
 Where it is let go is saved in what Lee sets, as
-its edge and how far down the screen it sits (0.42 until then), so the
-strip, centring where the notch sits, takes it too. A chosen display is
+its edge and how far down the screen it sits (0.42 until then). A chosen
+display is
 named by its UUID, which outlives a restart and a replug; one not connected
 gives way to the main display.
 
@@ -5846,7 +5845,7 @@ with it.
   not and just using the spacing." A rule at one of three boundaries made
   the sections look unlike each other. The menu bar's menu keeps its
   separator, a menu's own idiom (see "The menu bar item"), and the strip
-  is unchanged. From board I that morning the hairline divided what waits
+  was unchanged. From board I that morning the hairline divided what waits
   on Lee from what doesn't:
   it sat after Your turn, "N earlier" included, whenever another section
   followed; with no Your turn, after Needs you; with neither, there was
@@ -5860,21 +5859,19 @@ with it.
   takes its own default: Snoozed, folded at first, reads folded from a value
   saved before it was, and every other section open. A fold of Your turn
   saved before 13 November 2026 is passed over, as a section this version
-  does not know is, and Needs you takes its own. The folds are one setting
-  with the strip's (14 November 2026, Lee): a section folded on the card is
-  folded on the strip and the other way, each reading it as it lays out,
-  so switching Show between the notch and the strip shows the same folds.
-  An arrival unfolds Needs you, at once, while Lee has the notch show the
-  board: a row holding a line
-  new to the board, as swells the notch, whether the session is new, comes
-  to need Lee or gains a line. The unfold is kept, as a click's is: Needs
-  you stays open until Lee folds it again. With the strip chosen, Needs
-  you folded stays folded, and its count on the strip flashes (14 November
-  2026; until then an arrival unfolded it whichever showed). At once is
+  does not know is, and Needs you takes its own. The folds were one setting
+  with the strip's, from 14 November 2026 (Lee) until the strip went.
+  An arrival unfolds Needs you, at once, whatever Show is set to: a row
+  holding a line new to the board, as swells the notch, whether the
+  session is new, comes to need Lee or gains a line. The unfold is kept,
+  as a click's is: Needs you stays open until Lee folds it again. From 14
+  November 2026 an arrival left it folded while the strip was chosen, and
+  once the strip went, while Nothing was; the phase review of the keys
+  (26 November 2026) ended that with the strip's last trace, so the notch
+  shows the same Needs you whatever Show was set to before. At once is
   for what the fold changes only, the section's rows coming or going;
-  every other row keeps
-  its own motion, one folding away finishing and one arriving, the new
-  ask's own row among them, folding in.
+  every other row keeps its own motion, one folding away finishing and
+  one arriving, the new ask's own row among them, folding in.
 - **One shape** (board J2, 4 November 2026): every row is one line, 30
   tall, inset 10, its lift's corners 10, with no gap between rows (see "How
   each row reads"). Lee, of board I's card, its rows of two heights: they
@@ -5911,8 +5908,8 @@ with it.
   turn's apart from 4 November). A snoozed session whose window stopped on
   a prompt or a question has a row in Needs you as well, as two rows of
   the one session. It is folded at first, to its eyebrow and its count.
-  Its rows are the card's and the strip's (the strip's since 14 November
-  2026, the card's alone until then): the menu shows none, nothing in it
+  Its rows are the card's alone (the strip's too, from 14 November 2026
+  until the strip went): the menu shows none, nothing in it
   lights or swells the notch, and none of its rows washes. With
   nothing else to list, the card lists Snoozed with no head.
 
@@ -5934,7 +5931,7 @@ eyebrow, is of lines: the asks and stops waiting, not the sessions.
 Paper's board F, "The session, and +2", which Lee approved, superseding
 board D's stack of lines and board E). Its title is the session's name, the
 line under it its project's name, the dot as before, on every surface that
-shows it: the card, the strip's tab and the menu. More than one line
+shows it: the card and the menu. More than one line
 waiting adds a quiet count after the name, the plain number of lines
 waiting: "Build the Mac app 4" for four; one line shows none, the row itself
 saying something waits. No ask's words are on the row, so a question's own
@@ -5978,9 +5975,8 @@ the wake's line carries when it is due (`until`), and each surface words it
 after "Wakes" as its clock ticks: under an hour, the whole minutes left,
 rounded up ("in 12m" from twelve minutes down to eleven); past that, hours
 and then days, as an age is worded ("in 1h" up to two hours); then "now"
-once due, as a wake past its minute is. Its figures are tabular, and a tab
-on the strip leaves room for the widest it will read, so it never widens
-past its tab: "in 1h" becomes "in 59m". The row's time still counts from
+once due, as a wake past its minute is. Its figures are tabular. The row's
+time still counts from
 the turn's end, as every row's does, so the countdown never shows twice.
 
 Rows keep their places while the panel is open: a changed row moves only once
@@ -6038,7 +6034,7 @@ right, Your turn's row alone on one line from 22 October 2026:
   below, not 10 and 11);
 - **away, with an ask** (3 November 2026): its mark is a hollow orange ring,
   7 across, its stroke 1.5 inside it, with no glow, on every surface: the
-  card, the strip and the menu. The filled dot and its glow stay for an
+  card and the menu. The filled dot and its glow stay for an
   ask whose window is there. Orange says an ask waits on Lee; hollow, that no window holds it,
   as Slack and Teams mark someone away. Since stage 8's rethink (13
   November 2026) a session a window holds that no terminal on this Mac
@@ -6088,8 +6084,8 @@ right, Your turn's row alone on one line from 22 October 2026:
   the row. It is greyer than the rest: it needs nothing. Its lift radius is
   10, as every row's on one line, so two lifts side by side meet, as board
   D's did (14 until 4 November 2026).
-  Every arc turns in step (3 November 2026): on every surface, the card, the
-  strip and the menu, each turns from the one clock, the
+  Every arc turns in step (3 November 2026): on every surface, the card and
+  the menu, each turns from the one clock, the
   phase it starts at the clock's time within its period, so two arcs turning
   at one pace are at one angle however far apart they started. Each had
   started at a phase of its own until then.
@@ -6400,7 +6396,7 @@ blurred.
 - at level `.mainMenu + 3`, on every Space (`.canJoinAllSpaces`,
   `.stationary`, `.ignoresCycle`), and hidden while a full-screen app has
   its display: clear and letting every click through, never ordered out
-  (under "The strip", "Windows and full screen");
+  (see "Full screen", below);
 - clicks pass through it except over the shape;
 - a global mouse monitor hears the approach, and while the panel is out,
   every move (see Stages, step 6);
@@ -6409,6 +6405,50 @@ blurred.
   alike: AppKit sets a hosted layer's flip from its view's, whatever the
   layer says, and an unflipped one drew the glass's light upside down in
   its window, far below its notch (20 October 2026).
+
+**Full screen**, settled for the notch and the strip alike, and moved here
+from "The strip" as it went. Nothing of SitRep's goes over a full-screen
+window (Lee, 19 October 2026: "It should be hidden. Nothing should go over
+the top of a full screen window"): while a full-screen app has the notch's
+display, the notch is hidden, clear and letting every click through, and
+it shows again as the display leaves it. A maximised window doesn't count,
+and each display is judged on its own. How SitRep tells, as the spike
+found:
+- **Leaving the window off full-screen Spaces wasn't enough.** A
+  non-activating panel on every Space still showed over Plex full screen.
+- **Bounds alone can't tell the two apart.** Under the built-in display's
+  notch, a maximised window has a full-screen one's bounds.
+- **The system's presentation options**, read for the app in front,
+  didn't catch Paper full screen.
+- **What works, from the window list:** a display is full screen while
+  the Dock's full-screen backdrop covers it. The backdrop is a window
+  owned by the Dock, at layer −2147483622 on macOS 26, read by owner,
+  layer and bounds, so it needs no Screen Recording. A probe once a
+  second while Lee put Paper full screen showed it there for exactly that
+  long; meanwhile the display's menu bar and wallpaper windows were gone.
+  If a later macOS changes it, the notch only shows over full screen
+  again.
+- **When SitRep looks:** on each change of Space, of the app in front and
+  of the screens, and once more a second later, as the backdrop slides
+  in. Nothing polls.
+
+The private SkyLight call yabai uses would read each display's Space type
+directly. It was left out, as nothing guarantees it across macOS
+releases. In the Swift spike; Lee, putting Paper full screen and back:
+"It works".
+**Hidden is clear, never ordered out.** The edge was ordered out over
+full screen and back in after, and came back on one Space only (26
+October 2026): read through SkyLight, the notch's window was on all 18
+Spaces as Chrome went full screen, and on the one it came back to once
+ordered in again, until SitRep restarted. On every other Space it showed
+for half a second as the Space slid in, then went. Lee: "It flashes,
+it's there momentarily, and then it disappears". Once pinned, a window
+stayed pinned through later round trips: Lee, choosing the notch over
+the strip, saw no notch until a restart. So the edge's window, and the
+jump's caption's, which hid the same way, are ordered in once, as they
+are made, and never out: hidden, each is clear and lets every click
+through, and the turns and sweeps Core Animation runs for it in the
+render server are paused, to run again as it shows.
 
 The shape is one path rebuilt every frame from the springs. As in the
 prototype, they are integrated semi-implicitly in substeps of at most 4ms,
@@ -6475,7 +6515,8 @@ first:
 - **The top line:** the session's name, 12 semibold in white, and its
   project, 12 in the faint grey. At its right, page dots where the session
   has more than one ask: the current one orange, 14 × 5, the others 5 × 5,
-  #3A3A40. They page the asks (below, "Paging").
+  #3A3A40, in the order the asks lie, the first nearest the notch. They
+  page the asks (below, "Paging").
 - **The ask's title,** 17 semibold, letter-spacing -0.02em, its line 22;
   under it "Asked 4m ago", 12 in the faint grey, the age from the ask's
   posting or reopening, as its line on the row counts from.
@@ -6563,10 +6604,14 @@ with its ask.
 - **A horizontal swipe** of two fingers on the asks panel follows the
   fingers, as the Mac's swipe between Spaces does (Lee, 25 November 2026,
   after his second live try; until then a swipe stepped once it had gone
-  12 points across, and the ask changed at once). The asks lie left to
-  right, as their dots do, and the scroll goes the way the Mac scrolls
-  anything sideways: with natural scrolling, fingers moving left bring in
-  the next, as swiping between pages in Safari does. A gesture takes hold
+  12 points across, and the ask changed at once). The asks lie in a line
+  out from the notch, as their dots do: left to right on the left edge,
+  right to left on the right, the first ask nearest the notch either way
+  (Lee, 27 November 2026, so the arrow keys step along what is drawn; see
+  "Keys"; until then they lay left to right on both edges). The scroll
+  goes the way the Mac scrolls anything sideways: with natural
+  scrolling, fingers moving toward the notch bring in the next, as
+  swiping between pages in Safari does. A gesture takes hold
   once it has gone 6 points, more across than down; more down than
   across, it is no swipe.
   - **As the fingers move,** the ask slides with them, a point for a
@@ -6685,63 +6730,9 @@ row's right-click Snooze stays the session's. Until 25 November 2026
 Snooze ▾ offered the row's Snooze and snoozed the session.
 
 **On the strip** (Lee, 25 November 2026, after his second live try:
-"Obviously, this should have worked with the strip view as well"). Under
-the pointer a mark pours its panel row out as a tab (see "The strip");
-the tab of a session whose notch row would take the arrow, needing Lee
-with an ask the panel answers, takes it too, and the asks panel opens
-from it beside the tab, as the notch's does beside its row.
-- **The tab's arrow** is 40 by 26, radius 8, on the tab's middle at its
-  front end, its right on the left edge and its left on the right, toward
-  where the asks panel opens. It stands 17 in from the tab's front, as far
-  as a notch row's arrow stands from the list's front (3 in from the
-  row's end, the row 14 inside the list), so the asks panel, overlapping
-  the front by 8, leaves 9 beside it and never cuts its rounded end (the
-  review, 25 November 2026; it stood 3 in until then, 5 points of it
-  under the asks panel). A click between it and the tab's front end is
-  its too, so a pointer coming from the strip that overshoots it opens
-  the asks panel rather than jumping (the review, 25 November 2026). A
-  tab is out only under the pointer, so its
-  arrow always shows on it, and the tab makes room for it rather than
-  hiding the time: it is 51 points wider, the arrow and its inset, with
-  8 between the arrow and the time on the left edge, or 6 between the
-  arrow and the words on the right, the pad at that end giving way to it.
-  That holds while the tab is between its least width and its most: one
-  held at either grows less.
-  Its words and its time keep the layout they would have in the rest. It
-  lights, points and turns as the row's arrow does, fades with the tab's
-  words as they go, drawing back or gliding on, and hides while a click
-  presses the tab in. Words going out stay as they were laid out, their
-  arrow as it last looked, as the tab's newest words take the arrow, or
-  give it back. A count's tab of rows takes none.
-- **The arrow and its room have one source:** the sessions the asks panel
-  answers an ask of, an ask whose answer went left out. Once the last
-  ask's answer goes, the arrow goes, and the tab's words give back its
-  room, as they do when the board alone changes which sessions take it.
-- **The asks panel** opens beside the tab, level with it, its top 12
-  above the tab's words, overlapping the tab's front by 8 and on top of
-  it, kept inside the screen's visible frame, under the menu bar and
-  above the Dock, as the notch's is. The strip's window grows into the
-  screen for it while it is open, as the notch's does.
-- **Everything the notch's asks panel does holds here:** its answers and
-  the two seconds to undo, the 300ms beat, paging by its dots and the
-  swipe, Snooze ▾ for the ask shown, and Open in Claude, which jumps as a
-  click on the tab does, pressing it in. The arrow pressed again closes
-  it, and nothing but the arrow opens it. While it is open, a press on
-  the strip or the tab anywhere but the arrow, on the tab's words or a
-  mark, closes it and does nothing else: letting go jumps nowhere and
-  drags nothing; the next click acts. A click in another app closes it
-  with the tab.
-- **The pointer on it, or on its way to it,** is on the tab: the tab stays
-  out, and nothing re-sorts under it. Leaving the strip, the tab and the
-  asks panel starts the tab's grace, and draws the tab back, the asks
-  panel closing with it. The way to it is the notch's triangle, from
-  where the pointer last was on the strip or the tab.
-- **Another mark** takes the tab: the pointer moving along the strip onto
-  another mark glides the tab there, as it always does, and the asks
-  panel, its session's, closes with the tab's words; the other session's
-  arrow opens its own. The strip has one tab, where the notch lists every
-  row, so the asks panel can stay only while its tab does (decided in the
-  build, 25 November 2026).
+"Obviously, this should have worked with the strip view as well"). A
+mark's tab took the arrow, and the asks panel opened beside the tab,
+until the strip went the next day (see "The strip").
 
 **Not in this build** (see "Later"): the menu bar item; permission
 prompts and Claude Code's question dialog. Keys came on 26 November 2026
@@ -6766,21 +6757,33 @@ see "Answering from the panel").
 | Key | Does |
 |---|---|
 | `↑` `↓`, `k` `j` | moves the lit row, or a menu's highlight |
-| `⏎` | looks closer: on the notch, opens the lit row's asks panel or closes it again; in the terminal view, opens the band's row's asks under it where it has any the view answers, else expands the row, and closes or folds it again; in a menu, chooses |
-| `o` | opens: jumps to the lit row's window; in the terminal view, runs the resume command |
+| `⏎` | on the notch, goes: jumps to the lit row's window, as `o`; in the asks panel, Open in Claude ↗; in the terminal view, looks closer: opens the band's row's asks under it where it has any the view answers, else expands the row, and closes or folds it again; in a menu, chooses |
+| `o` | opens: jumps to the lit row's window; in the asks panel, Open in Claude ↗; in the terminal view, runs the resume command |
 | `z` | snoozes: on a row that needs Lee, the snooze menu; on a snoozed row, wakes it; in the asks panel, the snooze menu for the ask shown; in a snooze menu, closes it |
 | `1`–`9` | chooses by number in what is open: a snooze menu's times, an ask's answers |
 | `x` | ignores the ask shown; on the pane, presses ✕ |
-| `←` `→` | pages the asks panel's asks |
+| `←` `→` | on the notch, steps along one line out from it: the arrow pointing away from the notch opens the lit row's asks panel and pages on through its asks; the arrow pointing back pages back and, from the first ask, closes it; in the terminal view, with a row's asks open, pages them, as the dots lie |
 | `s` | folds or unfolds Snoozed |
 | `esc` | closes the innermost: a menu, then the asks panel, then the panel; in the terminal view, the menu, else the band |
 | `⌘Z` | takes back the answer the asks panel is sending, as its Undo; in the terminal view, `u`, since the view reads keys as plain bytes, which carry no ⌘ |
 
-`⏎` looks closer and `o` opens, as in the terminal view, so no `⏎` moves
-the screen by accident: Lee chose it over `⏎` jumping as a click does. `x`
-is the ✕ the pane draws on its ignore and its drop. A key is the panel's
+On the notch `⏎` goes and the arrows look closer (Lee, 27 November 2026,
+after his live run of the keys): "I think enter should probably take me to
+the window… left and right show and hide the card. Obviously, if the notch
+is on the right-hand side, then the keys would be swapped." The notch's
+panel comes out sideways from the notch and the asks panel further out
+beside it, so the arrows move along that line, as a Mac menu's `→` opens a
+submenu and `←` closes it; and `⏎` acts on the lit row, as a menu's Return
+chooses its item. Until then `⏎` looked closer there too, opening the
+asks panel, so no `⏎` moved the screen (26 November 2026). The terminal
+view keeps `⏎` looking closer and has no use for `←` `→`: its list runs
+down, a row opening under itself, so a sideways key has nothing to move
+along (Lee, 27 November 2026: "sideways arrows don't make sense with the
+terminal view"). `o` opens everywhere. `x` is the ✕ the pane draws on its
+ignore and its drop. A key is the panel's
 only pressed alone: Shift, ⌘, ⌃ or ⌥ held with it makes it another key,
-`⌘Z` aside while the asks panel's sending line shows.
+`⌘Z` aside while the asks panel takes it: while its sending line shows,
+and through the beat after the line goes (below).
 
 **An event tap reads them.** SitRep reads the panel's keys through a
 Quartz event tap, with macOS's Accessibility leave. A key the panel takes
@@ -6796,47 +6799,111 @@ though."
   the main thread keeps, and hands what the key does to the main thread,
   so a busy main thread never holds up a keystroke anywhere on the Mac.
 - It is made as the panel opens, so a leave given while SitRep runs works
-  from the next open, and is on only while the panel or one of its menus
-  is open; at rest it hears nothing.
+  from the next open, and is on only while the panel is out, from its
+  opening until it has closed, or one of its menus is open; at rest it
+  hears nothing. An open without the leave lets the tap go, so it is never
+  on without it.
 - A key taken is taken whole: its key-up goes nowhere either. A held
   `↑` `↓`, `k` `j`, `←` or `→` repeats, as a Mac menu's arrows do; any
-  other key's repeats are dropped, so a held digit answers once.
+  other key's repeats are dropped, so a held digit answers once. A panel
+  closing under a key it took, as `esc` closes it, leaves the tap on,
+  taking no new key, until the last key it took comes up, or another key
+  goes down, at which macOS stops repeating the one held.
 - macOS turns a tap off when it is slow to answer or as input it can't
-  see starts; SitRep turns it on again as macOS tells it, for either.
+  see starts; SitRep turns it on again as macOS tells it, for either,
+  while it is on or a key it took is down.
 - While a window holds secure input, as Ghostty does at a password
   prompt, macOS gives the tap no keys. The panel then holds nothing and
   shows no keycaps, as if the leave were missing: each key goes to the
   window. SitRep checks for it as the panel opens, as the pointer moves
-  on it, and as macOS turns the tap off for input it can't see.
+  anywhere while the panel is out, and as macOS turns the tap off for
+  input it can't see.
 - Without the leave the panel takes no keys and shows no keycaps, and
   Settings says why (below, "In Settings"). The welcome window doesn't
   ask for it: its step 5 stays two things to allow.
 
-**The panel holds the keys once the pointer moves on it.** Once the
-pointer moves on the open panel's list or its asks panel, the keys are
-the panel's, acting on the lit row, until:
+**The panel holds the keys once the pointer is on it.** A panel the
+pointer's hover opened holds the keys as it comes open with the pointer
+anywhere on its black or its asks panel; after that, a move onto either
+holds them. The keys are the panel's, acting on the lit row, until:
 - the pointer leaves the panel, which closes it;
 - a key the panel doesn't take is pressed: that key goes through to the
   window in front, and the panel takes none until the pointer moves
   again, so typing into Ghostty with the pointer left on the panel goes
   on there from its first key the panel doesn't take;
+- `o` or `⏎` is pressed, whether or not it jumps, or a click jumps: what
+  is typed next is for the window jumped to, and no hold starts while the
+  jump is under way; but for either while `⌘Z` is the asks panel's
+  (below), and for `⏎` in a menu, where it chooses;
+- the screens sleep, the screen locks, the screen saver starts, the
+  session goes to another user, or a window takes secure input, as the
+  lock screen's password field and a sudo prompt do, so what is typed on
+  coming back goes to the window in front until the pointer moves;
 - the panel closes.
 
-A panel that opens under a resting pointer holds nothing until the pointer
-moves. With the pointer on an eyebrow or the black between rows, no row is
-lit: `↑` `↓` light the first or the last row, `s` folds, and a key needing
-a row does nothing. A key of the set with no use at that moment, `z` on a
-working row or `⏎` on a row with no arrow, is taken and does nothing, so a
-`⏎` meant for the panel never reaches the window behind it.
+The tap alone decides whether a key ends the hold, as it reads the key,
+and hands that on with what the key does; the panel follows it, whatever
+it reads by the time it hears the key, so the two never disagree on
+whose the keys are (the phase review, 26 November 2026). So `o` or `⏎`
+it took ending no hold, as `⌘Z` was the asks panel's then, acts on nothing,
+though the beat has passed by the time the panel hears it. A hold it
+ended while a menu holds the card is let go, but the shortcut's panel
+stays open under the menu, holding nothing. A hold ending,
+however it ends, lets go of the row the keys lit: the row under the
+pointer is lit again, or none.
+
+The panel's black is all the black drawn, in either style and with
+motion or without: the Meniscus's flares, reaching along the screen's
+edge past the rows, as much as the rows. The pointer on it is on the
+panel for the keys and for the panel alike: no grace starts there, a
+grace is cut short by coming back onto it, and a move onto it is the
+pointer coming onto the panel the shortcut opened. The tongue the open
+edge stretches after a pointer leaving it is no part of it, so the hold
+ends as the pointer leaves the black (Lee found the flares holding
+nothing, 27 November 2026).
+
+The hover that opened the panel counts, wherever the pointer rests on it:
+the panel comes open holding the keys, with no further move (Lee's
+decision, 27 November 2026). With the pointer off the rows, no row is
+lit, so `↓` lights the first; on a row, that row is lit. Until then,
+from 26 November, a panel that opened under a resting pointer held
+nothing until the pointer moved. Lee hovered onto the notch against the
+screen's edge, stopped there, and `↓` did nothing: held against the edge,
+the pointer had not moved. A panel coming open with the pointer off its
+black, on the notch's strip past its end, holds nothing until the pointer
+moves onto it. The shortcut's panel keeps its own hold.
+
+The open is the hover's only if the pointer moved, a push against the
+edge included, within the second before the panel came open: while the
+panel was in, going in, or pouring. A panel the notch opens under a
+pointer parked longer, as a new ask's swell grows the notch over it, or
+the notch shows again or changes style under it, holds nothing until the
+pointer moves. That the notch can open on its own growth under a parked
+pointer predates the keys, and only its keys mattered: a rule that kept
+the notch from opening at all drew timing races in its opening physics,
+so it was backed out for this one (27 November 2026).
+
+A move is any the Mac hears, though the pointer stays where it was:
+pushed on against the screen's edge, AppKit keeps it in place, and that
+push holds the keys too, after a key the panel doesn't take let them go.
+With the pointer on an eyebrow, the black between rows or the black by
+the screen's edge, no row is lit: `↑` `↓` light the first or the last
+row, `s` folds, and a key needing a row does nothing. A key of the set
+with no use at that moment, `z` on a working row, the outward arrow on a
+row with no arrow drawn, or the arrow back toward the notch on the list,
+is taken and does nothing, so a key meant for the panel never reaches the
+window behind it.
 
 **On the notch's panel:**
 - `↑` `↓`, `k` `j` move the lit row over the rows, past eyebrows and
   folded sections, scrolling it into view, as a Mac menu's arrows move its
   highlight; the pointer moving takes the highlight back.
-- `⏎` on a row with the arrow opens its asks panel, as a click on the
-  arrow does, or closes it again.
-- `o` jumps, as a click on the row's words does: the press-in, the spin,
-  the drain and the caption.
+- `⏎` and `o` jump, as a click on the row's words does: the press-in, the
+  spin, the drain and the caption.
+- The arrow pointing away from the notch, `→` on the left edge and `←` on
+  the right, on a row with the arrow drawn, opens its asks panel at its
+  first ask, as a click on the arrow does. The arrow pointing back does
+  nothing on the list.
 - `z` on a Needs you row, of asks or of a turn alone, opens the snooze
   menu at the row's end: the row's right-click Snooze, as a menu of its own
   (see "The row snoozes"). On a row in Snoozed it wakes the session, as
@@ -6848,24 +6915,65 @@ working row or `⏎` on a row with no arrow, is taken and does nothing, so a
 
 **On the asks panel.** While it is open and the panel holds the keys,
 every key of the set but `↑` `↓`, `k` `j` is its, wherever the pointer is
-on the panel, acting on the ask it shows; `s` does nothing there:
+on the panel, acting on the ask it shows, but for `⏎` and `o`, which go to
+the lit row (below); `s` does nothing there:
 - `1`–`9` answer with that answer row, as a click on it, the sending line
   and its two seconds with it; `1` is the first row, Claude's pick where
   Claude has one.
 - While an answer is sending, digits and `x` do nothing, as the answer
   rows and Ignore take no click then, and `⌘Z` is the sending line's Undo.
   Every other key acts as its click would, and the answer still goes.
-- `x` is Ignore, `z` opens Snooze ▾'s menu, and `o` is Open in Claude ↗.
-- `→` shows the next ask and `←` the one before, as the dots lie, one ask
-  a step, sliding as a dot's click does.
-- `⏎` and `esc` close it; `↑` `↓`, `k` `j` move the lit row and close
-  it, as a menu's arrows close its submenu.
-- A digit past its answers, or `z` with no Snooze ▾, does nothing.
+- Through the 300ms beat after the sending line goes, its answer gone or
+  taken back, `⌘Z` stays the panel's and does nothing, as a digit on
+  nothing does, so an Undo pressed a moment late never reaches the window
+  in front, nor lets go of the keys (the phase review, 26 November 2026).
+  `→` or `←` away from the line leaves `⌘Z` a chord at once, beat or
+  none, as does the asks panel closing, its last ask's answer gone or by
+  a key: opened again, it takes no `⌘Z`.
+- `x` is Ignore, and `z` opens Snooze ▾'s menu.
+- `⏎` and `o` go to the lit row: with the asks panel's own row lit, the
+  pointer on it, on the asks panel or neither, they are Open in Claude ↗,
+  with every rule it has here; with the pointer lighting another row,
+  they jump to that row's window, as a click on its words does, so they
+  never move the screen to a session the pointer isn't on (the review,
+  27 November 2026).
+- The arrow pointing away from the notch shows the next ask, and the
+  arrow pointing back the one before, as the dots lie, one ask a step,
+  sliding as a dot's click does; from the first ask the arrow pointing
+  back closes the asks panel, the row staying lit, as a menu's `←` closes
+  its submenu. From the last, the outward arrow does nothing. On the left
+  edge that is `→` on and `←` back, as before 27 November 2026; on the
+  right edge, where the asks lie right to left, `←` on and `→` back. A
+  held arrow's repeats only page: they never open the asks panel from the
+  list nor close it from the first ask; and the arrow back closes it only
+  once a key would act there, within the beat (below) doing nothing, as a
+  key on the ask does (the review, 27 November 2026).
+- `esc` closes it; `↑` `↓`, `k` `j` move the lit row and close it, as a
+  menu's arrows close its submenu.
+- A digit past its answers, or `z` with no Snooze ▾, does nothing. Nor do
+  `z`, `⏎` and `o` on the ask whose answer is sending, whose foot is the
+  sending line, with no Snooze ▾ or Open in Claude ↗ to click (the build,
+  26 November 2026); `→` or `←` to another ask finds them in its foot.
+  `⏎` or `o` there, which can't jump, leaves the hold, so `⌘Z` after it
+  still undoes (the review, 26 November 2026); so does either in the beat
+  after the line goes, which acts on nothing.
 - The 300ms beat (see "Answering from the panel") holds keys as it holds
   clicks: within it after a change the keys didn't make, the board's, a
   send's or the pointer's paging, a key does nothing, as a press there
   doesn't land. After a change the keys made, paging among them, a key
-  acts at once.
+  acts at once. Settled in the build and its review, 26 November 2026:
+  - `←` `→` page beat or none, as a dot takes its click; but a page
+    within a beat leaves it holding, so only paging what has stood its
+    beat counts as the keys' change.
+  - A key presses no point on the screen, so the beat holds it only for
+    what the asks panel reads: another ask, the same one changed, or the
+    sending line gone. The asks panel moving under a resting pointer,
+    which holds a click, holds no key, and past the beat a key acts
+    though the ask is still sliding into place, where a click lands on
+    nothing until it stops. While fingers carry the asks, a key lands on
+    nothing, as a press does.
+  - `z` as the asks slide brings them to rest first, so Snooze ▾'s menu
+    opens under Snooze ▾ as drawn.
 - **Closed by a key** with the pointer on it, the asks panel holds the
   panel as if the pointer rested on its row, as an open menu does, until
   the pointer moves: a pointer leaving its place then starts the panel's
@@ -6878,7 +6986,9 @@ on the panel, acting on the ask it shows; `s` does nothing there:
   its right edge. A row's words always leave it room, padded 40 at the
   right, so nothing moves or wraps as keycaps come and go. They come and
   go at once, with no motion. While an answer is sending, the keycaps go,
-  and the held row's check stands in its keycap's place.
+  and the held row's check stands in its keycap's place. A row past the
+  ninth, which no digit answers, shows none. While a menu holds the card,
+  Snooze ▾'s or a row's, the menu has the keys and the keycaps go.
 
 **Menus.** A snooze menu `z` opens, from a row or as Snooze ▾'s, is a
 native menu, the right-click menu's `SnoozeMenu` shown on its own:
@@ -6887,9 +6997,9 @@ native menu, the right-click menu's `SnoozeMenu` shown on its own:
 - Its digits choose its items in order, Until it moves among them, each
   shown as its item's key equivalent, in AppKit's column at the right,
   after the time on its tab stop.
-- The tap reads the digits, `k` `j` and `z`, so AppKit never sees them: a
-  digit chooses its item, `k` `j` are posted to SitRep as `↑` `↓`, and
-  `z` ends the menu's tracking.
+- The tap reads the digits, `k` `j` and `z`: a digit chooses its item and
+  `z` ends the menu's tracking, AppKit never seeing either, and `k` `j`
+  are rewritten in place, going on to the menu as `↑` `↓`.
 - Only a snooze menu shown on its own takes these: as the right-click
   menu's submenu it carries no digits, since a submenu's key equivalents
   fire from its menu, and the right-click menu keeps AppKit's keys alone.
@@ -6897,11 +7007,17 @@ native menu, the right-click menu's `SnoozeMenu` shown on its own:
   Snooze ▾'s among them, no key reaches the window in front: the menu
   has it.
 
-Whether AppKit's tracking takes the keyboard for a menu an inactive
-accessory app pops from a panel that is never key is unproven: build step
-4 proves it first. If it doesn't, the tap takes those keys and posts them
-to SitRep (`CGEvent.postToPid`), where the menu's tracking reads them;
-without the leave, the menu then has only the pointer.
+AppKit's tracking takes the keyboard for a menu an inactive accessory app
+pops from a panel that is never key, proven live on 26 November 2026 for
+build step 4: a menu popped by `popUp(positioning:at:in:)` from a
+borderless non-activating panel, with Ghostty in front, took `↓` `↓` `⏎`
+and chose its second item, Ghostty staying in front. So the menu has the
+keyboard itself, with the leave or without it, and the tap posts nothing:
+`k` `j` go on to the menu as the arrows they stand for, each event
+replaced in the tap by the arrow Quartz makes for its key, and every other
+key the tap doesn't read goes on as it came. Until then the fallback
+planned was the tap taking the menu's keys and posting them to SitRep
+(`CGEvent.postToPid`), the menu having only the pointer without the leave.
 
 **The shortcut, ⌃⌥S by default,** opens the panel holding the keys, from
 anywhere, with no pointer:
@@ -6911,26 +7027,69 @@ anywhere, with no pointer:
   pointer, its lit row the first in Needs you, else the first row.
 - Opened so, it holds every key until it closes: one it doesn't take
   does nothing, where a hover's hold lets it through. A key with ⌘, ⌃ or
-  ⌥ closes it and goes through, `⌘Z` while an answer is sending aside. It
-  closes on `esc` once nothing inside is open, on the shortcut again, on
-  `o`, on a click elsewhere, or as the pointer, having come onto it,
-  leaves.
+  ⌥ closes it and goes through, `⌘Z` while the asks panel takes it
+  aside. It closes on `esc` once nothing inside is open, on the shortcut
+  again, on `⏎` or `o`, on a click elsewhere, or as the pointer, having
+  come onto it, leaves; but `⏎` or `o` while `⌘Z` is the asks panel's
+  keeps the panel and the hold.
 - Without the leave, or under secure input, it opens the panel holding
   nothing, with no row lit, until the shortcut again, a click elsewhere,
-  or the pointer coming onto it and leaving.
+  or the pointer coming onto it and leaving. If its keys let go while it
+  is open (the screens sleeping, or a window taking secure input), it
+  stays so too: open, holding nothing, no row lit.
 - With Show set to Nothing, it opens the menu bar item's menu, whose keys
-  are AppKit's.
+  are AppKit's; so it does while a full-screen app hides the notch (the
+  build, 26 November 2026).
 - Only Lee opens it: SitRep never opens anything by itself (see
   "Answering from the panel").
+
+Settled in the build (26 November 2026):
+- The hold starts with the shortcut, so a key pressed as the panel still
+  pours is taken, and acts as it would on the open panel: the outward
+  arrow opens the lit row's asks panel, which shows beside its row as the panel pours,
+  its keys acting at once (the phase review, 26 November 2026). Under
+  Card, it shows before the rows have landed; Lee judges that live.
+- Shift held makes a key no chord: in the shortcut's hold, `A` is taken
+  and does nothing, as `a` is. A chord closes the panel and goes
+  through: ⌘, ⌃, ⌥ or Fn held, Fn but for the keys that carry it of
+  themselves (the arrows, Home, End, Page Up, Page Down, Forward
+  Delete, Help) and those read by their codes (Return, keypad Enter, which
+  fn-Return sends on a laptop's keyboard, and `esc`), or a function
+  key, F1 to F20, alone. Fn held makes a letter
+  another key under a hover's hold too.
+- The tap lets the shortcut's own chord through, ending no hold, so the
+  hot key alone acts on it; and the shortcut does nothing while the panel
+  closes, so pressed again it never reopens it. With the menu bar item's
+  menu open, it closes the menu and does nothing else.
+- `⏎` or `o` with no row to jump to closes the panel all the same.
+- A pointer resting where the panel pours has not come onto it: only the
+  pointer's own move onto the panel or the notch counts, never a menu
+  holding the panel at a row, nor the pointer found where it rested as
+  that menu closes, nor the asks panel opening under it.
+- The notch hiding, as Show goes to Nothing or a full-screen app takes
+  its display, closes the panel, so it never shows again by itself. A
+  click in another of SitRep's windows closes it, as a click in another
+  app does, and so does the menu bar item's menu opening.
+- Saved under "app" as `shortcut`, the key's code and Carbon's modifier
+  bits, `{"code":1,"modifiers":6144}` for ⌃⌥S; cleared,
+  `{"cleared":true}`, so a cleared shortcut never reads back as ⌃⌥S. A
+  value that is neither, or a chord with neither ⌘ nor ⌃, reads as ⌃⌥S.
 
 **The terminal view** keeps its keys (see "The board in a terminal") and
 adds `1`–`9` to its snooze menu, each choice drawn with its number before
 it, in the key line's grey. With a row's asks open (26 November 2026, see
 "The board in a terminal"), they are the asks panel's: `1`–`9` answer,
 each answer drawn with its number before it, `x` ignores, `z` snoozes the
-ask shown, `o` opens, `←` `→` page, `⏎` and `esc` close, and `↑` `↓`
-move the band and close them. `u` takes back an answer sending, in `⌘Z`'s
-place.
+ask shown, `o` opens, `←` `→` page, and `↑` `↓` move the band and close
+them. `⏎` and `esc` close them: `⏎` looks closer and folds in the view,
+and never opens a session there. `u` takes back an answer sending, in
+`⌘Z`'s place.
+
+**`⏎` stays the terminal view's way into a row's asks** (Lee, 27 November
+2026), though on the notch `⏎` now goes and the arrows open the asks
+panel (#222). The notch's asks panel comes out sideways from it, so the
+arrows step along that line; the view opens a row's asks under the row,
+where `↑` `↓` already move the band. Lee: "the notch lends itself to sideways arrows due to how it presents on the screen. sitrep tui isnt the same."
 
 **The pane** in Claude Code takes them through a Button's `hotkey`, a digit
 or a lowercase letter that presses it while the pane holds the keyboard,
@@ -6939,7 +7098,9 @@ after ctrl+x tab or a click on it:
   first, ✎ Answer and ✎ comment among them; its ✕ ignore takes `x`, and
   its snooze `z`;
 - a question drawn in place, Snooze's, a drop's or a finish's, takes
-  `1`–`9` on its answers in order;
+  `1`–`9` on its answers in order; Snooze's cancel takes `z`, as `z`
+  closes every snooze menu, the snooze button it replaced gone with its
+  key (the phase review, 26 November 2026);
 - a parked item's ✕ drop takes `x`.
 
 Only the opened item's buttons carry them, since of two buttons on one
@@ -6952,7 +7113,8 @@ beyond AppKit's own; the banners, which macOS draws; Settings, the welcome
 window and About SitRep keep the Mac's (⌘, ⌘W ⌘[ ⌘]).
 
 **In Settings,** the Edge pane gains a section after Motion, **Keys**:
-- **Keys,** under the notch only: with the leave, a green dot and Allowed.
+- **Accessibility,** under the notch only: with the leave, a green dot
+  and Allowed.
   Without it, "Not allowed, so the notch's panel takes no keys", with
   Allow… until SitRep has asked once, which brings up macOS's prompt, and
   Open System Settings… for Privacy & Security › Accessibility after.
@@ -6966,6 +7128,23 @@ window and About SitRep keep the Mac's (⌘, ⌘W ⌘[ ⌘]).
   controls being the system's. It refuses a shortcut with no ⌘ or ⌃,
   which macOS 15 refuses a hot key of ⌥ or ⌥⇧ alone, and a plain key
   would take from typing.
+  The build (26 November 2026) makes it of the system's parts: the
+  rounded text field, 150 wide, the shortcut centred in it in the Mac's
+  glyphs, ⌃⌥⇧⌘ in that order, then the key as the menus name it (⌃⌥S,
+  ⌘↩, ⌘Space, ⌃F5); the clear button, `xmark.circle.fill` in the
+  tertiary grey, inside its right end while a shortcut is set. Cleared,
+  it reads "Record shortcut" in the placeholder's grey. A click records:
+  the focus ring, "Type shortcut" in the placeholder's grey, and the
+  modifiers held shown in its place as they are pressed. The next key
+  with ⌘ or ⌃ is saved and ends it; ⌘W and ⌘Q are taken too, before the
+  menus see them. A key with neither leaves it recording, the row's line
+  "Use ⌘ or ⌃" until a key is taken or it stops. `esc` alone, a click
+  anywhere off it, or the window going to the back cancels it; Tab never
+  starts it. While it records, the hot key is let go, so the shortcut
+  set records rather than opening the panel. Should macOS refuse the
+  shortcut set, as it refuses one another app holds, the row's line says
+  "macOS refused this shortcut; another app may use it", the shortcut
+  still shown.
 
 **The build** (26 November 2026), a PR at a time, each reviewed and merged
 before the next that shares its code:
@@ -6982,388 +7161,15 @@ before the next that shares its code:
 
 ### The strip
 
-Lee's idea, 15 October 2026, first as the panel's pinned form: a subtle pin
-control on the panel, perhaps in a corner, turns it into a narrow strip:
-- full height, below the menu bar (or behind it) down to the screen's
-  corner;
-- holding the sessions as small icons;
-- staying there.
-
-It is an alternative to the notch and its panel, and the floating panel
-itself is never pinned (above, "It never takes the keyboard"). It is not
-for later (16 October 2026): it is designed in Paper and built, spiked like
-the panel was, in the browser first, then in Swift.
-
-**The design**, drawn in Paper's "The strip" (surfaces round 2, 16 October
-2026; Lee: "I really like it"). The movement, the hover and the animation
-were settled in the browser spike (below, "How the strip moves"), whose
-prototype is `prototypes/strip/strip.html`.
-- **The form.** The bezel, grown: 36pt of the same black along the screen's
-  edge, both its ends curving back into the bezel as the notch's ends do.
-  It reads as a very tall notch with content rather than a strip fitted to
-  the bottom (Lee, 18 October 2026). It sits on the notch's edge, left by
-  default, and stays. Settings chooses it in place of the notch.
-- **Length.** **Grows**, the default, makes the strip as long as its marks
-  need, centred where the notch sits, 0.42 of the way down the screen, and
-  held between the menu bar and 26pt above the screen's bottom (Lee, 19
-  October 2026: "It should just sort of grow as needed"; then "I like that
-  it seems to skew slightly above centre"). At its longest it is the full
-  strip. **Full** runs it the screen's whole height, the top under the menu
-  bar, the bottom 26pt above the screen's bottom. With nothing running,
-  Grows draws the strip back into the notch at rest, unlit, and a hover
-  there says "Nothing running".
-- **Max**, for Grows: the strip's longest length, a slider in Settings
-  from five marks' length to Full, the default. It never speaks in marks
-  (Lee: "We definitely wouldn't want to record the Max as 'Marks.' That's
-  silly."). Past it, the counts take the rest (below, "Too many"). Lee:
-  "I like being able to control the maximum height, it's quite cool."
-- **A mark per session**, in the panel's order and for the same sessions. A
-  mark is the project's two letters in a 24pt ring, and the ring carries the
-  state, so the strip reads without a hover:
-  - **needs you**: orange, with the panel dot's glow, the letters white; the
-    strip doesn't say which kind;
-  - **just arrived**: washed orange inside the ring, its glow brighter, for
-    two seconds, and the ring flashes twice, as the notch swells twice; a
-    session stopping, where it flashes (below, "Moving"), flashes its blue,
-    its glow brighter, unwashed (14 November 2026), and a flash shows only
-    while the mark waits on Lee for what arrived, never running on in
-    another colour;
-  - **away, with an ask**: orange, the letters dim;
-  - **your turn**: blue, with the glow, the letters white, and away the
-    letters dim, as an ask's mark in blue (13 November 2026; white, with no
-    glow, until then);
-  - **working**: a grey track with a pale arc turning round it, the letters
-    grey;
-  - **on its own work** (3 November 2026): the dotted ring round the
-    letters in the 24pt ring's place, in working's grey, eight round-capped
-    dashes going round evenly, 1.6 showing between their caps, never
-    turning, so it reads as the card's ring grown; the card's own dashes
-    there would be nineteen dots. From 22 October 2026 it was working's mark
-    held still, which read as a frozen spinner (Lee: "four items that are
-    showing with a frozen spinner"). A click's jump still turns an arc on
-    it, in the ring's place, as on any mark, and the ring comes back after.
-  - **in Snoozed** (14 November 2026): an ask's ring orange and a turn's
-    blue, each dimmed as a Snoozed row's dot is, with no glow, the letters
-    faint; it never flashes nor washes.
-
-  **Three sections**, as the panel's (14 November 2026, Lee): Needs you,
-  Working and Snoozed, in the panel's order, a hairline between each two
-  that show, so one over Working and one over Snoozed. Needs you's ask
-  marks, then its stopped marks, in the panel's Needs you order; Working's,
-  on its own work's among them; Snoozed's, the soonest to wake first, a
-  session with a row in Needs you and one in Snoozed a mark in each. The
-  prototype was brought to these places, and to Snoozed and the folds, and
-  its timelines recorded again by the recorder that made them, so the
-  strip is still checked against it frame by frame. The prototype and its
-  recorder are in `prototypes/strip` (16 November 2026, from Lee's clone's
-  scratch folders), its README saying how to record again; its sessions
-  became placeholders then, worded so each tab measures as before, and
-  recorded again the timelines came out the same frame for frame. Earlier
-  on 14 November the
-  strip's Needs you became one, as the panel's is (Lee's pick): "One
-  hairline sits under Needs you", its ask marks, then its stopped marks,
-  all over it, working's and on its own work's under it, and "The strip
-  shows no Snoozed". For a
-  day after Your turn joined Needs you (13 November 2026) the strip kept
-  its old places: a your-turn mark, blue, under the hairline and over
-  working's, and the orange count holding asks alone, since moving them
-  needed the timelines recorded again. From 4 November 2026 the marks had
-  taken the panel's order of then, your turn's under the hairline and
-  above working's, as the prototype had them; the card's hairline moved
-  under Your turn (board I) and went that day (board J2), but the strip's
-  stayed under needs you, where its places for needs you end. The letters
-  are the
-  project's capitals where it has two (SitRep SR, VanArsdel VA), else its
-  first two (Switchboard Sw, agntc ag); two sessions of one project share them.
-  A session with several lines waiting is still one mark.
-- **Under the pointer** a mark pours its panel row out of the strip as a
-  tab, the material flaring at both ends. A click jumps, as in the panel,
-  on the tab or on the mark itself (Lee, 18 October 2026: "I can hover to
-  see the card but shouldn't have to click the expanded card"); with no tab
-  out yet, the ring presses in and its own arc turns. An away mark's tab
-  says "No window holds it. Carry it on in Claude.", and a click on it or
-  on the mark carries its session on, as an away row's does (stage 8;
-  until 12 November 2026 neither took a click). A session a window holds
-  that this Mac doesn't show keeps its state's mark and tab, dimmed, an
-  ask's mark the hollow ring, and its click runs as a dimmed row's (stage
-  8's rethink, 13 November 2026). A click on a count past its section's
-  room opens its tab; on a section folded, it unfolds it (below, "Folded").
-  A Snoozed mark's tab says when it wakes, as its card row does, its words
-  soft as that row's, and a click on it, or on the mark, jumps to its
-  session, as any does. A tab, or a
-  count's row, has room for one line: a session needing Lee shows its name
-  over its project, its newest line's time (its oldest's until 4 November
-  2026), and with several waiting their count ("+N" for the lines after
-  the first until 6 November 2026), set dim 6 after the name, as a question's
-  "+2" was (board F, 22 October 2026, after the proposal Lee agreed: "a row
-  is a session on every surface"). An away one's name sits over "No window
-  holds it. Carry it on in Claude.", its words dimming as one, as the
-  panel's (see "The rows"; 3 November 2026), in a tab and in a count's rows
-  alike. A tab's title says what follows its verb on every kind, as the
-  card's row does, and on a working tab the
-  verb alone shimmers, what follows it still in its grey; with a count,
-  what follows gives way, cut with an ellipsis, before the count does (17
-  November 2026). A tab whose session has an ask the asks panel answers
-  takes the row's arrow at its front end, and a click on the arrow opens
-  the asks panel beside the tab (25 November 2026; see "Answering from the
-  panel", "On the strip").
-- **Moving.** The strip never shuts, so the panel's "a changed row moves
-  only once it closes" becomes one rule (Lee, 14 November 2026): a mark
-  moves at once whenever its session changes group, pointer on the strip or
-  not, a menu open or not. The groups are the panel's, in its order: Needs
-  you's asks, its stopped, Working, those on their own work among it, and
-  Snoozed. Moving, a mark leaves its place and grows into the one the
-  panel's order gives it in its new group, under the one of its group above
-  it, the marks below sliding down to make room, or lands in its section's
-  count, folded or past its room. So an ask answered, or a stopped one's
-  turn ended, Claude working again, leaves Needs you for Working at once,
-  out of its count too; a stopped session asking moves up among the asks at
-  once, and an ask whose session comes to its turn down among the stopped; a
-  session Lee snoozes moves into Snoozed, and one he wakes, or its time
-  wakes, out of it, its row elsewhere moving too wherever the wake changes
-  its group, as a session stopped on a prompt whose ask wakes, the other of
-  its two asks still asleep. Only the order within a group waits: a change
-  that moves a row there, as an ask asked again, shows in place, and the
-  marks re-sort a second after the pointer leaves the strip, as the
-  prototype's settle does. A session new to the strip comes in at its place
-  in the same way, so nothing else re-sorts under the pointer or an open
-  menu: one `new` names, or one stopping, as below, and any other,
-  unflashed, as needs you with nothing new among them on a run's first
-  board, or a session's row new in Snoozed, its row elsewhere staying. One
-  gone fades where it is, and the rest close up. One update's moves are
-  placed together, each with the others counted for every section's room,
-  and laid out once, so each takes its final place at once, at launch too,
-  and grows in there. How a move shows is apart from whether it moves. A
-  mark arrives when `new` names any of its lines (see "One engine, two front
-  ends"): moving in, new to the strip or from another group, its ring
-  flashes twice, as a new one's does; one staying in its group, a second ask
-  come, flashes where it is. A session stopping, moved from working or on
-  its own work into Lee's turn as `LastBoard.newTurns` decides it for the
-  banner, moves in before the stopped, its ring flashing twice (14 November
-  2026). One its time wakes, which `new` names, arrives in Needs you as a
-  new one does, flashing its ring. Any other move is unflashed: one back at
-  a turn whose end it stood at before, so no stop for the banner, and one
-  Lee snoozes or wakes. Each flashes only as Settings' pulses say, as the
-  notch's pulse follows them (14 November 2026): an ask arriving flashes
-  twice and is washed while "Pulse for a new ask" is on, and a session
-  stopping flashes twice, in its blue and unwashed, while "Pulse when Claude
-  stops" is on; with its pulse off either moves all the same, unflashed, and
-  any flash its mark still showed ends. Until then a turn ending changed in
-  place under the hairline, and an ask flashed whatever its pulse. An ask
-  woken into a full Needs you pushes the last stopped mark showing into the
-  count, as any ask does; neither Needs you's count nor that push ever
-  counts a session Lee snoozed. Earlier on 14 November each mark was held to
-  its row's section, not its group: one crossing into Needs you, or into
-  Snoozed or out of it, moved at once, and any other change, one leaving
-  Needs you for Working among them, showed in place and moved at the
-  re-sort; a session new to the strip that nothing named came in as all the
-  marks re-sorted at once; and a wake was told by the session's row in
-  Snoozed going, which missed the first of a stopped session's two asks
-  asleep waking, its row in Snoozed staying: its mark flashed among the
-  stopped and moved up among the asks only at the re-sort. Before that a
-  session's moves were found three ways, by `new`, by a stop and by a snooze
-  or a wake renaming its mark, which missed a wake whose session's row
-  elsewhere stayed: an ask woken into a session working sat under Working's
-  hairline until the re-sort, which waited while the pointer stayed on the
-  strip. Before that a mark Lee snoozed or woke changed in place and moved
-  at the re-sort, which left an ask he woke inside Snoozed's folded count,
-  and one he snoozed over the hairline, while the pointer stayed on the
-  strip. Until then the strip showed no Snoozed (see "Snooze"): an ask
-  asleep was no mark, and one Lee woke changed in place.
-- **Folded** (14 November 2026, Lee). The strip folds a section as the
-  card does, by the one setting both read (see "Folding"), Snoozed folded
-  at first. A section folded is one count ring in exactly one place, its
-  number the section's sessions, with no plus, looking otherwise as a count
-  past the room, which itself has no plus while none of its section's
-  marks shows beside it: Needs you's orange while it holds an ask and blue
-  while all it holds are stopped, Working's grey, and Snoozed's
-  the faint grey of the rows' projects, on the track. Under the pointer it
-  pours the section's sessions as one tab of rows, each a click to its
-  session; a click on the ring unfolds the section, here and on the card.
-  Folding and unfolding lay the strip out again at once, the marks below
-  sliding. An arrival into Needs you folded lands in its count, which
-  flashes as a count past the room does, as Settings' pulses say.
-- **A right-click** (14 November 2026, Lee) on a session's mark, its tab,
-  or its row on a count's tab brings up its row's menu on the card, the
-  same one (Jump to the window; Snooze, or Wake now in Snoozed), each for
-  the session by its own id, with the fold of the section the strip has it
-  in at its foot after a separator: Collapse and the section's name, or
-  Expand where it is folded, as on its folded count's tab. On a section
-  folded, Expand and its name alone; on a count past its room, Collapse
-  and its name alone. While the menu shows the strip holds as if the
-  pointer rested where it was opened, its hover held on what it was opened
-  on however a board slides the marks under that point, so a tab out stays
-  out, no other pours, and nothing re-sorts under the choice; a board that
-  moves the session meanwhile leaves its Jump going to its mark as the strip
-  has it then, the count it is folded into pressing in where no tab is out.
-  A mark that a fold or a push puts into a count takes its tab back with it.
-- **Too many.** The strip has as many places as Max gives it, or as the
-  full height holds: about 30 (32 on a 1117pt screen, 27 on a 982pt one),
-  never fewer than one for each section showing. Each section takes its
-  places in its turn, keeping one for each after it that holds any (14
-  November 2026): Needs you, its asks and its stopped, first, keeping one
-  for Working whenever any is working, on its own work among it, and one
-  for Snoozed whenever any is snoozed; then Working, keeping Snoozed's;
-  Snoozed last. A section folded takes exactly one, its count. Until then
-  Needs you kept one for Working alone. Past its
-  room, the sessions last in its order fold into a count of their own, the
-  needs-you group's last place, over the hairline (Lee, 19 October 2026:
-  "new asks should collapse into a number of collapsed icons... in the
-  bottom of their own panel"), in this order: the away stopped, then the
-  stopped, then the away asks, then the oldest asks. The count's "+N"
-  counts the sessions it holds, its ring blue while all it holds are
-  stopped and orange while it holds an ask, the only other it can hold, as
-  a session working again leaves it at once; its tab lists them as rows,
-  each as its own tab words it (14 November 2026). From 19 October
-  2026 the count held asks alone, always orange, the oldest folding since
-  Needs you went newest first (4 November 2026; the newest until then),
-  and your turn took its places with working, past them in the grey
-  count. Working takes the places left but Snoozed's, and past them its
-  last place is the grey count ("+3"); Snoozed takes the rest, past them
-  its last place its own faint count. Under the pointer each count pours
-  out what it holds as one tab of rows, which scroll on a short strip. A
-  new ask arriving past needs you's room while a stopped mark shows below its
-  place takes its place among the asks all the same, under the one the
-  panel's order has above it, the marks below sliding down, and the last
-  stopped mark showing goes into the count, its tab drawing back if it
-  has one out (Lee, 14 November 2026). What shows is judged as the strip
-  stands once the arriving session has left its old place, so the only
-  working session asking frees its place for Needs you first. No stopped
-  mark shows above its place, as the stopped keep to their own run of
-  Needs you, under the asks; until the group rule one could, before a
-  re-sort, and stayed. With no stopped mark showing below its place, a new
-  ask lands in the count, and a session stopping lands there whatever shows,
-  the marks showing never moving: only asks push stopped marks out. Landing
-  so, out of the panel's order, it waits for the re-sort as any order within
-  a group does, and a second after the pointer leaves the strip the panel's
-  order comes back. Until then every arrival past the room landed in the
-  count, the marks showing never moving. One landing there flashes the
-  count's ring twice in the count's own colour, orange while it holds an
-  ask, each only with its pulse on, an ask washing it too; several landing
-  in one update, or folded there by another arriving, add up, an ask's
-  showing over a stop's; one landing there quietly ends a flash the count
-  still shows for that same session, as does that session leaving the count.
-  A count going keeps its colour as it fades. An ask answered in the count
-  leaves it at once for Working, its row going from the count's tab: the
-  count shrinks, or goes and the last folded mark takes its place (Lee, 14
-  November 2026). Until then its row changed in place, and the count shrank
-  at the re-sort; Lee: "It works."
-- **Windows and full screen:** macOS lets no app reserve screen space as the
-  Dock does, so a window filling the screen goes under the strip's 36pt; Lee
-  hasn't said how that reads. Nothing of SitRep's goes over a full-screen
-  window, the notch as well as the strip (Lee, 19 October 2026: "It should
-  be hidden. Nothing should go over the top of a full screen window"): while
-  a full-screen app has the panel's display, the panel is hidden, clear and
-  letting every click through, and it shows again as the display leaves it.
-  A maximised window doesn't count, and each display is judged on its own.
-  How SitRep tells, as the spike found:
-  - **Leaving the window off full-screen Spaces wasn't enough.** A
-    non-activating panel on every Space still showed over Plex full screen.
-  - **Bounds alone can't tell the two apart.** Under the built-in display's
-    notch, a maximised window has a full-screen one's bounds.
-  - **The system's presentation options**, read for the app in front,
-    didn't catch Paper full screen.
-  - **What works, from the window list:** a display is full screen while
-    the Dock's full-screen backdrop covers it. The backdrop is a window
-    owned by the Dock, at layer −2147483622 on macOS 26, read by owner,
-    layer and bounds, so it needs no Screen Recording. A probe once a
-    second while Lee put Paper full screen showed it there for exactly that
-    long; meanwhile the display's menu bar and wallpaper windows were gone.
-    If a later macOS changes it, the panel only shows over full screen
-    again.
-  - **When SitRep looks:** on each change of Space, of the app in front and
-    of the screens, and once more a second later, as the backdrop slides
-    in. Nothing polls.
-
-  The private SkyLight call yabai uses would read each display's Space type
-  directly. It was left out, as nothing guarantees it across macOS
-  releases. In the Swift spike; Lee, putting Paper full screen and back:
-  "It works".
-  - **Hidden is clear, never ordered out.** The edge was ordered out over
-    full screen and back in after, and came back on one Space only (26
-    October 2026): read through SkyLight, the notch's window was on all 18
-    Spaces as Chrome went full screen, and on the one it came back to once
-    ordered in again, until SitRep restarted. On every other Space it showed
-    for half a second as the Space slid in, then went. Lee: "It flashes,
-    it's there momentarily, and then it disappears". Once pinned, a window
-    stayed pinned through later round trips: Lee, choosing the notch over
-    the strip, saw no notch until a restart. So the edge's window, and the
-    jump's caption's, which hid the same way, are ordered in once, as they
-    are made, and never out: hidden, each is clear and lets every click
-    through, and the turns and sweeps Core Animation runs for it in the
-    render server are paused, to run again as it shows.
-- **Black**, the bezel's, the strip and its tabs alike, as one shape. Glass
-  was offered beside it from 18 October 2026 (Lee: "I like the glass and the
-  black, actually") until 25 November 2026 (see "The notch and its panel").
-
-**How the strip moves**, felt in the browser spike (18 October 2026, the
-prototype's Strip tab, now `prototypes/strip/strip.html`; Lee kept its
-defaults):
-- **The first tab** pours once the pointer has rested 120ms on a mark, the
-  strip's edge bowing 3pt toward it meanwhile, so a pointer crossing the
-  strip opens nothing. Once a tab is out, the other marks take no wait.
-- **Pouring,** the tab's depth springs out to its row's width as its body
-  grows from the ring's 24 to 52; the words fade in from 55% to 95% of the
-  depth. The tab is 52 deep, flared 10 into the strip at both ends, its
-  front corners 16, as wide as its row needs, from 240 to 360.
-- **Along the strip** the one tab glides to the next mark, its place and
-  width springing, its words crossing in 160ms the way the pointer went.
-  Lee chose this over each mark pouring its own tab.
-- **Leaving:** a grace of 300ms, a fifth of that when fast. The words go in
-  60ms and the black 30ms later, drawing back into the strip through a dent
-  of at most 3pt. A click elsewhere draws it back at once.
-- **The strip's ends never change; a tab fits into them** ("Fit"). The S at
-  the top, its tight curve under the menu bar and its bump, is the same in
-  every frame, whatever a tab does, and so is the bottom's. The marks start
-  12pt lower than the board has them, to make room, and the first mark's tab
-  meets the S's lower curve in a fillet: a circle touching both, 10pt where
-  it fits, never leaving the S above where it has turned 70° (6.5pt at the
-  first mark), so the S reads whole above it. A tab lower than the S's end
-  flares into the straight edge as usual. The last marks keep the same room
-  clear of the bottom's S, and their tabs and the count's fit into it the
-  same way. Lee: "fit is the one! the others are no good", over:
-  - the curve drawing up into a fillet under the menu bar ("Give way"),
-    which on the display read as a sharp corner against the see-through
-    menu bar;
-  - the corner rising to meet the tab ("Rise"), which lost the S's bump;
-  - a fixed rounded corner, and the first tab hanging below its ring;
-  - every mark 26pt lower ("looks worse for it"), and the tab running into
-    the curve as one shape.
-- **Marks moving** slide to their places. A new needs you grows into its
-  place once the mark below has slid 45% of its step, its ring flashing
-  twice, 450ms apart. A tab out while marks slide stays with its mark, then
-  glides to whatever is under the pointer. The re-sort waits a second after
-  the pointer leaves.
-- **Growing and shrinking**, at Grows: the strip's ends spring on their own,
-  leading the marks out as it grows (the marks' slide 1.25× quicker) and
-  following them in as it shrinks (1.25× slower). With nothing running for
-  120ms, its outline morphs into the notch's at rest point for point, each
-  end's S into the notch's at rest. A press dragged along the edge carries
-  it.
-- **Reduced motion:** no springs and no reach; a tab's shape fades in and
-  out, and marks snap to their places and fade in.
-- **A mark's ring** lifts once under the pointer, over 110ms, and settles
-  back once. The working arcs and the shimmer turn in Core Animation, in
-  the render server, so the strip at rest does no work in the app.
-
-They ship fixed, as the notch's do (above, "The app ships these values
-fixed"). Lee's settings:
-`{"bounce":0.50,"dwell":120,"reach":3,"pour":1.00,"glide":1.00,"fade":160,"close":1.00,"room":12,"grace":300,"settle":1000,"slide":1.00,"lead":1.25,"swells":2,"edge":"left"}`.
-The springs, after Bounce, as SwiftUI's `.spring(response:dampingFraction:)`:
-
-| Spring | Value |
-|---|---|
-| reach | 0.20·0.70 |
-| pour | 0.26·0.72 |
-| grow | 0.22·0.80 |
-| glide | 0.24·0.82 |
-| width | 0.24·0.86 |
-| draw | 0.22·0.80 |
-| slide | 0.36·0.80 |
-| ends | 0.29·0.80 growing, 0.45·0.80 shrinking |
-| arrive | 0.30·0.55 |
-| press | 0.10·0.70 |
-| morph | 0.42·0.86 |
+Removed on 26 November 2026, by Lee: "I literally never use it. I think
+the notch is definitely better. We're just supporting something that I
+don't use." Show is Notch or Nothing since. A Show of the strip saved
+earlier opens as the notch, with nothing asked, and its Length and Max are
+passed over. Its design and its build, from Lee's idea of 15 October 2026
+to its tab taking the row's arrow on 25 November, are in git history: this
+section as it stood is in `DESIGN.md` at `7b645a3`, and its prototype at
+`prototypes/strip/` there. Elsewhere in this design, a passage naming the
+strip is history.
 
 ### The menu bar item
 
@@ -7388,8 +7194,9 @@ asked for the sessions back, and approved the redraw as it stands.
     then its project and session, and its time on the right as the item's
     badge. An item is a session, as a row is, with room for one line: one
     needing Lee shows its name over its project, its newest line's time,
-    and with several waiting their count, as the strip's tab does (board
-    F, 22 October 2026). The line under each row shows at rest, not only under the pointer (3 November 2026; Lee:
+    and with several waiting their count (board F, 22 October 2026). The
+    line under each row shows at rest, not only under the pointer (3
+    November 2026; Lee:
     "default for the project name to show on all the menu items"; see the
     build's note on the rows, under "Stages"). A working row's arc turns
     while the menu is open, once a second as the panel's and in step with
@@ -7402,9 +7209,9 @@ asked for the sessions back, and approved the redraw as it stands.
     ring until then). A separator sits after Needs you, where the panel's hairline was until board J2 (4
     November 2026), which took it off the card; the menu keeps it, a
     menu's own idiom. A click jumps;
-  - **Show**: Notch, Strip or Nothing, inline, the one in use ticked, so
-    pinning the strip takes one click. With Nothing, the menu carries the
-    board, and the glyph still lights for needs you;
+  - **Show**: Notch or Nothing, inline, the one in use ticked (Strip too,
+    until 26 November 2026). With Nothing, the menu carries the board, and
+    the glyph still lights for needs you;
   - **Show Welcome Window**, the welcome window at its first step (see "The
     welcome window"); "Welcome…" until 3 November 2026. Lee: "'Welcome'
     doesn't mean anything… If that's meant to be the 'show welcome' or
@@ -7447,8 +7254,8 @@ asked for the sessions back, and approved the redraw as it stands.
   - "SitRep can't read the board", with the reason in plain words, when
     `sitrep watch` stops or the CLI fails, as today's menu says. The
     sessions stay as the board last read them, their heading saying when
-    ("4 need you · as of 12:04"). The notch and the strip keep the last
-    board too, marked as stale.
+    ("4 need you · as of 12:04"). The notch keeps the last board too,
+    marked as stale.
 - **How the app keeps `watch` running** (built 19 October 2026, in
   `app/Sources/SitRepCore`; the CLI's side is under "One engine, two front
   ends"):
@@ -7534,7 +7341,7 @@ does; the boards first drew it on a band of black.
   stays for needs you, so it appears only on the stage. Paper holds the
   sizes, colours and spacing.
 - **The stage is SitRep's own views** at the stage's size, the notch, the
-  strip, the panel and its rows, fed a made-up board, never a video, so the
+  panel and its rows, fed a made-up board, never a video, so the
   pictures cannot drift from the app. It loops what its step says, and
   pauses while the window is not in front. Under Reduce motion, the Mac's
   or SitRep's, its states cross-fade.
@@ -7576,23 +7383,18 @@ does; the boards first drew it on a band of black.
      ask's row at once. In step 1's loop it then glides off the row at the
      row's own height, out past the panel's front, so the meniscus closes
      with its tongue; in this one it leaves with the jump, which drains the
-     panel. It never crosses another row. On the strip it rests on the
-     ask's own mark, where the layout puts it, never a drawn centre still
-     sliding, and with no mark yet there is no pointer at all. A restyle of
-     the notch, or the other shape chosen, while the loop plays plays it
-     again from its start (17 November 2026).
-  3. **Your edge:** "Choose what sits at your edge." Notch or Strip as
-     Settings' own pictures, at the window's size, the one chosen ringed in
-     the accent; under them a grouped form in System Settings' rows: Style,
-     Meniscus or Card; and Edge, Left or Right. At Strip, Length, Grows or
-     Full, takes Style's place in a cross-fade, one row for another, so the
-     form keeps its height and holds only what applies. Settings' Edge pane
-     changes at once instead, as its height changes with it (Lee found its
-     motion jarring). Under the form, a quiet text button, Show nothing
+     panel. It never crosses another row. A restyle of the notch while the
+     loop plays plays it again from its start (17 November 2026).
+  3. **Your edge:** "Choose what sits at your edge." The notch as
+     Settings' own picture, at the window's size, ringed in the accent
+     while chosen; under it a grouped form in System Settings' rows: Style,
+     Meniscus or Card; and Edge, Left or Right. Until 26 November 2026 the
+     strip stood beside it, its Length, Grows or Full, taking Style's place
+     in a cross-fade. Under the form, a quiet text button, Show nothing
      at the edge, sets Show to Nothing (Lee, 3 November 2026: "I think I
-     should be able to say nothing"): neither tile is ringed, the rows
-     stay but dim, the line "Only the menu bar's light. Choose Notch or
-     Strip to bring it back." takes the button's place, and the stage
+     should be able to say nothing"): the tile is not ringed, the rows
+     stay but dim, the line "Only the menu bar's light. Choose Notch to
+     bring it back." takes the button's place, and the stage
      shows no edge from here on, step 4's chime lighting its menu bar
      item instead; steps 1 and 2 still show the notch, which they teach.
      The drawn boards left Nothing to Settings. Each press sets the setting
@@ -7634,8 +7436,7 @@ does; the boards first drew it on a band of black.
      to skip, and Continue reads Done. **Done closes the window**, and the
      real notch, at rest, shows the stage's callout beside it once, "Your
      notch. Point at it." over "It lights up when a session needs you";
-     the first hover takes it away for good. The strip, if chosen, shows
-     it as the notch would.
+     the first hover takes it away for good.
 - **Leaving early:** Skip setup, ⌘W or the close button keep what Lee set
   and the defaults for the rest: the notch on the left, Meniscus, the sound
   Glass, and open at login, macOS's notice with it. Nothing is asked of
@@ -7674,11 +7475,11 @@ does; the boards first drew it on a band of black.
     bar's light alone", for Show at Nothing.
 - **Settled in the build** (its second PR, 3 November 2026):
   - **The callout** stands 14 points past the shape's resting front,
-    level with the notch's home, for the notch and the strip alike, as the
-    stage shows it; it is placed from where the shape rests, never from a
-    frame still moving, and placed again as the notch lights or goes dark.
-    Due while no shape shows (Show at Nothing, or a full-screen app), it
-    waits for one. It never takes a click, and only while it is due does
+    level with the notch's home, as the stage shows it; it is placed from
+    where the shape rests, never from a frame still moving, and placed
+    again as the notch lights or goes dark. Due while the notch is hidden
+    (Show at Nothing, or a full-screen app), it waits for it to show. It
+    never takes a click, and only while it is due does
     the edge tell it of a hover.
   - **Quitting:** a SIGTERM, as `app/quit` sends, quits SitRep as Quit
     SitRep does, so the welcome closes as its close button would, and is
@@ -7802,12 +7603,11 @@ live changed, and how they group.
   Appearance instead: "I think maybe we should change what that looks
   like … and that would help solve this problem". Show is the row's label,
   at a label's place at its top, as Appearance's is; at its right, against
-  the card's, three pictures, 67 by 44 at radius 5, 15 apart, the last
-  13.5 in from the card's edge, at any width: the notch and its light,
-  the strip as it stands at Length Grows, its column curving back into the
-  edge in the strip's own S and its rings in the panel's order, or only the
-  menu bar's glyph, lit. Each is named under it, 11, 4.5 below it. The one
-  chosen is ringed in the accent, 3 wide past a gap of the card's raise,
+  the card's, two pictures, 67 by 44 at radius 5, 15 apart, the last
+  13.5 in from the card's edge, at any width: the notch and its light, or
+  only the menu bar's glyph, lit. The strip's, between them, went with the
+  strip on 26 November 2026. Each is named under it, 11, 4.5 below it. The
+  one chosen is ringed in the accent, 3 wide past a gap of the card's raise,
   0.5, with no shadow, its name semibold in the label colour. A picture
   not chosen stands on the soft shadow Appearance's unchosen thumbnails
   stand on, measured from the same capture: black, darkest at the edge,
@@ -7817,8 +7617,8 @@ live changed, and how they group.
   instead, which Lee saw live as "a very thin white border or ring".
   The row is 86 tall, its pictures' ring 10 from its top. A click chooses
   one; it is the menu's Show. At their size, the pictures keep to what
-  reads: the strip's rings drawn no finer than half a point, and Nothing's
-  menu bar seen closer, from its right end, until the glyph's housing
+  reads: Nothing's menu bar seen closer, from its right end, until the
+  glyph's housing
   stands 5 tall, where its line is still a pixel. The
   pictures are a fixed sample, one needs you and the notch lit, and
   nothing in them moves, under the pointer or not (Lee, 21 October 2026,
@@ -7831,27 +7631,25 @@ live changed, and how they group.
   for appearance. Auto light and dark doesn't change the appearance at
   all, actually").
 - **The rows under Show** are the ones that apply to the choice, in a
-  section named for it, Notch or Strip, so its header says what they tune,
-  then Reduce motion in a section of its own, Motion, as it is about how
-  SitRep moves whichever shape is at the edge. They change at once, always,
-  with no motion: as the choice changes, or Length with Max, the section's
-  name and rows change and the pane takes its new height in the frame the
+  section named for it, Notch, so its header says what they tune, then
+  Reduce motion in a section of its own, Motion, as it is about how SitRep
+  moves the notch. They change at once, always, with no motion: as the
+  choice changes, the sections come or go and the pane takes its new height
+  in the frame the
   pictures change in (Lee, 22 October 2026, of the system's transition
   there: "the animation on the panel when switching the notch mode is a bit
   jarring"):
   - **Notch:** Edge, Left or Right ("or drag it across the middle");
     Display, the main one unless another is chosen; Style, Meniscus or Card
     ("Meniscus pours, Card slides"). Then Motion, then Keys (see "Keys").
-  - **Strip:** Edge; Display; Length, Grows or Full ("grows with what's on
-    it, or runs the screen's height"); Max, only at Grows, a slider 160
-    wide whose right end is Full ("how long it grows"). Then Motion.
-  - **Nothing:** neither section; the pane is the Show row's card and
-    Keys' Shortcut alone (see "Keys"), and Show has a line under it, as
-    a row's line is set, saying the menu carries the board. Under the notch or the strip,
-    Show has no line.
+  - **Nothing:** no Notch or Motion section; the pane is the Show row's
+    card and the Keys section's Shortcut alone (see "Keys"), and Show has a line under it, as
+    a row's line is set, saying the menu carries the board. Under the
+    notch, Show has no line.
 
-  Until 25 November 2026 a Material row, Black or Glass, closed both
-  sections (see "The notch and its panel"). Reduce motion is
+  The Strip section (Edge, Display, Length and Max) went with the strip on
+  26 November 2026. Until 25 November 2026 a Material row, Black or Glass,
+  closed both sections (see "The notch and its panel"). Reduce motion is
   off, its line saying SitRep follows the Mac's own setting either way
   (Lee, 18 October 2026: "One thing we might want to ship... is the ability
   to reduce motion").
@@ -7900,8 +7698,8 @@ live changed, and how they group.
   **Notch:** Pulse for a new ask, on by default, "It swells and its light
   flashes", as it always had; and Pulse when Claude stops, off by default,
   "It swells as a session's turn ends" (see "The notch and its panel").
-  The strip follows each, an arriving mark flashing only while its pulse
-  is on (14 November 2026; see "The strip").
+  The strip followed each, from 14 November 2026 until it went (see "The
+  strip").
   Lee's turn is all off by default: Lee wants no sound for it, and the
   steady blue light shows it already. The turn's three labels said "when
   it's my turn" until later on 13 November 2026, when the app named the
@@ -7952,7 +7750,7 @@ live changed, and how they group.
   times would make 12, twice the card for the same six choices. Under the
   card, its caption: "SitRep's Snooze menus and the pane in Claude Code
   offer these. The menus also offer Until it moves.", the menus the
-  card's and the strip's. Saved under "snooze" in the app's defaults, and
+  card's. Saved under "snooze" in the app's defaults, and
   written to `snooze.json` (see "Storage") as it changes. Not yet drawn in
   Paper.
 - **General**: Startup, Terminal and Resume command, as stage 8's
@@ -8903,7 +8701,7 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   once the stopped one has ended, waits a moment at most. Each step has its
   own limit, so none runs unbounded, and the whole jump's 15 seconds stand.
 - **The caption says what is happening**, for a jump from anywhere, the
-  card, the strip, the menu or a banner, in the
+  card, the menu or a banner, in the
   caption's look and place, on the edge's screen while the edge shows.
   "Still jumping…" once a jump has run 2 seconds with no answer: it comes
   in as a caption does, and holds until the jump ends; then a row's
@@ -9146,7 +8944,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
         letters for it, ready for the strip; and an away ask's second line
         is core's.
 
-      The strip was built on 20 October 2026, over the same feed, never run
+      The strip (removed on 26 November 2026) was built on 20 October
+      2026, over the same feed, never run
       on the display, every recorded test passing frame for frame. What the
       build settled:
       - **Core's rows, in core's order.** A mark is one of `watch`'s rows,
@@ -11263,6 +11062,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
       lives in the asks panel itself (`AsksPanel`), over the rows a run
       lists (`AsksRows`): the notch's panel rows, or the strip's open tab.
       Both runs hold one, and draw it with the same layer.
+   7. **The strip removed** (26 November 2026; see "The strip"): `AsksRows`
+      stays, the notch's panel rows its one kind.
 
 ## The board in a terminal
 
@@ -11288,8 +11089,8 @@ look", the pick on its page "FINAL · one line, asks under the row · signed off
   asks panel has since 24 November 2026 (see "Answering from the panel").
   It hadn't only because the notch hadn't. `⏎`, or a tap on the band's
   row, opens the row's asks under it, as the snooze menu opens under its
-  row, one ask at a time, and the keys answer them as the asks panel's do
-  (see "Keys"):
+  row, one ask at a time, and the keys answer them as the asks panel's do,
+  `⏎` aside, which closes them (see "Keys"):
   - **Which rows:** a Needs you row with a yes, a choice or a words ask on
     the board, as the notch's arrow takes them. On the band's row `▹`
     stands in the time's place, as the notch's arrow over the time of the
@@ -11408,7 +11209,9 @@ look", the pick on its page "FINAL · one line, asks under the row · signed off
   opens, as `⏎` did, every answer as before. There is no view-only flag.
   "Open" stays the docs' word, and nothing says "attach". Since 26
   November 2026 `⏎` on a row with asks the view answers opens them under
-  it instead, as `⏎` opens the notch's asks panel (see "Keys").
+  it instead, `⏎` looking closer at them; the notch opens its asks panel
+  by its arrows since 27 November 2026, as it comes out sideways (see
+  "Keys").
 - **`z` snoozes** (Lee, 20 November 2026), from that same strip: on a row
   that needs him, of asks or of his turn alone, it opens a menu of
   Snooze's times under the row, the notch's choices and words, worked out

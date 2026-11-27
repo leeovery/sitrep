@@ -22,6 +22,8 @@ import Foundation
 /// `bySession`, `onItsWork` and `snoozed`: the session names, summaries, now and next lines, ask titles and their
 /// `where` and `ref` lifted from real work, each a neutral one of its shape. In `pretty` too: its windows' ids, ttys
 /// and tmux pane. No row moved: each line keeps its printed order.
+///
+/// On 26 November 2026 every row lost its `letters`, the strip's, as the CLI did.
 public enum Lines {
     /// A line of `sitrep watch`, as the CLI printed it but pretty: Lee's board of 19 October 2026 cut to three
     /// sessions, an ask, a permission prompt and a turn, the prompt new on it, and moved to version 3 as the lines

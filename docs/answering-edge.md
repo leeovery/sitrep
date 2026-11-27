@@ -1,6 +1,6 @@
 # Answering from the edge of your screen
 
-You can answer a yes or a choice from the notch or the strip, without leaving the app you are in. Point at a session that waits on you, click the arrow, and click the answer. This helps most when an ask needs one click, and its window is on another Space.
+You can answer a yes or a choice from the notch, without leaving the app you are in. Point at a session that waits on you, click the arrow, and click the answer. This helps most when an ask needs one click, and its window is on another Space.
 
 ## Try it
 
@@ -8,15 +8,13 @@ You can answer a yes or a choice from the notch or the strip, without leaving th
 2. Click the arrow. The asks panel opens beside the panel, at that session's newest ask.
 3. Click an answer, such as **Threaded**. The foot of the asks panel reads "Sending Threaded" for two seconds, with **Undo**.
 
-On the strip, point at an orange mark instead. Its row pours out as a tab, with the arrow at the end nearer the middle of the screen.
-
 ## What happens
 
-- **A click on the row itself still jumps.** Only the arrow opens the asks panel, and it then turns to point back. Click the arrow again to close the asks panel, or another row's arrow to move it. A click anywhere else on the panel only closes the asks panel.
-- **The strip works the same way.** The asks panel opens beside the tab, and a click on the strip or the tab only closes it. Point at another mark, and the tab moves there and the asks panel closes.
-- **The asks panel shows one ask at a time.** The session name and project come first, then the ask title and its age, such as "Asked 4m ago". If the session has several asks, dots at the top show which one you're on. Click a dot, or swipe sideways with two fingers, to see another ask. After an answer, the next ask shows.
-- **Each answer is a row of its words.** A yes has one row, in the verb Claude gave. A choice has a row for each option. The option Claude recommends comes first, filled in lilac and marked "Recommended". A long answer wraps to two lines. A words ask has no rows: **Open in Claude ↗** takes you to the window.
-- **You get two seconds to undo.** The row you click fills, with a check at its end, and the foot counts down beside **Undo**. **Ignore** waits the same two seconds, and the foot reads "Ignoring". Leaving the notch or the strip doesn't stop the answer.
+- **A click on the row itself still jumps.** Of all clicks, only one on the arrow opens the asks panel, and the arrow then turns to point back. The arrow key pointing away from the notch opens it too. Click the arrow again to close the asks panel, or another row's arrow to move it. A click anywhere else on the panel only closes the asks panel.
+- **The asks panel shows one ask at a time.** The session name and project come first, then the ask title and its age, such as "Asked 4m ago". If the session has several asks, dots at the top show which one you're on, the first nearest the notch. Click a dot to see another ask, or, with natural scrolling, swipe two fingers toward the notch for the next. After an answer, the next ask shows.
+- **Each answer is a row of its words.** A yes has one row, in the verb Claude gave. A choice has a row for each option. The option Claude recommends comes first, filled in lilac and marked "Recommended". A words ask has no rows: **Open in Claude ↗** takes you to the window.
+- **You get two seconds to undo.** The row you click fills, with a check at its end, and the foot counts down beside **Undo**. **Ignore** waits the same two seconds, and the foot reads "Ignoring". Leaving the notch doesn't stop the answer.
+- **Keys answer too.** While the panel holds the keys, each answer row shows its number in a keycap at the right. Press `1` for the first row. See [Same keys, wherever the board shows](keys.md).
 - **The answer reaches Claude as your own message.** The answer goes into that session's inbox. The Claude Code window running that session sends it on, starting "From the board:". The ask leaves Needs you once the answer is on its way.
 
 ## Good to know
@@ -41,6 +39,7 @@ On the strip, point at an orange mark instead. Its row pours out as a tab, with 
 | Ignore | Ignore, at the foot |
 | Undo | For two seconds |
 | Snooze | This ask only |
+| Keys | `1`–`9` answer; `x` ignores |
 
 **Snooze ▾** puts off only the ask on screen, until a time the pane offers. The asks panel then closes. With every Snooze time off or passed for today, Snooze ▾ hides. See [Putting a session off](snooze.md).
 

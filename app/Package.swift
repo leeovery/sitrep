@@ -30,21 +30,19 @@ let package = Package(
         /// waits, the backstop every suite carries, the lines of `sitrep watch`, typed, the names no test may use, and
         /// the tag of the tests that lean on this Mac.
         .target(name: "SitRepTestSupport", path: "Tests/SitRepTestSupport"),
-        /// What the tests that measure the strip share: its measure of one width.
-        .target(name: "SitRepPanelTestSupport", dependencies: ["SitRepPanel"], path: "Tests/SitRepPanelTestSupport"),
         /// `claude plugin`'s lists in the shape this Mac printed them, read-only, for the plugin's setup.
         .testTarget(
             name: "SitRepCoreTests", dependencies: ["SitRepCore", "SitRepLines", "SitRepTestSupport"],
             resources: [.copy("Claude")]
         ),
         .testTarget(
-            name: "SitRepPanelTests", dependencies: ["SitRepPanel", "SitRepPanelTestSupport", "SitRepTestSupport"],
+            name: "SitRepPanelTests", dependencies: ["SitRepPanel", "SitRepTestSupport"],
             resources: [.copy("Recorded")]
         ),
         .testTarget(
             name: "SitRepEdgeTests",
             dependencies: [
-                "SitRepEdge", "SitRepCore", "SitRepPanel", "SitRepLines", "SitRepTestSupport", "SitRepPanelTestSupport",
+                "SitRepEdge", "SitRepCore", "SitRepPanel", "SitRepLines", "SitRepTestSupport",
             ]
         ),
         .testTarget(
@@ -58,7 +56,7 @@ let package = Package(
             name: "SitRepTests",
             dependencies: [
                 "SitRep", "SitRepEdge", "SitRepPanel", "SitRepMenu", "SitRepCore", "SitRepRelay", "SitRepScreen", "SitRepLines",
-                "SitRepTestSupport", "SitRepPanelTestSupport",
+                "SitRepTestSupport",
             ]
         ),
         .testTarget(name: "SitRepNoticesTests", dependencies: ["SitRepNotices", "SitRepRelay", "SitRepTestSupport"]),

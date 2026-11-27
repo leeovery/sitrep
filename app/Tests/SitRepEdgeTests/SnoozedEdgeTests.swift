@@ -4,14 +4,12 @@ import Foundation
 @testable import SitRepEdge
 @testable import SitRepPanel
 import SitRepLines
-import SitRepPanelTestSupport
 import SitRepTestSupport
 import Testing
 
-/// Snooze at the edge, over what the real CLI printed (`Lines.snoozed`): the Snoozed rows the card and the strip show
-/// (the strip's since 14 November 2026) apart from the rows the menu shows; Snoozed the card's last section, folded at
-/// first; and an ask woken at its time arriving as a new one does, the notch swelling, the strip flashing and Needs you
-/// unfolding, while one Lee wakes does not.
+/// Snooze at the edge, over what the real CLI printed (`Lines.snoozed`): the Snoozed rows the card shows apart from the
+/// rows the menu shows; Snoozed the card's last section, folded at first; and an ask woken at its time arriving as a
+/// new one does, the notch swelling and Needs you unfolding, while one Lee wakes does not.
 @MainActor
 @Suite(.backstop)
 struct SnoozedEdgeTests {
@@ -104,30 +102,6 @@ struct SnoozedEdgeTests {
         #expect(run.folded.sections.contains(.needsYou))
     }
 
-    @Test(arguments: [(1, true), (2, false)])
-    func onlyAWakeAtItsTimeFlashesTheStrip(place: Int, flashes: Bool) {
-        let strip = Strip(
-            length: .full, maxLength: .full, along: 0.42, sessions: [], measure: Self.measure,
-            StripInput(time: 0, pointer: nil, stage: Self.stage)
-        )
-        var time = 0.0
-        let play = { (ms: Double) -> Double in
-            var flash = 0.0
-
-            for _ in 0 ..< Int(ms / (1000 / 60)) {
-                time += 1000 / 60
-                flash = max(flash, strip.frame(StripInput(time: time, pointer: nil, stage: Self.stage)).marks.map(\.flash).max() ?? 0)
-            }
-            return flash
-        }
-        let before = Self.board(upTo: place - 1), after = Self.board(upTo: place)
-
-        strip.show(before.cardSessions, new: [])
-        _ = play(3000)
-        strip.show(after.cardSessions, new: after.new)
-        #expect((play(1500) > 0.9) == flashes)
-    }
-
     /// The menu's jump from a session's Snoozed row presses that row in, not its row in Needs you.
     @Test func theMenusJumpFromASnoozedRowPressesThatRow() throws {
         let run = Self.opened(Self.ledger(), kept: Self.kept([]))
@@ -148,12 +122,9 @@ struct SnoozedEdgeTests {
 
     // MARK: Helpers
 
-    private static let stage = StripStage(width: 1512, height: 982, menu: 37)
-    private static var measure: StripMeasure { .uniform(200) }
-
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
-        style: .meniscus, reducesMotion: false, isChosen: true
+        style: .meniscus, reducesMotion: false
     )
 
     private static func at(_ time: Double) -> NotchRun.Moment {

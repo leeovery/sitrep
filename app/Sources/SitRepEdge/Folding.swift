@@ -1,8 +1,7 @@
 import SitRepPanel
 
-/// The sections Lee folded, one setting for the notch's card and the strip (14 November 2026): each reads it as it
-/// lays out, either changes it, and it is kept across opens and launches under "card" where it is kept at all, so a
-/// section folded on one is folded on the other.
+/// The sections Lee folded on the notch's card: the card reads it as it lays out, a click or an arrival changes it,
+/// and it is kept across opens and launches under "card" where it is kept at all.
 public final class Folding {
     public private(set) var folds: CardFolds {
         didSet {

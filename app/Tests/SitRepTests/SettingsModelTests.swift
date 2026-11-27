@@ -37,6 +37,9 @@ struct SettingsModelTests {
         var reads = 0
         var allows = 0
         var opened: [Leaves.Place] = []
+        /// Whether macOS gives the Accessibility leave, and how often its prompt was brought up.
+        var keys = false
+        var keyPrompts = 0
         /// The sounds played, by name, none of them aloud.
         var played: [String] = []
         var answer: CheckedContinuation<GhosttyLeave, Never>?
@@ -62,7 +65,12 @@ struct SettingsModelTests {
                     self.allows += 1
                     return await withCheckedContinuation { self.answer = $0 }
                 },
-                open: { self.opened.append($0) }
+                open: { self.opened.append($0) },
+                keys: { self.keys },
+                allowKeys: {
+                    self.keyPrompts += 1
+                    return self.keys
+                }
             )
         }
     }
@@ -94,7 +102,9 @@ struct SettingsModelTests {
         let settings = Self.settings(Mac())
 
         await settings.read()
-        #expect(settings.said == MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .unasked))
+        #expect(
+            settings.said == MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .unasked, keys: false)
+        )
     }
 
     /// The notices helper may take up to its 2 seconds; Ghostty's row is read meanwhile.
@@ -249,6 +259,37 @@ struct SettingsModelTests {
         mac.answer?.resume(returning: .allowed)
         try await until(within: .seconds(10)) { !settings.isAllowing }
         #expect(settings.said.ghostty == .allowed)
+    }
+
+    /// Keys' Allow… brings up macOS's prompt and keeps that SitRep asked, under "app", so the row offers System
+    /// Settings from then on, in this window and the next.
+    @Test func keysAllowBringsUpMacOSsPromptAndKeepsThatItAsked() {
+        let mac = Mac(), defaults = MemoryDefaults()
+        let settings = Self.settings(mac, defaults)
+
+        #expect(SettingsRow.keys(false, asked: settings.preferences.app.askedForKeys).side == .button("Allow…", .allowKeys))
+        settings.fix(.allowKeys)
+        #expect(mac.keyPrompts == 1)
+        #expect(settings.said.keys == false)
+        #expect(SavedSettings<AppSettings>(defaults).read().askedForKeys)
+        #expect(
+            SettingsRow.keys(false, asked: Self.settings(Mac(), defaults).preferences.app.askedForKeys).side
+                == .button("Open System Settings…", .accessibility)
+        )
+    }
+
+    /// Given in System Settings meanwhile, the leave reads as Allowed as the window comes forward again.
+    @Test func keysOpenSystemSettingsOpensAccessibilityAndTheLeaveIsReadAgain() async throws {
+        let mac = Mac()
+        let settings = Self.settings(mac)
+
+        settings.fix(.accessibility)
+        #expect(mac.opened == [.accessibility])
+        #expect(mac.keyPrompts == 0)
+        mac.keys = true
+        settings.keys(true)
+        try await ended(settings.reading, within: .seconds(10))
+        #expect(settings.said.keys == true)
     }
 
     /// As System Settings › Sound plays an alert sound chosen.

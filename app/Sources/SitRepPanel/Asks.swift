@@ -72,10 +72,10 @@ public struct AsksMeasure: Sendable {
     }
 
     /// A rough measure, for a run that no drawing measures for: a title's line for each 40 characters, an answer's for
-    /// each 45, its pick's tag counting 16, and 7 a character in the foot.
+    /// each 41, its pick's tag counting 16, and 7 a character in the foot.
     public static let estimated = AsksMeasure(
         titleLines: { min(AsksLayout.titleMost, max(1, ($0.count + 39) / 40)) },
-        answerLines: { min(AsksLayout.answerMost, max(1, ($0.count + ($1 ? 16 : 0) + 44) / 45)) },
+        answerLines: { min(AsksLayout.answerMost, max(1, ($0.count + ($1 ? 16 : 0) + 40) / 41)) },
         footWidth: { Double($0.count) * 7 }
     )
 }
@@ -102,12 +102,13 @@ public struct AsksLayout: Equatable, Sendable {
     public static let textLine = 16.0
     public static let titleLine = 22.0, titleMost = 3
     static let ageGap = 4.0
-    /// An answer's row: at least 38 tall, its words 12 in from its sides and 9 from its top and bottom, on lines of 18,
-    /// two at most.
+    /// An answer's row: at least 38 tall, its words 12 in from its left, 40 from its right, which leaves its keycap
+    /// room whether it shows or not, and 9 from its top and bottom, on lines of 18, two at most.
     public static let answerHeight = 38.0, answerRadius = 11.0
-    public static let answerPadSide = 12.0, answerPadTop = 9.0, answerLine = 18.0, answerMost = 2
+    public static let answerPadLeft = 12.0, answerPadRight = 40.0, answerPadTop = 9.0
+    public static let answerLine = 18.0, answerMost = 2
     /// How wide an answer's words are set across its row.
-    public static let answerWidth = inner - 2 * answerPadSide
+    public static let answerWidth = inner - answerPadLeft - answerPadRight
     static let answerGap = 6.0
     static let footHeight = 28.0, footPadLeft = 2.0, footGap = 2.0
     /// A foot's button's room round its words; the outlined pills', Open in Claude's and Undo's.
@@ -211,16 +212,21 @@ public struct AsksLayout: Equatable, Sendable {
         }
     }
 
-    /// What a click at a point in its own frame lands on, showing the ask at `page` of `pages`: a page dot, which
-    /// pages whatever is held; while an answer of its ask is held, Undo alone.
-    public func part(at point: CGPoint, sending: Bool, page: Int, of pages: Int) -> AsksPart? {
-        part(at: point, sending: sending, progress: Double(page), of: pages)
+    /// What a click at a point in its own frame lands on, showing the ask at `page` of `pages`, its asks lying right to
+    /// left where it `pointsLeft` (`dots(at:of:pointsLeft:)`): a page dot, which pages whatever is held; while an
+    /// answer of its ask is held, Undo alone.
+    public func part(
+        at point: CGPoint, sending: Bool, page: Int, of pages: Int, pointsLeft: Bool
+    ) -> AsksPart? {
+        part(at: point, sending: sending, progress: Double(page), of: pages, pointsLeft: pointsLeft)
     }
 
     /// What a click lands on (above), its page dots standing as a slide between two asks has come to `progress`
-    /// (`dots(at:of:)`): a click on a dot lands on the dot drawn there.
-    public func part(at point: CGPoint, sending: Bool, progress: Double, of pages: Int) -> AsksPart? {
-        if let dot = dot(at: point, progress: progress, of: pages) {
+    /// (`dots(at:of:pointsLeft:)`): a click on a dot lands on the dot drawn there.
+    public func part(
+        at point: CGPoint, sending: Bool, progress: Double, of pages: Int, pointsLeft: Bool
+    ) -> AsksPart? {
+        if let dot = dot(at: point, progress: progress, of: pages, pointsLeft: pointsLeft) {
             return .page(dot)
         }
         if sending {
@@ -238,16 +244,26 @@ public struct AsksLayout: Equatable, Sendable {
         return open.contains(point) ? .open : nil
     }
 
-    /// The page dots at the top line's right, showing the ask at `page` of `pages`, the current one wide; none for one
-    /// ask.
-    public func dots(page: Int, of pages: Int) -> [CGRect] {
-        dots(at: Double(page), of: pages)
+    /// The page dots at the top line's right, showing the ask at `page` of `pages`, the current one wide, by their
+    /// asks' places; none for one ask.
+    public func dots(page: Int, of pages: Int, pointsLeft: Bool) -> [CGRect] {
+        dots(at: Double(page), of: pages, pointsLeft: pointsLeft)
     }
 
     /// The page dots as a slide between two asks has come to `progress`, a page and a share of the way to the next
-    /// (DESIGN, "Paging"): each as wide as it is near it, the wide one passing from dot to dot, their run as long
-    /// throughout.
-    public func dots(at progress: Double, of pages: Int) -> [CGRect] {
+    /// (DESIGN, "Paging"), by their asks' places: each as wide as it is near it, the wide one passing from dot to dot,
+    /// their run as long throughout. They lie as the asks do, out from the notch, the first nearest it: left to right,
+    /// or right to left where the asks panel `pointsLeft`, on the right edge.
+    public func dots(at progress: Double, of pages: Int, pointsLeft: Bool) -> [CGRect] {
+        guard pointsLeft else {
+            return dots(leftToRight: progress, of: pages)
+        }
+
+        return dots(leftToRight: Double(pages - 1) - progress, of: pages).reversed()
+    }
+
+    /// The page dots left to right, as a slide has come to `progress` along them.
+    private func dots(leftToRight progress: Double, of pages: Int) -> [CGRect] {
         guard pages > 1 else {
             return []
         }
@@ -270,16 +286,16 @@ public struct AsksLayout: Equatable, Sendable {
 
     /// The dot a click at a point in its own frame is nearest across the dots and `dotReach` past either end, the top
     /// line's whole height: a dot 5 wide is no target to aim at (DESIGN, "Paging").
-    private func dot(at point: CGPoint, progress: Double, of pages: Int) -> Int? {
-        let dots = dots(at: progress, of: pages)
+    private func dot(at point: CGPoint, progress: Double, of pages: Int, pointsLeft: Bool) -> Int? {
+        let dots = dots(at: progress, of: pages, pointsLeft: pointsLeft)
+        let run = dots.reduce(CGRect.null) { $0.union($1) }
 
-        guard let first = dots.first, let last = dots.last else {
+        guard !run.isNull else {
             return nil
         }
 
         let reach = CGRect(
-            x: first.minX - Self.dotReach, y: Self.padTop, width: last.maxX - first.minX + 2 * Self.dotReach,
-            height: Self.topHeight
+            x: run.minX - Self.dotReach, y: Self.padTop, width: run.width + 2 * Self.dotReach, height: Self.topHeight
         )
 
         return reach.contains(point)
@@ -321,12 +337,7 @@ public struct AsksLayout: Equatable, Sendable {
     }
 
     /// How far from the edge the asks panel and its shadow reach, beside the open panel: what its window must hold.
-    public static let reach = reach(beside: Tuning.panelDepth)
-
-    /// How far from the edge the asks panel and its shadow reach beside a list whose front is this far from it.
-    public static func reach(beside front: Double) -> Double {
-        front - overlap + width + 40
-    }
+    public static let reach = Tuning.panelDepth - overlap + width + 40
 
     /// Where an answer's lines go in a row this big, as many as it wraps to, on its middle.
     public static func answerBoxes(in row: CGSize, lines: Int) -> [CGRect] {
@@ -334,35 +345,64 @@ public struct AsksLayout: Equatable, Sendable {
 
         return (0 ..< lines).map { line in
             CGRect(
-                x: answerPadSide, y: top + Double(line) * answerLine, width: row.width - 2 * answerPadSide,
+                x: answerPadLeft, y: top + Double(line) * answerLine, width: row.width - answerPadLeft - answerPadRight,
                 height: answerLine
             )
         }
     }
 
-    /// The held answer's check, 11 across, at its row's trailing end on its middle, as a panel row's time is; and the
-    /// room its words leave it there.
-    public static let checkSide = 11.0, checkGap = 8.0
+    /// An answer's keycap while the panel holds the keys (DESIGN, "Keys"): 20 across, its corners 6, 12 in from its
+    /// row's right, centred on its first line; numbered for the first nine answers, `1` to `9`.
+    public static let keycapSide = 20.0, keycapRadius = 6.0, keycapInset = 12.0, keycapsMost = 9
 
-    public static func check(in row: CGSize) -> CGRect {
-        CGRect(
-            x: row.width - answerPadSide - checkSide, y: (row.height - checkSide) / 2, width: checkSide,
-            height: checkSide
+    /// An answer's keycap in a row this big whose words wrap to `lines`, in the row's frame.
+    public static func keycap(in row: CGSize, lines: Int) -> CGRect {
+        let firstLine = (row.height - Double(lines) * answerLine) / 2 + answerLine / 2
+
+        return CGRect(
+            x: row.width - keycapInset - keycapSide, y: firstLine - keycapSide / 2, width: keycapSide,
+            height: keycapSide
         )
+    }
+
+    /// The held answer's check, 11 across, centred in its keycap's room.
+    public static let checkSide = 11.0
+
+    public static func check(in row: CGSize, lines: Int) -> CGRect {
+        let inset = (keycapSide - checkSide) / 2
+
+        return keycap(in: row, lines: lines).insetBy(dx: inset, dy: inset)
+    }
+
+    /// Where a part stands in its own frame, its page dots as a slide between two asks has come to `progress`, lying
+    /// right to left where it `pointsLeft`: where a key presses it, as a click there does; none where it has no such
+    /// part.
+    public func box(of part: AsksPart, progress: Double, of pages: Int, pointsLeft: Bool) -> CGRect? {
+        switch part {
+        case let .answer(row):
+            return answers.indices.contains(row) ? answers[row] : nil
+        case let .page(page):
+            let dots = dots(at: progress, of: pages, pointsLeft: pointsLeft)
+
+            return dots.indices.contains(page) ? dots[page] : nil
+        case .ignore:
+            return ignore
+        case .snooze:
+            return snooze
+        case .open:
+            return open
+        case .undo:
+            return undo
+        }
     }
 }
 
 /// A Needs you row's arrow (DESIGN, "The row's arrow"), at the end of its row it points toward, where the asks panel
 /// opens: on the left edge a button 40 by 26 at the row's right end, in its time's place, 3 in from the row's lift; on
-/// the right edge 26 by 26 at its left end, in its dot's place, centred on the dot. Each on the row's middle. A strip's
-/// tab has its arrow 40 by 26 at its front end on either edge, the tab's words making room for it.
+/// the right edge 26 by 26 at its left end, in its dot's place, centred on the dot. Each on the row's middle.
 public enum RowArrow {
     public static let size = CGSize(width: 40, height: 26)
     public static let radius = 8.0, inset = 3.0
-    /// How far its far side stands in from the front of what its row stands in: 3 in from a notch row's end, which sits
-    /// 14 inside the list's front (`Content.paddingSide`). So the asks panel, overlapping that front by 8
-    /// (`AsksLayout.overlap`), leaves 9 between them, and a strip's tab's arrow stands as far in from the tab's front.
-    public static let fromFront = inset + Content.paddingSide
     /// How far from a row's left its dot's centre stands, where the right edge's arrow stands (`SessionRowLayout`).
     public static let dotSlot = 16.0
     /// How long, in seconds, its chevron takes to turn as its asks panel opens or closes.
@@ -372,36 +412,15 @@ public enum RowArrow {
     /// left, on the right edge, centred on its dot.
     public static func box(in row: CGSize, pointsLeft: Bool = false) -> CGRect {
         guard pointsLeft else {
-            return box(in: row, pointsLeft: false, in: inset)
+            return CGRect(
+                x: row.width - inset - size.width, y: (row.height - size.height) / 2, width: size.width,
+                height: size.height
+            )
         }
 
         let side = size.height
 
         return CGRect(x: dotSlot - side / 2, y: (row.height - side) / 2, width: side, height: side)
-    }
-
-    /// Its box in a strip's tab's words this big, in their own frame, read left to right: at their end it points
-    /// toward, as far in as a notch row's stands from the list's front (`fromFront`), whole beside the asks panel.
-    public static func tabBox(in words: CGSize, pointsLeft: Bool) -> CGRect {
-        box(in: words, pointsLeft: pointsLeft, in: fromFront)
-    }
-
-    /// Where a click on a strip's tab's arrow lands, in their own frame: its box, stretched out to the words' front end,
-    /// so a pointer coming from the strip that overshoots it still opens the asks panel rather than jumping.
-    public static func tabHitBox(in words: CGSize, pointsLeft: Bool) -> CGRect {
-        let box = tabBox(in: words, pointsLeft: pointsLeft)
-
-        return pointsLeft
-            ? CGRect(x: 0, y: box.minY, width: box.maxX, height: box.height)
-            : CGRect(x: box.minX, y: box.minY, width: words.width - box.minX, height: box.height)
-    }
-
-    /// Its box on the middle of what is this big, this far in from the end it points toward.
-    private static func box(in whole: CGSize, pointsLeft: Bool, in inset: Double) -> CGRect {
-        CGRect(
-            x: pointsLeft ? inset : whole.width - inset - size.width, y: (whole.height - size.height) / 2,
-            width: size.width, height: size.height
-        )
     }
 
     /// Its chevron, 6 by 10, centred in a box this big, in the box's own frame, pointing right, or left, away from the

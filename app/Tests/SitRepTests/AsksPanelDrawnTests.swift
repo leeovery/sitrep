@@ -11,8 +11,9 @@ import Testing
 /// panel is open, turning in 0.2 seconds or at once under Reduce motion; the asks panel's black, its hairline and its
 /// shadow, its page dots, its title and age, its answers' rows, their words alone, Claude's pick in lilac with its tag
 /// after its words, each lighter under the pointer, a words ask with none, its foot's Open in Claude for every ask and
-/// Snooze ▾ only while Snooze offers a time; and while an answer is held, its row white with its check at its end, the
-/// countdown's arc half run out a second in, and Undo.
+/// Snooze ▾ only while Snooze offers a time; each answer's number in a keycap at its right end while the panel holds the
+/// keys, its words wrapping alike with or without; and while an answer is held, its row white with its check in its
+/// keycap's room, the countdown's arc half run out a second in, and Undo.
 @MainActor
 @Suite(.backstop)
 struct AsksPanelDrawnTests {
@@ -213,22 +214,37 @@ struct AsksPanelDrawnTests {
     /// Where the asks panel stands in the picture, with room round it for its shadow.
     private static let margin = 40.0
 
-    /// The asks panel drawn over grey, so its shadow shows, a second after `sending` was held where one is.
+    /// The asks panel drawn over grey, so its shadow shows, a second after `sending` was held where one is, its
+    /// answers showing their keycaps where it has `keycaps`, its asks lying right to left where it `pointsLeft`.
     private static func drawn(
         _ ask: PanelAsk = choice, page: Int = 0, pages: Int = 2, sending: Sending? = nil, hover: AsksPart? = nil,
-        offersSnooze: Bool = true
+        offersSnooze: Bool = true, keycaps: Bool = false, pointsLeft: Bool = false
     ) throws -> (Drawn, AsksShown) {
-        let layout = AsksLayout(ask, measure: AsksMeasure.drawn, offersSnooze: offersSnooze)
-        let asks = AsksShown(
-            row: "needs:sr-nw0001", session: helpDesk, ask: ask, page: page, pages: pages, layout: layout,
-            frame: CGRect(origin: CGPoint(x: margin, y: margin), size: layout.size), sending: sending, hover: hover
+        let asks = shown(
+            ask, page: page, pages: pages, sending: sending, hover: hover, offersSnooze: offersSnooze, keycaps: keycaps,
+            pointsLeft: pointsLeft
         )
+        let layout = asks.layout
         let panel = AsksPanelLayer(), picture = CALayer()
 
         picture.frame = CGRect(x: 0, y: 0, width: layout.size.width + 2 * margin, height: layout.height + 2 * margin)
         panel.show(asks, mirror: .identity, now: 4 * 60_000 + (sending.map { $0.heldAt - 4 * 60_000 + 1000 } ?? 0))
         picture.addSublayer(panel.layer)
         return (try Drawn(picture, over: CGColor(srgbRed: 0.38, green: 0.38, blue: 0.38, alpha: 1)), asks)
+    }
+
+    /// The asks panel as shown in the picture, at its margin.
+    private static func shown(
+        _ ask: PanelAsk = choice, page: Int = 0, pages: Int = 2, sending: Sending? = nil, hover: AsksPart? = nil,
+        offersSnooze: Bool = true, keycaps: Bool = false, pointsLeft: Bool = false
+    ) -> AsksShown {
+        let layout = AsksLayout(ask, measure: AsksMeasure.drawn, offersSnooze: offersSnooze)
+
+        return AsksShown(
+            row: "needs:sr-nw0001", session: helpDesk, ask: ask, page: page, pages: pages, layout: layout,
+            frame: CGRect(origin: CGPoint(x: margin, y: margin), size: layout.size), sending: sending, hover: hover,
+            keycaps: keycaps, pointsLeft: pointsLeft
+        )
     }
 
     /// A box of the asks panel's own, in the picture.
@@ -270,6 +286,18 @@ struct AsksPanelDrawnTests {
         let (drawn, asks) = try Self.drawn(page: 0, pages: 2), top = Self.placed(asks.layout.top)
         let current = CGPoint(x: top.maxX - 5 - 4 - 7, y: top.midY), other = CGPoint(x: top.maxX - 2.5, y: top.midY)
 
+        let name = CGRect(x: top.minX, y: top.minY, width: 60, height: top.height)
+
+        #expect(Self.brightest(Self.white, in: name, of: drawn))
+        #expect(Self.shows(0xE9643D, at: current, in: drawn))
+        #expect(Self.shows(0x3A3A40, at: other, in: drawn))
+    }
+
+    /// On the right edge the asks lie right to left, out from the notch: the first ask's dot, orange, at the dots'
+    /// right end, nearest the notch, the second's to its left; the words keep their place.
+    @Test func onTheRightEdgeTheFirstAsksDotIsAtTheRight() throws {
+        let (drawn, asks) = try Self.drawn(page: 0, pages: 2, pointsLeft: true), top = Self.placed(asks.layout.top)
+        let current = CGPoint(x: top.maxX - 7, y: top.midY), other = CGPoint(x: top.maxX - 14 - 4 - 2.5, y: top.midY)
         let name = CGRect(x: top.minX, y: top.minY, width: 60, height: top.height)
 
         #expect(Self.brightest(Self.white, in: name, of: drawn))
@@ -364,20 +392,77 @@ struct AsksPanelDrawnTests {
         #expect(Self.brightest(Self.white, in: open.insetBy(dx: 10, dy: 4), of: drawn))
     }
 
+    // MARK: Keycaps
+
+    /// While the panel holds the keys, each answer's number in a keycap at its right end: #2C2C31, its number soft on
+    /// it; without, the row's own fill there.
+    @Test(arguments: [false, true])
+    func withTheKeysEachAnswerShowsItsNumberInAKeycap(longPick: Bool) throws {
+        let ask = longPick ? Self.longPick : Self.choice
+        let (drawn, asks) = try Self.drawn(ask, keycaps: true), (bare, _) = try Self.drawn(ask)
+
+        for index in asks.layout.answers.indices {
+            let row = Self.placed(asks.layout.answers[index])
+            let cap = AsksLayout.keycap(in: row.size, lines: asks.layout.answerLines[index])
+                .offsetBy(dx: row.minX, dy: row.minY)
+            let edge = CGPoint(x: cap.minX + 2, y: cap.midY)
+            let fill = index == 0 ? Self.over(Self.lilac, 0x33, on: 0) : 0x1C1C1F
+
+            #expect(Self.shows(0x2C2C31, at: edge, in: drawn))
+            #expect(Self.brightest(Self.soft, in: cap.insetBy(dx: 4, dy: 4), of: drawn))
+            #expect(Self.shows(fill, at: edge, in: bare))
+            #expect(AsksPanelParts.answerRow(index, of: asks).number == index + 1)
+        }
+    }
+
+    /// A row's words wrap alike whether its keycap shows, or its check, so nothing moves or wraps as they come and go.
+    @Test func anAnswersWordsWrapAlikeWithKeycapsWithoutAndHeld() {
+        let held = Sending(row: 0, words: Self.longPick.answers[0], heldAt: 0, goesAt: 2000)
+        let lines = [
+            Self.shown(Self.longPick), Self.shown(Self.longPick, keycaps: true), Self.shown(Self.longPick, sending: held),
+        ].map { asks in AsksPanelParts.answerLines(0, of: asks).map(\.line) }
+
+        #expect(lines[0].count == 2)
+        #expect(lines[1] == lines[0] && lines[2] == lines[0])
+    }
+
+    /// A keycap's number set at the keycap's middle, the slack words set whole take past it.
+    @Test func aKeycapsNumberIsCentredInIt() {
+        for number in 1 ... 9 {
+            let digit = AsksPanelParts.keycapNumber(number), width = TextLine.width(digit.text)
+
+            #expect(abs(digit.box.minX + width / 2 - AsksLayout.keycapSide / 2) < 1e-9)
+            #expect(abs(digit.box.midY - AsksLayout.keycapSide / 2) < 1e-9)
+        }
+    }
+
+    /// Only the first nine answers are numbered, `1` to `9`: a tenth shows no keycap.
+    @Test func rowsPastNineShowNoKeycap() {
+        let ask = PanelAsk(
+            id: "k1", title: "Pick a shift", wants: .choice, answers: (1 ... 10).map { "Shift \($0)" }, since: 0
+        )
+        let asks = Self.shown(ask, keycaps: true)
+
+        #expect(asks.layout.answers.indices.map { AsksPanelParts.answerRow($0, of: asks).number }
+            == (1 ... 9).map { $0 } + [nil])
+    }
+
     // MARK: Sending
 
-    /// "Sending Threaded", a second into its two: its row white, its words and its check at its trailing end in ink,
+    /// "Sending Threaded", a second into its two: its row white, its words and its check in its keycap's room in ink,
     /// the arc run halfway round, from 12 o'clock to 6 down the right, the track bare on the left.
     @Test func aHeldAnswersRowIsWhiteAndItsCountdownHalfRunOutASecondIn() throws {
         let held = Sending(row: 0, words: "Threaded", heldAt: 4 * 60_000, goesAt: 4 * 60_000 + 2000)
         let (drawn, asks) = try Self.drawn(sending: held)
         let row = Self.placed(asks.layout.answers[0]), ring = Self.placed(asks.layout.countdown)
-        let check = AsksLayout.check(in: row.size).offsetBy(dx: row.minX, dy: row.minY)
+        let check = AsksLayout.check(in: row.size, lines: 1).offsetBy(dx: row.minX, dy: row.minY)
+        let cap = AsksLayout.keycap(in: row.size, lines: 1).offsetBy(dx: row.minX, dy: row.minY)
         let undo = Self.placed(asks.layout.undo)
         let right = CGRect(x: ring.midX + 3.5, y: ring.midY - 1, width: 2.5, height: 2)
         let left = CGRect(x: ring.midX - 6, y: ring.midY - 1, width: 2.5, height: 2)
 
         #expect(Self.shows(Self.white, at: CGPoint(x: row.minX + 36, y: row.minY + 4), in: drawn))
+        #expect(check.midX == cap.midX && check.midY == cap.midY)
         #expect(Self.shows(Self.white, at: CGPoint(x: check.minX - 4, y: check.midY), in: drawn))
         #expect(try #require(drawn.pixels(in: check).min { $0.lightness < $1.lightness }).lightness < 0.5)
         #expect(Self.brightest(Self.white, in: Self.placed(asks.layout.sending), of: drawn))
@@ -392,15 +477,17 @@ struct AsksPanelDrawnTests {
         id: "k2", title: "Review Tickets & Replies, round 1", wants: .yes, answers: ["Approve"], since: 0
     )
 
-    /// The choice slid halfway to the yes beside it, drawn over grey.
-    private static func slidHalfway(sending: Sending? = nil) throws -> (Drawn, AsksShown) {
+    /// The choice slid halfway to the yes beside it, drawn over grey, the asks lying right to left where it
+    /// `pointsLeft`.
+    private static func slidHalfway(sending: Sending? = nil, pointsLeft: Bool = false) throws -> (Drawn, AsksShown) {
         let layout = AsksLayout(choice, measure: AsksMeasure.drawn)
         let beside = AsksShown.Beside(
             page: 1, ask: approve, layout: AsksLayout(approve, measure: AsksMeasure.drawn), sending: nil
         )
         var asks = AsksShown(
             row: "needs:sr-nw0001", session: helpDesk, ask: choice, page: 0, pages: 2, layout: layout,
-            frame: .zero, sending: sending, hover: nil, slid: AsksLayout.width / 2, beside: beside
+            frame: .zero, sending: sending, hover: nil, slid: AsksLayout.width / 2, beside: beside,
+            pointsLeft: pointsLeft
         )
 
         asks.stand(besideRowAt: margin + AsksLayout.above, front: margin + AsksLayout.overlap, on: Stage(
@@ -423,7 +510,7 @@ struct AsksPanelDrawnTests {
         let (drawn, asks) = try Self.slidHalfway(), half = AsksLayout.width / 2, frame = asks.frame
         let beside = try #require(asks.beside), risen = frame.height - asks.layout.height
         let flat = Self.placed(asks.layout.answers[1]), approve = Self.placed(beside.layout.answers[0])
-        let top = Self.placed(asks.layout.top), dots = asks.layout.dots(at: 0.5, of: 2).map(Self.placed)
+        let top = Self.placed(asks.layout.top), dots = asks.dots.map(Self.placed)
         let open = Self.placed(asks.layout.open).offsetBy(dx: 0, dy: risen)
 
         #expect(abs(frame.height - (asks.layout.height + beside.layout.height) / 2) < 1e-9)
@@ -438,6 +525,23 @@ struct AsksPanelDrawnTests {
         #expect(!Self.shows(0x1C1C1F, at: CGPoint(x: frame.maxX + 2, y: approve.midY), in: drawn))
         #expect(Self.brightest(Self.white, in: CGRect(x: top.minX, y: top.minY, width: 60, height: top.height), of: drawn))
         #expect(dots.map(\.width) == [9.5, 9.5])
+        #expect(dots.allSatisfy { Self.shows(0x924F3F, at: CGPoint(x: $0.midX, y: $0.midY), in: drawn) })
+    }
+
+    /// On the right edge, where the asks lie right to left, halfway to the next ask the ask's own page has slid half
+    /// the asks panel's width out to the right, toward the notch, and the next ask half in from the left; the dots
+    /// pass the wide one leftward.
+    @Test func onTheRightEdgeTheNextAskSlidesInFromTheLeft() throws {
+        let (drawn, asks) = try Self.slidHalfway(pointsLeft: true), half = AsksLayout.width / 2, frame = asks.frame
+        let beside = try #require(asks.beside)
+        let flat = Self.placed(asks.layout.answers[1]), approve = Self.placed(beside.layout.answers[0])
+        let dots = asks.dots.map(Self.placed)
+
+        #expect(Self.shows(0x1C1C1F, at: CGPoint(x: flat.minX + 20 + half, y: flat.minY + 8), in: drawn))
+        #expect(Self.shows(0x000000, at: CGPoint(x: flat.minX + 20 + half, y: flat.midY + 3), in: drawn))
+        #expect(Self.shows(0x1C1C1F, at: CGPoint(x: approve.maxX - 120 - half, y: approve.midY), in: drawn))
+        #expect(!Self.shows(0x1C1C1F, at: CGPoint(x: frame.minX - 2, y: approve.midY), in: drawn))
+        #expect(dots[0].minX > dots[1].maxX)
         #expect(dots.allSatisfy { Self.shows(0x924F3F, at: CGPoint(x: $0.midX, y: $0.midY), in: drawn) })
     }
 

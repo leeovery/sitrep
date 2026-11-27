@@ -7,41 +7,28 @@ import SitRepRelay
 import SitRepTestSupport
 import Testing
 
-/// Edge's sections under the Show row's card: one named for the shape, holding the rows that tune it, then Motion.
+/// Edge's sections under the Show row's card: Notch, holding the rows that tune it, then Motion, then Keys,
+/// Accessibility then Shortcut; for Nothing, Keys' Shortcut alone.
 @Suite(.backstop)
 struct EdgePaneTests {
-    private static func sections(
-        _ show: EdgeSettings.Show, length: StripLength = .grows
-    ) -> [EdgePane.Section] {
+    private static func sections(_ show: EdgeSettings.Show) -> [EdgePane.Section] {
         var settings = EdgeSettings()
 
         settings.show = show
-        settings.length = length
-
         return EdgePane.sections(settings)
     }
 
     private static let motion = EdgePane.Section(name: "Motion", rows: [.reduceMotion])
 
-    @Test func theNotchsSectionIsEdgeDisplayAndStyleThenMotion() {
+    @Test func theNotchsSectionIsEdgeDisplayAndStyleThenMotionThenKeys() {
         #expect(Self.sections(.notch) == [
             EdgePane.Section(name: "Notch", rows: [.edge, .display, .style]), Self.motion,
+            EdgePane.Section(name: "Keys", rows: [.keys, .shortcut]),
         ])
     }
 
-    @Test func theStripsSectionIsEdgeDisplayLengthAndMaxThenMotion() {
-        #expect(Self.sections(.strip) == [
-            EdgePane.Section(name: "Strip", rows: [.edge, .display, .length, .max]), Self.motion,
-        ])
-    }
-
-    @Test func maxIsForGrowsAlone() {
-        #expect(Self.sections(.strip, length: .full).first?.rows == [.edge, .display, .length])
-        #expect(!Self.sections(.notch, length: .grows).contains { $0.rows.contains(.max) })
-    }
-
-    @Test func withNothingThereIsNoSectionAndOneLineSaysWhatCarriesTheBoard() {
-        #expect(Self.sections(.nothing).isEmpty)
+    @Test func withNothingThereIsKeysShortcutAloneAndOneLineSaysWhatCarriesTheBoard() {
+        #expect(Self.sections(.nothing) == [EdgePane.Section(name: "Keys", rows: [.shortcut])])
         #expect(EdgePane.menuCarries == "The menu carries the board.")
     }
 }
@@ -84,7 +71,7 @@ struct NoticeRowsTests {
 
     @Test(arguments: [
         (NoticeLeave.denied, EdgeSettings.Show.notch, "the notch swells and lights"),
-        (.allowed(.none), .strip, "the strip flashes"),
+        (.allowed(.none), .notch, "the notch swells and lights"),
         (.denied, .nothing, "the menu bar's light comes on"),
     ])
     func whileMacOSStopsItTheSwitchGreysAndSaysWhatTellsLeeInstead(leave: NoticeLeave, show: EdgeSettings.Show, instead: String) {
@@ -106,7 +93,7 @@ struct NoticeRowsTests {
     @Test(arguments: [
         (NoticeLeave?.some(.allowed(.banners)), EdgeSettings.Show.notch, nil),
         (.denied, .notch, "the notch lights blue"),
-        (.allowed(.none), .strip, "its mark on the strip turns blue"),
+        (.allowed(.none), .nothing, "the menu bar's light turns blue"),
         (.denied, .nothing, "the menu bar's light turns blue"),
     ])
     func leesTurnHasItsOwnSwitch(leave: NoticeLeave?, show: EdgeSettings.Show, instead: String?) {
@@ -235,6 +222,48 @@ struct LoginRowTests {
     }
 }
 
+/// Keys' Accessibility row (DESIGN, "Keys"): Allowed with the Accessibility leave; without it, why the panel takes no
+/// keys, with Allow… until SitRep has asked, and System Settings' Accessibility after, as macOS keeps no "not asked
+/// yet".
+@Suite(.backstop)
+struct KeysRowTests {
+    private static let notAllowed = "Not allowed, so the notch's panel takes no keys"
+
+    @Test(arguments: [false, true])
+    func allowedItIsADotAndAWordWithNothingToPress(asked: Bool) {
+        #expect(SettingsRow.keys(true, asked: asked) == SettingsRow(
+            label: "Accessibility", line: nil, side: .fine("Allowed")
+        ))
+    }
+
+    @Test func notAllowedAndNeverAskedAllowBringsUpMacOSsPrompt() {
+        #expect(SettingsRow.keys(false, asked: false) == SettingsRow(
+            label: "Accessibility", line: Self.notAllowed, side: .button("Allow…", .allowKeys)
+        ))
+    }
+
+    @Test func notAllowedOnceAskedTheButtonGoesToAccessibilityInSystemSettings() {
+        #expect(SettingsRow.keys(false, asked: true) == SettingsRow(
+            label: "Accessibility", line: Self.notAllowed, side: .button("Open System Settings…", .accessibility)
+        ))
+    }
+
+    @Test func beforeItIsReadThereIsNothingToPress() {
+        #expect(SettingsRow.keys(nil, asked: false) == SettingsRow(label: "Accessibility", line: nil, side: .none))
+    }
+
+    /// Kept under "app"; a value saved before it was is read as never asked.
+    @Test func thatSitRepAskedIsKeptAndReadAsNeverAskedFromBefore() {
+        let defaults = MemoryDefaults()
+        var settings = AppSettings()
+
+        #expect(!SavedSettings<AppSettings>(defaults).read().askedForKeys)
+        settings.askedForKeys = true
+        SavedSettings<AppSettings>(defaults).save(settings)
+        #expect(SavedSettings<AppSettings>(defaults).read().askedForKeys)
+    }
+}
+
 @Suite(.backstop)
 struct GhosttyRowTests {
     private static let label = "Bring a session's Ghostty window to the front"
@@ -305,7 +334,7 @@ struct AppSettingsTests {
         #expect(read.sound == "Glass")
         #expect(Set(keys) == [
             "notifiesNewAsks", "playsSound", "sound", "pulsesNewAsks", "notifiesTurns", "playsTurnSound", "turnSound",
-            "pulsesTurns", "terminal",
+            "pulsesTurns", "terminal", "askedForKeys", "shortcut",
         ], "a resume command never set saved as none")
     }
 

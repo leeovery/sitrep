@@ -25,6 +25,10 @@ public protocol Notch: AnyObject {
     func jumpAnswered()
     /// A click anywhere off the panel and the notch closes it at once.
     func clickElsewhere()
+    /// The shortcut (DESIGN, "Keys"): the panel opens as a hover opens it, with no reach toward the pointer, and stays
+    /// open wherever the pointer is: only a click, a key, or the pointer coming onto it and leaving closes it, its
+    /// grace starting only then. Only from closed, not while a drag has the notch: whether it opened.
+    @discardableResult func summon() -> Bool
     /// A drag carries the notch, as the prototypes' does: the panel closes and the notch lifts off the edge.
     func carry()
     /// The drag has the notch's home this far down the stage: the notch follows it on a 50ms spring, inside the band.
@@ -81,6 +85,10 @@ protocol NotchModel: Notch, SimModel where TimerName: ClickTimers {
     /// The notch's hit area and the panel's content as last drawn, which the pointer is hit-tested against.
     var lastHit: CGRect? { get }
     var lastPanel: Frame.Panel? { get }
+    /// The black's own shape as last drawn (`Frame.shape`), which reaches past the content's clip: the Meniscus's
+    /// flares along the screen's edge, and the Card's black where its length lags shrinking content or its slide
+    /// overshoots.
+    var lastShape: CGPath? { get }
     /// A panel beside the open one, as the last input had it (`Input.beside`).
     var beside: CGPath? { get }
     var reveal: Reveal { get }
@@ -92,6 +100,15 @@ protocol NotchModel: Notch, SimModel where TimerName: ClickTimers {
     /// The outline as last drawn, which a cross-fade fades out.
     var lastOutline: CGPath? { get }
 
+    /// Whether a drag leaves the notch free to open.
+    var isFree: Bool { get }
+    /// The shortcut opened the panel and the pointer has yet to come onto it: until it does, nothing starts the grace.
+    var awaitsPointer: Bool { get set }
+    /// The pointer as last seen of itself, not a menu's held place.
+    var ownPointer: Vec? { get set }
+
+    /// The panel comes out, as a hover or the shortcut opens it.
+    func open()
     /// The panel goes in, as a click elsewhere or a jump sends it.
     func close()
 }
@@ -127,6 +144,28 @@ extension NotchModel {
         if isLive {
             close()
         }
+    }
+
+    /// Whether the pointer at `p` moved of itself: not a menu's held place (`isHeld`), and elsewhere than it last was
+    /// of itself, so a menu closing, which hands the model the pointer again where it rested, is no move. Noted.
+    func movedOfItself(to p: Vec?, isHeld: Bool) -> Bool {
+        guard !isHeld else {
+            return false
+        }
+
+        defer { ownPointer = p }
+        return p != ownPointer
+    }
+
+    @discardableResult
+    public func summon() -> Bool {
+        guard isFree, phase == .closed else {
+            return false
+        }
+
+        open()
+        awaitsPointer = true
+        return true
     }
 }
 
@@ -175,8 +214,8 @@ extension NotchModel {
     /// The pointer's speed toward the edge (below 0: away from it).
     func approachSpeed() -> Double { -trailVelocity().x }
 
-    /// The notch's hit area lies over the panel's content, which counts only while the panel is live, as a panel
-    /// beside it does.
+    /// The notch's hit area lies over the panel, its black, its content's clip and all, which counts only while the
+    /// panel is live, as a panel beside it does.
     func hoverOf(_ p: Vec?) -> Hover? {
         guard let p else {
             return nil
@@ -185,7 +224,10 @@ extension NotchModel {
         if let lastHit, inRect(p, lastHit) {
             return .notch
         }
-        if isLive, lastPanel?.contains(CGPoint(p)) == true || isBeside(p) {
+
+        let point = CGPoint(p)
+
+        if isLive, lastPanel?.contains(point) == true || lastShape?.contains(point) == true || isBeside(p) {
             return .panel
         }
         return nil

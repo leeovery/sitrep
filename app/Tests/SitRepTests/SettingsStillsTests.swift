@@ -17,7 +17,9 @@ import Testing
 @Suite(.backstop, .enabled(if: stills != nil))
 struct SettingsStillsTests {
 
-    private static let fine = MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed)
+    private static let fine = MacSays(
+        notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed, keys: true
+    )
 
     /// Settings over a Mac that says this, read as the window reads it as a pane comes into sight.
     private static func settings(_ preferences: Preferences, windows: [WatchLine.Window], said: MacSays = fine) async -> SettingsModel {
@@ -114,19 +116,46 @@ struct SettingsStillsTests {
         )
     }
 
-    @Test(arguments: [EdgeSettings.Show.strip, .nothing])
+    @Test(arguments: [EdgeSettings.Show.nothing])
     func edgeAtEachChoice(show: EdgeSettings.Show) async throws {
         let settings = await Self.settings(Self.preferences { $0.show = show }, windows: Self.current)
 
         try Self.pane(.edge, settings, "edge-\(show.title.lowercased())")
     }
 
-    /// A dot when it's fine, a button when it's Lee's: Ghostty not asked, opening at login waiting, banners off, and
-    /// windows on an older plugin.
-    @Test(arguments: [SettingsPane.general, .notifications, .claudeCode])
+    /// The Shortcut row's recorder as it stands: at rest on ⌃⌥S, recording with nothing held, with ⌃⌥ held, after a key
+    /// it refused, and cleared; at the notch and at Nothing, in light and dark.
+    @Test(arguments: ["rest", "recording", "holding", "refused", "cleared"], [ColorScheme.light, .dark])
+    func theShortcutRow(state: String, scheme: ColorScheme) async throws {
+        for show in EdgeSettings.Show.allCases {
+            let settings = await Self.settings(Self.preferences { $0.show = show }, windows: Self.current)
+
+            switch state {
+            case "recording":
+                settings.recordShortcut()
+            case "holding":
+                settings.recordShortcut()
+                settings.holdForShortcut([.control, .option])
+            case "refused":
+                settings.recordShortcut()
+                _ = settings.pressForShortcut(KeyChord(code: 0, modifiers: .option))
+            case "cleared":
+                settings.clearShortcut()
+            default:
+                break
+            }
+            let name = "edge-\(show.title.lowercased())-shortcut-\(state)-\(scheme == .dark ? "dark" : "light")"
+
+            try Self.pane(.edge, settings, name, scheme: scheme)
+        }
+    }
+
+    /// A dot when it's fine, a button when it's Lee's: Ghostty not asked, opening at login waiting, banners off, the
+    /// panel's keys not allowed, and windows on an older plugin.
+    @Test(arguments: [SettingsPane.general, .edge, .notifications, .claudeCode])
     func whenARowNeedsSomething(pane: SettingsPane) async throws {
         let old = [Self.window("w1", needsReload: true), Self.window("w3", needsReload: true)]
-        let said = MacSays(notices: .denied, login: LoginItem(.requiresApproval), ghostty: .unasked)
+        let said = MacSays(notices: .denied, login: LoginItem(.requiresApproval), ghostty: .unasked, keys: false)
         let settings = await Self.settings(Self.preferences(), windows: old, said: said)
 
         try Self.pane(pane, settings, "\(pane.rawValue)-needs-lee")

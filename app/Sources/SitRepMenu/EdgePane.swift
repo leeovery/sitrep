@@ -1,13 +1,13 @@
 import SitRepPanel
 
 /// Settings' Edge pane (DESIGN, "Settings"): under the Show row's card, the sections that apply to the choice, in
-/// their order. A section named for the shape, Notch or Strip, holds the rows that tune it; Motion holds Reduce motion,
-/// as it is about how SitRep moves whichever shape is at the edge. With Nothing there are none, and the Show row's line
-/// says what carries the board instead.
+/// their order. Notch holds the rows that tune it; Motion holds Reduce motion, as it is about how SitRep moves the
+/// notch; Keys says whether the notch's panel may take keys, and sets the shortcut (DESIGN, "Keys"). With Nothing there
+/// is Keys' Shortcut alone, and the Show row's line says what carries the board instead.
 public enum EdgePane {
     /// A row of a section.
     public enum Row: Hashable, Sendable {
-        case edge, display, style, length, max, reduceMotion
+        case edge, display, style, reduceMotion, keys, shortcut
     }
 
     /// A section: its header, and its card's rows.
@@ -18,15 +18,16 @@ public enum EdgePane {
 
     public static let menuCarries = "The menu carries the board."
 
-    /// The sections for what Lee set: Style for the notch, Length and Max for the strip, Max only at Grows.
+    /// The sections for what Lee set: Notch, Motion and Keys for the notch, Accessibility first; Keys' Shortcut alone
+    /// for Nothing.
     public static func sections(_ settings: EdgeSettings) -> [Section] {
-        let max: [Row] = settings.length == .grows ? [.max] : []
-        let motion = Section(name: "Motion", rows: [.reduceMotion])
-
-        return switch settings.show {
-        case .notch: [Section(name: "Notch", rows: [.edge, .display, .style]), motion]
-        case .strip: [Section(name: "Strip", rows: [.edge, .display, .length] + max), motion]
-        case .nothing: []
+        switch settings.show {
+        case .notch:
+            [
+                Section(name: "Notch", rows: [.edge, .display, .style]), Section(name: "Motion", rows: [.reduceMotion]),
+                Section(name: "Keys", rows: [.keys, .shortcut]),
+            ]
+        case .nothing: [Section(name: "Keys", rows: [.shortcut])]
         }
     }
 }
@@ -38,10 +39,6 @@ extension EdgeSettings.Edge {
 
 extension NotchStyle {
     public var title: String { self == .meniscus ? "Meniscus" : "Card" }
-}
-
-extension StripLength {
-    public var title: String { self == .grows ? "Grows" : "Full" }
 }
 
 /// A display Lee can choose for the edge, by the id the edge knows it by; nil for the main display, whichever that is.

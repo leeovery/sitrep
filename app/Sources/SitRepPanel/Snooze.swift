@@ -93,6 +93,10 @@ public enum SnoozeTime: Hashable, Sendable {
 }
 
 extension Session {
+    /// Whether its row snoozes, or in Snoozed wakes (DESIGN, "The row snoozes"): a row of asks or of Lee's turn, or one
+    /// in Snoozed; never a row of stops alone, nor a working one.
+    public var snoozes: Bool { isSnoozed || isTurn || !asks.isEmpty }
+
     /// What its row says in its time's place at this time on the wall clock, ms: how long it has stood, or in Snoozed,
     /// when it wakes, or for one snoozed with no time, that it waits until it moves.
     public func timeText(at now: Double, in calendar: Calendar) -> String {

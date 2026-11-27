@@ -133,10 +133,10 @@ struct CalloutSettingsTests {
         #expect(Self.after { $0.done(.notch); $0.pointedAt(); $0.done(.notch) } == .gone)
     }
 
-    /// Done at Nothing arms nothing: a shape picked later meets no callout. One already due still waits for a shape.
+    /// Done at Nothing arms nothing: the notch picked later meets no callout. One already due still waits for it.
     @Test func doneAtNothingLeavesItAsItStood() {
         #expect(Self.after { $0.done(.nothing) } == .unshown)
-        #expect(Self.after { $0.done(.nothing); $0.done(.strip) } == .due)
+        #expect(Self.after { $0.done(.nothing); $0.done(.notch) } == .due)
         #expect(Self.after { $0.done(.notch); $0.done(.nothing) } == .due)
     }
 
@@ -325,19 +325,11 @@ struct WelcomeSoundsTests {
     }
 }
 
-/// Step 3's form under the pictures.
+/// Step 3's form under the notch's picture.
 @Suite(.backstop)
 struct WelcomeEdgeFormTests {
     @Test func theNotchsFormIsStyleAndEdge() {
-        #expect(WelcomeEdgeForm.rows(EdgeSettings()) == [.style, .edge])
-    }
-
-    /// One row for another, so the form keeps its height.
-    @Test func atStripLengthTakesStylesPlace() {
-        var strip = EdgeSettings()
-
-        strip.show = .strip
-        #expect(WelcomeEdgeForm.rows(strip) == [.length, .edge])
+        #expect(WelcomeEdgeForm.rows == [.style, .edge])
     }
 
     /// The notch's rows stay in their place at Nothing, so the form keeps its height, taking no presses.
@@ -345,22 +337,19 @@ struct WelcomeEdgeFormTests {
         var nothing = EdgeSettings()
 
         nothing.show = .nothing
-        #expect(WelcomeEdgeForm.rows(nothing) == [.style, .edge])
         #expect(!WelcomeEdgeForm.takesPresses(nothing))
     }
 
-    @Test(arguments: [EdgeSettings.Show.notch, .strip])
-    func eachShapeIsChosenAndTakesPresses(show: EdgeSettings.Show) {
-        var settings = EdgeSettings()
+    @Test func theNotchIsChosenAndTakesPresses() {
+        let settings = EdgeSettings()
 
-        settings.show = show
-        #expect(WelcomeEdgeForm.chosen(settings) == show)
+        #expect(WelcomeEdgeForm.chosen(settings) == .notch)
         #expect(WelcomeEdgeForm.takesPresses(settings))
         #expect(WelcomeEdgeForm.under(settings) == .showNothing)
     }
 
-    /// Neither picture ringed, and the line in Show nothing at the edge's place.
-    @Test func atNothingNeitherShapeIsChosenAndTheLineShows() {
+    /// The picture not ringed, and the line in Show nothing at the edge's place.
+    @Test func atNothingTheNotchIsNotChosenAndTheLineShows() {
         var nothing = EdgeSettings()
 
         nothing.show = .nothing
@@ -372,7 +361,7 @@ struct WelcomeEdgeFormTests {
         #expect(WelcomeEdgeForm.Under.showNothing.words == "Show nothing at the edge")
         #expect(
             WelcomeEdgeForm.Under.nothingShown.words
-                == "Only the menu bar's light. Choose Notch or Strip to bring it back."
+                == "Only the menu bar's light. Choose Notch to bring it back."
         )
     }
 }
@@ -390,7 +379,6 @@ struct WelcomePlaybackTests {
     @Test func atTheEdgeSaysTheShapeItsStyleAndItsEdge() {
         #expect(WelcomePlayback.atTheEdge(EdgeSettings()) == "Meniscus notch, left")
         #expect(WelcomePlayback.atTheEdge(Self.edge { $0.style = .card; $0.edge = .right }) == "Card notch, right")
-        #expect(WelcomePlayback.atTheEdge(Self.edge { $0.show = .strip }) == "Strip, left")
         #expect(WelcomePlayback.atTheEdge(Self.edge { $0.show = .nothing }) == "The menu bar's light alone")
     }
 
@@ -595,24 +583,6 @@ struct WelcomeStagePlayTests {
         #expect(!WelcomeLoop.hello.findsRow(at: WelcomeLoop.hello.leave))
     }
 
-    /// The pointer goes by the ask's row from when the stage looks for it until it has glided off it: step 1's through
-    /// its glide, step 2's until it leaves with the jump.
-    @Test(arguments: [WelcomeLoop.hello, .ask])
-    func thePointerGoesByTheRowFromTheSearchUntilItHasGlidedOff(_ loop: WelcomeLoop) throws {
-        let times = stride(from: 0, to: loop.length, by: 10)
-        let holding = times.filter(loop.holdsRow(at:))
-        let byRow = times.filter { time in
-            let row = loop.pointer(at: time, home: Self.home, row: Self.row)
-
-            return row != nil && row != loop.pointer(at: time, home: Self.home, row: CGPoint(x: Self.row.x, y: Self.row.y + 40))
-        }
-
-        try #require(!byRow.isEmpty)
-        expectEvery(byRow) { loop.holdsRow(at: $0) }
-        #expect(holding.first == loop.seeks)
-        #expect(loop.holdsRow(at: (loop.gone ?? loop.leave) - 10) && !loop.holdsRow(at: loop.gone ?? loop.leave))
-    }
-
     /// Frames sleep but for the pointer's glides, to the notch and off the row: its step onto the row is a beat.
     @Test func thePointerMovesOnlyWhileItGlides() {
         let times = stride(from: 0, to: WelcomeLoop.hello.length, by: 50)
@@ -714,13 +684,10 @@ struct WelcomeAskLoopTests {
         #expect(loop.scene(at: try #require(loop.resolves)).moment == nil)
     }
 
-    /// The middle line names the shape the stage shows: the strip where Lee chose it, else the notch.
-    @Test func itsWordsNameTheShapeTheStageShows() {
-        #expect(WelcomeLoop.Moment.allCases.map { $0.words(.notch) } == [
+    @Test func itsWordsNameTheMoments() {
+        #expect(WelcomeLoop.Moment.allCases.map(\.words) == [
             "An ask lands", "Open it from the notch", "Answer it in its session",
         ])
-        #expect(WelcomeLoop.Moment.opens.words(.strip) == "Open it from the strip")
-        #expect(WelcomeLoop.Moment.opens.words(.nothing) == "Open it from the notch")
     }
 
     /// The session's window comes forward as the jump lands, and the answer shows in it once given, both until the

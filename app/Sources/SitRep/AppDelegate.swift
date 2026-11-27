@@ -32,6 +32,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Window. A Mac long welcomed makes none until Lee asks for it.
     private var welcome: WelcomeWindow?
     private var quitOnSignal: QuitOnSignal?
+    /// The shortcut's hot key, registered as SitRep starts, from the shortcut Lee set.
+    private lazy var hotKey = HotKey(
+        CarbonHotKey { [unowned self] in shortcutWiring?.press() }, chord: preferences.app.shortcut.chord
+    )
+    /// What the shortcut opens, joined as SitRep starts.
+    private var shortcutWiring: ShortcutWiring?
 
     /// The notices helper is listened to before launching ends, so a click that starts the app is heard; and a SIGTERM
     /// quits as Quit SitRep does.
@@ -62,6 +68,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.edge = edge
         self.menu = menu
+        shortcutWiring = ShortcutWiring(hotKey, notch: edge, menu: menu)
+        preferences.onShortcut = { [hotKey] in hotKey.chord = $0 }
         plugin.start { [unowned self] in settled($0) }
         if WelcomeWindow.opensAtStart(preferences) {
             openWelcome()
@@ -168,7 +176,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             chooseLogin: { [banners] in Leaves.chooseLogin(banners) },
             ghostty: { await Leaves.ghostty() },
             allowGhostty: { await Leaves.allowGhostty() },
-            open: { Leaves.open($0) }
+            open: { Leaves.open($0) },
+            keys: { Leaves.keys },
+            allowKeys: { Leaves.allowKeys() },
+            suspendShortcut: { [hotKey] in hotKey.isSuspended = $0 },
+            shortcutRefused: { [hotKey] in hotKey.isRefused }
         )
     }
 }

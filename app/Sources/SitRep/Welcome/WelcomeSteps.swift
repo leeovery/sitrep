@@ -18,9 +18,8 @@ struct HelloStep: View {
 }
 
 /// Step 2, An ask, from Claude to you: the step's words, then the loop's three moments, each lit as the stage plays
-/// it, in the words of the shape it shows. Nothing here is pressed: the stage shows it all.
+/// it. Nothing here is pressed: the stage shows it all.
 struct AskStep: View {
-    let show: EdgeSettings.Show
     /// The moment the stage is at, if any.
     let lit: WelcomeLoop.Moment?
 
@@ -29,7 +28,7 @@ struct AskStep: View {
             StepWords(step: .ask)
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(WelcomeLoop.Moment.allCases, id: \.self) { moment in
-                    MomentLine(words: moment.words(show), isLit: moment == lit)
+                    MomentLine(words: moment.words, isLit: moment == lit)
                 }
             }
         }
@@ -59,38 +58,28 @@ private struct MomentLine: View {
     }
 }
 
-/// Step 3, Your edge: Notch or Strip as Settings' own pictures, the one chosen ringed in the accent, then a grouped
-/// form: Style, or at Strip Length in its place, cross-fading so the form keeps its height, and Edge; then Show nothing
-/// at the edge. Each press sets the setting itself. At Nothing neither picture is ringed, and the form stays in its
-/// place, dimmed, taking no presses.
+/// Step 3, Your edge: the notch as Settings' own picture, ringed in the accent while chosen, then a grouped form,
+/// Style and Edge; then Show nothing at the edge. Each press sets the setting itself. At Nothing the picture is not
+/// ringed, and the form stays in its place, dimmed, taking no presses.
 struct EdgeStep: View {
     let welcome: WelcomeModel
 
-    /// A picture's size, at the window's: half the column, less the gap between the two.
+    /// The picture's size, at the window's.
     static let picture = CGSize(width: 130, height: 72)
 
     var body: some View {
         let edge = welcome.preferences.edge
-        let rows = WelcomeEdgeForm.rows(edge)
+        let rows = WelcomeEdgeForm.rows
 
         VStack(alignment: .leading, spacing: 22) {
             StepWords(step: .edge)
-            HStack(spacing: 10) {
-                ForEach([EdgeSettings.Show.notch, .strip], id: \.self) { show in
-                    ShapeTile(show: show, isChosen: WelcomeEdgeForm.chosen(edge) == show) { welcome.choose(show) }
-                }
-            }
+            ShapeTile(show: .notch, isChosen: WelcomeEdgeForm.chosen(edge) == .notch) { welcome.choose(.notch) }
             VStack(alignment: .leading, spacing: 12) {
                 WelcomeCard {
-                    // one row for another in the one place, so the form keeps its height as they cross-fade
-                    ZStack {
-                        FormRow(row: rows[0], preferences: welcome.preferences)
-                            .id(rows[0])
-                            .transition(.opacity)
-                    }
-                    .animation(.easeInOut(duration: 0.2), value: rows[0])
-                    ForEach(rows.dropFirst(), id: \.self) { row in
-                        Hairline()
+                    ForEach(rows, id: \.self) { row in
+                        if row != rows[0] {
+                            Hairline()
+                        }
                         FormRow(row: row, preferences: welcome.preferences)
                     }
                 }
@@ -102,7 +91,7 @@ struct EdgeStep: View {
     }
 }
 
-/// Notch or Strip: Settings' own picture, named under it, ringed in the accent while chosen.
+/// A shape at the edge: Settings' own picture, named under it, ringed in the accent while chosen.
 private struct ShapeTile: View {
     let show: EdgeSettings.Show
     let isChosen: Bool
@@ -178,7 +167,6 @@ private struct FormRow: View {
     private var label: String {
         switch row {
         case .style: "Style"
-        case .length: "Length"
         case .edge: "Edge"
         }
     }
@@ -186,7 +174,6 @@ private struct FormRow: View {
     @ViewBuilder private var control: some View {
         switch row {
         case .style: segments(\.style, NotchStyle.allCases, \.title)
-        case .length: segments(\.length, StripLength.allCases, \.title)
         case .edge: segments(\.edge, EdgeSettings.Edge.allCases, \.title)
         }
     }

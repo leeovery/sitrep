@@ -29,15 +29,21 @@ What stands at the edge of your screen. See [The edge of your screen](notch.md).
 
 | Control | Choices | Default | What it does |
 |---|---|---|---|
-| Show | Notch, Strip, Nothing | Notch | What shows at the edge |
+| Show | Notch, Nothing | Notch | What shows at the edge |
 | Edge | Left, Right | Left | The side it stands on |
 | Display | Main display, or another | Main display | The screen it shows on |
 | Style | Meniscus, Card | Meniscus | How the notch opens |
-| Length | Grows, Full | Grows | How long the strip is |
-| Max | A slider | Full | How far the strip grows |
 | Reduce motion | On, off | Off | Less movement at the edge |
+| Accessibility | Allow…, or Open System Settings… | Not allowed | Lets the panel take keys |
+| Shortcut | A key with ⌘ or ⌃ | ⌃⌥S | Opens the panel holding the keys |
 
-The pane shows only the settings for your choice under Show. Style is for the notch only. Length and Max are for the strip only, and Max shows only at Grows. With Nothing, the menu bar item carries the board, and the pane holds only Show.
+Every row but Show and Shortcut shows only while Show is Notch. With Nothing, the menu bar item carries the board, and the pane holds only Show and Shortcut. The shortcut then opens the menu of the menu bar item. See [Same keys, wherever the board shows](keys.md).
+
+Without Accessibility, the row reads "Not allowed, so the notch's panel takes no keys". **Allow…** brings up the macOS prompt. Once SitRep has asked, the button is **Open System Settings…**, for Privacy & Security › Accessibility.
+
+To change the shortcut, click its field. Once it reads "Type shortcut", press the new keys. A key without ⌘ or ⌃ is refused, and the row says "Use ⌘ or ⌃". Press `esc` to stop.
+
+If macOS refuses the shortcut, the row says "macOS refused this shortcut; another app may use it". The clear button at the end of the field turns the shortcut off, and the field reads "Record shortcut".
 
 ## Notifications
 

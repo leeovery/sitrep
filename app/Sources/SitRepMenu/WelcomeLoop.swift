@@ -12,11 +12,10 @@ public struct WelcomeLoop: Equatable, Sendable {
     public enum Moment: CaseIterable, Sendable {
         case lands, opens, answers
 
-        /// In the words of the shape the stage shows, the strip where Lee chose it, else the notch.
-        public func words(_ show: EdgeSettings.Show) -> String {
+        public var words: String {
             switch self {
             case .lands: "An ask lands"
-            case .opens: show == .strip ? "Open it from the strip" : "Open it from the notch"
+            case .opens: "Open it from the notch"
             case .answers: "Answer it in its session"
             }
         }
@@ -88,12 +87,6 @@ public struct WelcomeLoop: Equatable, Sendable {
     /// it has poured until the pointer leaves the row.
     public func findsRow(at time: Double) -> Bool {
         (seeks ..< leave).contains(phase(time))
-    }
-
-    /// Whether the stage finds the ask's row again at this time into the loop after a change has moved it: from when
-    /// it looks for it until the pointer has glided off it, so the pointer leaves from where the row now is.
-    public func holdsRow(at time: Double) -> Bool {
-        (seeks ..< (gone ?? leave)).contains(phase(time))
     }
 
     /// Whether the ask's row is pressed in at this time into the loop: from the click until the jump lands.

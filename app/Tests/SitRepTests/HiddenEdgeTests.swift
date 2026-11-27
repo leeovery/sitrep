@@ -5,8 +5,8 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
-/// The notch and the strip, hidden as over a full-screen app and shown again, never leave the screen: their windows
-/// stay ordered in throughout, and so on every Space. The display is far off every screen, so nothing shows.
+/// The notch, hidden as over a full-screen app and shown again, never leaves the screen: its window stays ordered in
+/// throughout, and so on every Space. The display is far off every screen, so nothing shows.
 @MainActor
 @Suite(.backstop)
 struct HiddenEdgeTests {
@@ -16,7 +16,9 @@ struct HiddenEdgeTests {
     )
 
     @Test func theNotchStaysOnTheScreenHiddenAndShown() {
-        let notch = NotchController(EdgeSettings(), on: Self.display, folding: Folding()) { SnoozeSettings() }
+        let notch = NotchController(EdgeSettings(), on: Self.display, folding: Folding(), keys: .none) {
+            SnoozeSettings()
+        }
 
         defer { notch.window.close() }
         #expect(notch.window.isVisible)
@@ -24,16 +26,5 @@ struct HiddenEdgeTests {
         #expect(notch.window.isVisible)
         notch.isShown = false
         #expect(notch.window.isVisible)
-    }
-
-    @Test func theStripStaysOnTheScreenHiddenAndShown() {
-        let strip = StripController(EdgeSettings(), on: Self.display, folding: Folding()) { SnoozeSettings() }
-
-        defer { strip.window.close() }
-        #expect(strip.window.isVisible)
-        strip.isShown = true
-        #expect(strip.window.isVisible)
-        strip.isShown = false
-        #expect(strip.window.isVisible)
     }
 }

@@ -41,23 +41,23 @@ public final class NotchRun: Framed {
         /// The notch Lee chose, which the model becomes once it is at rest.
         public var style: NotchStyle
         public var reducesMotion: Bool
-        /// Whether Lee chose the notch to show the board: an arrival unfolds Needs you on its card. With the strip
-        /// chosen, Needs you folded stays folded, its count on the strip flashing (14 November 2026).
-        public var isChosen: Bool
         /// Whether one ask's Snooze offers a time now, as Lee set them: the asks panel's foot shows Snooze ▾ only
         /// while it does, as the pane shows its snooze button.
         public var offersSnooze: Bool
+        /// Whether the Mac lets the panel take keys: macOS's Accessibility leave given, and no window holding secure
+        /// input (DESIGN, "Keys"). While it doesn't, the panel holds nothing.
+        public var takesKeys: Bool
 
         public init(
-            stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool,
-            offersSnooze: Bool = true
+            stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, offersSnooze: Bool = true,
+            takesKeys: Bool = false
         ) {
             self.stage = stage
             self.mirror = mirror
             self.style = style
             self.reducesMotion = reducesMotion
-            self.isChosen = isChosen
             self.offersSnooze = offersSnooze
+            self.takesKeys = takesKeys
         }
     }
 
@@ -65,8 +65,7 @@ public final class NotchRun: Framed {
     public typealias Shown = RunShown
     public typealias Drop = RunDrop
 
-
-    /// What a press on the notch comes to.
+    /// What a press on the notch, or a key the panel holds, comes to.
     public enum Press: Equatable, Sendable {
         /// A row that jumps, pressed in: its session, the session to jump to, and which click it is.
         case jump(Session, to: String, click: Int)
@@ -84,6 +83,11 @@ public final class NotchRun: Framed {
         /// Snooze ▾ on the asks panel: the ask it shows, by its id, and its session's, to snooze from a menu at this
         /// point on the stage.
         case snooze(ask: String, of: String, at: CGPoint)
+        /// `z` on a Needs you row: its session, to snooze from a menu beside the row, which stands in this box on the
+        /// stage.
+        case snoozeRow(Session, row: CGRect)
+        /// `z` on a row in Snoozed: its session, to wake.
+        case wake(Session)
     }
 
     /// The model: every input to it comes through the run, and what is drawn from it is read here. Internal only for
@@ -95,16 +99,16 @@ public final class NotchRun: Framed {
     public private(set) var frame: Frame
     /// The pointer on the stage as the last frame saw it.
     public private(set) var seen: CGPoint?
-    /// While a row's menu is open, where it was opened (`menuOpened(at:)`).
-    private var menuAt: CGPoint?
+    /// While a row's menu or a snooze menu is open, where it was opened (`menuOpened(at:)`).
+    private(set) var menuAt: CGPoint?
     /// How far down the panel's content is scrolled.
-    public private(set) var scroll = 0.0
+    public internal(set) var scroll = 0.0
     /// A press off a row, which a move makes a drag, until it lets go.
     public private(set) var drag: NotchDrag?
-    /// The sections Lee folded, here or on the strip, as they change, by a click or an arrival unfolding Needs you.
+    /// The sections Lee folded, as they change, by a click or an arrival unfolding Needs you.
     public var folded: CardFolds { folding.folds }
 
-    /// What Lee folded, the strip's setting as well.
+    /// What Lee folded, kept.
     private let folding: Folding
     /// The light's own clock, apart from the frames': the latest it was drawn at.
     private var lit: Double
@@ -123,6 +127,22 @@ public final class NotchRun: Framed {
     private var laid: Laid
     /// The asks panel: where it is open, the answer held, the asks answered, and how its words are set.
     var asking: AsksPanel
+    /// Whether the panel holds the keys, and which hold it is.
+    var hold = KeyHold()
+    /// The row the keys lit, by its key, until the pointer moves.
+    var keyLit: String?
+    /// The pointer as the moments last gave it, which the keys' hold tells a move by; a menu's place holding the
+    /// card is none.
+    var felt: CGPoint?
+    /// The Mac heard the pointer move since the moments last gave it, though it may stand where it was felt
+    /// (`pointerMoved`).
+    var movedSinceFelt = false
+    /// When the pointer last moved, as felt, while the panel was in, closing or pouring, and the shortcut has opened
+    /// none since: a panel coming open within `hoverWindow` of it is the hover's, whose hold starts then.
+    var lastMoveIn: Double?
+    /// How soon after the pointer's last move a panel coming open is the hover's, ms: one the notch's swell, return
+    /// or restyle opens under a pointer parked longer takes no keys until it moves.
+    static let hoverWindow = 1000.0
 
     /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
     /// time zone, followed as it changes (`WakeTime.calendar`), and the asks panel's words as `measure` sets them.
@@ -174,8 +194,7 @@ public final class NotchRun: Framed {
     }
 
     /// One frame: the list as it folds now, the model moved on with the pointer where it is, the rows taking core's
-    /// order once the panel is in, and the sections as folded on the strip meanwhile, the notch Lee chose once it is at
-    /// rest, and the scroll kept inside the content.
+    /// order once the panel is in, the notch Lee chose once it is at rest, and the scroll kept inside the content.
     public func step(_ moment: Moment) {
         let time = book.clock(moment.time), setting = moment.setting
 
@@ -186,6 +205,7 @@ public final class NotchRun: Framed {
         var input = Self.input(at: time, pointer: pointer, needsLee: board.needsLee, list, setting)
 
         input.pointerAt = menuAt == nil ? moment.pointerAt : nil
+        input.pointerIsHeld = menuAt != nil
         let onList = pointer.map { frame.panel?.contains($0) == true } ?? false
 
         input.beside = asking.beside(pointer, onList: onList, at: time)
@@ -202,10 +222,11 @@ public final class NotchRun: Framed {
         asking.listShifted(by: scroll - was)
         asks.take(lastAsk: frame.light.lastAsk, simTime: frame.time, at: time)
         placeAsks(in: setting)
+        holdKeys(moment)
     }
 
     /// Hidden, the notch's time ran on: it is taken on to now (`Notch.runOn`), the pointer away, and the frame after
-    /// shows it.
+    /// shows it. The pointer is felt where it is now, which no hover reached: its moves went unheard while hidden.
     public func catchUp(_ moment: Moment) {
         let from = time, to = book.clock(moment.time)
         let input = { [board, list] (time: Double) in
@@ -214,6 +235,8 @@ public final class NotchRun: Framed {
 
         frame = notch.runOn(from: from, to: to, input) { latch($1, at: $0) }
         placeAsks(in: moment.setting)
+        holdKeys(moment)
+        lastMoveIn = nil
     }
 
     /// What a frame at this time showed, for the drawing: the edge swapped, and the panel going in for a click's jump.
@@ -223,7 +246,7 @@ public final class NotchRun: Framed {
 
     /// The board as `watch` last printed it, told to the notch, its rows held while the panel is out: the items
     /// arriving on it to wash, by their keys, while the panel is out; never one a row changing section leaves, folding
-    /// away. An arrival unfolds Needs you, at once, while Lee has the notch show the board.
+    /// away. An arrival unfolds Needs you, at once, whatever Show is set to.
     public func show(_ board: PanelBoard, _ moment: Moment) -> Set<String> {
         upToNow(moment)
         board.tell(notch, after: self.board)
@@ -232,7 +255,7 @@ public final class NotchRun: Framed {
         rows.take(board.cardSessions)
         asking.take(board)
 
-        if !board.new.isEmpty, moment.setting.isChosen {
+        if !board.new.isEmpty {
             folding.set(.needsYou, folded: false)
         }
         relist(at: time, in: moment.setting)
@@ -327,10 +350,11 @@ public final class NotchRun: Framed {
         return true
     }
 
-    /// A click anywhere off the panel and the notch: the panel closes at once.
+    /// A click anywhere off the panel and the notch: the panel closes at once, and the keys are let go, so the window
+    /// clicked has them as it closes.
     public func clickElsewhere(_ moment: Moment) {
         upToNow(moment)
-        notch.clickElsewhere()
+        closePanel()
     }
 
     /// The jump a click asked for answered: a row still pressed in drains the panel now.
@@ -347,7 +371,10 @@ public final class NotchRun: Framed {
         }
 
         upToNow(moment)
-        asking.swiped(scroll, at: time, panelRows, board, reducesMotion: moment.setting.reducesMotion)
+        asking.swiped(
+            scroll, at: time, panelRows, board, mirror: moment.setting.mirror,
+            reducesMotion: moment.setting.reducesMotion
+        )
         placeAsks(in: moment.setting)
     }
 
@@ -376,10 +403,11 @@ public final class NotchRun: Framed {
     }
 
     /// Whether frames must keep coming at this time, though the pointer is still: the notch moves, a row folds, the
-    /// way to the asks panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`), or its
-    /// asks slide, under the fingers or settling (`AsksSlide`).
+    /// way to the asks panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`), its
+    /// asks slide, under the fingers or settling (`AsksSlide`), or it takes `⌘Z` through the beat after its sending
+    /// line went, so the frame its beat ends at tells the tap (`AsksPanel.takesUndo`).
     public func needsFrames(at time: Double) -> Bool {
-        frame.isMoving || isFolding(at: time) || asking.needsFrames
+        frame.isMoving || isFolding(at: time) || asking.needsFrames(at: time)
     }
 
     /// When, after this wall time, the first of the shown rows' times, or a wake's countdown, next reads differently,
@@ -404,9 +432,9 @@ public final class NotchRun: Framed {
         contentPoint(point, in: setting).flatMap(list.content.item(at:))
     }
 
-    /// A row's menu opened at a point on the stage: until it closes, the card holds open as if the pointer rested
-    /// there, wherever the pointer goes on the menu, and its grace starts only once the menu closes, so a choice made
-    /// on it finds its row still showing.
+    /// A row's menu, or a snooze menu, opened at a point on the stage: until it closes, the card holds open as if the
+    /// pointer rested there, wherever the pointer goes on the menu, and its grace starts only once the menu closes, so
+    /// a choice made on it finds its row still showing.
     public func menuOpened(at point: CGPoint) {
         menuAt = point
     }
@@ -441,7 +469,7 @@ public final class NotchRun: Framed {
     }
 
     /// A click on an item: an eyebrow folds its section or unfolds it, at once; a row jumps.
-    private func click(_ index: Int, in setting: Setting) -> Press? {
+    func click(_ index: Int, in setting: Setting) -> Press? {
         guard case let .eyebrow(eyebrow)? = list.item(index) else {
             return jump(index)
         }
@@ -451,6 +479,8 @@ public final class NotchRun: Framed {
         return .fold
     }
 
+    /// The row at this index, where it jumps, pressed in: its asks panel closed, and the keys' hold ended, so what is
+    /// typed next goes to the window jumped to.
     func jump(_ index: Int) -> Press? {
         let items = notch.items
 
@@ -459,6 +489,7 @@ public final class NotchRun: Framed {
         }
 
         asking.close()
+        letGo()
         return .jump(session, to: session.id, click: book.click())
     }
 
@@ -513,7 +544,7 @@ public final class NotchRun: Framed {
         }
 
         if isOut {
-            notch.clickElsewhere()
+            closePanel()
         } else if notch.phase == .closed, !frame.isMoving {
             style = chosen
             notch = style.notch(input)

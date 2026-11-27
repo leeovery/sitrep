@@ -45,6 +45,8 @@ public final class Meniscus: Notch {
     var reveal = Reveal.none
     /// The row a click is jumping to, pressed in until the panel has drained.
     var jumping: String?
+    var awaitsPointer = false
+    var ownPointer: Vec?
     /// A drag has the notch, ...
     var isCarried = false
     /// ... or let it go across the screen's middle, and it is draining into this edge to grow out of the other ...
@@ -63,6 +65,7 @@ public final class Meniscus: Notch {
     /// Under reduced motion, the outline cross-fading out, and since when.
     var fade: (outline: CGPath, t0: Double)?
     var lastOutline: CGPath?
+    var lastShape: CGPath?
 
     /// At Lee's feel, from its first frame's input.
     public convenience init(_ input: Input) {
@@ -169,7 +172,7 @@ public final class Meniscus: Notch {
         if besideChanged, pointer == sp, wasBeside || isBeside(sp) {
             rehover()
         }
-        pointerMoved(pointer, at: input.pointerTime)
+        pointerMoved(pointer, at: input.pointerTime, isHeld: input.pointerIsHeld)
     }
 
     /// The screen changed: the notch's home moves with it, unless a drag has already taken it there.

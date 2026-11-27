@@ -19,7 +19,7 @@ public enum SettingsPane: String, Codable, CaseIterable, Sendable, Identifiable 
     }
 
     /// Its SF Symbol in the sidebar, each there from macOS 14: Edge's a screen with a third of it lit at its leading
-    /// edge, where the notch and the strip stand.
+    /// edge, where the notch stands.
     public var symbol: String {
         switch self {
         case .general: "gearshape"

@@ -5,12 +5,12 @@ import SitRepPanel
 /// The asks panel in black (Paper's boards F and H3; DESIGN, "Answering from the panel"): the panel's black, 372 wide,
 /// its corners 24, a hairline round it and a submenu's shadow, over the list's front; its top line, the session's name
 /// and project and its page dots; the ask's title and its age; its answers' rows, Claude's pick first in lilac, none
-/// for an ask Lee answers in Claude; and its foot, Ignore, Snooze ▾ and Open in Claude, or, while an answer of its ask
-/// is held, the sending line, its ring counting down the two seconds and Undo. It appears at once, as a Mac submenu
-/// does, and is drawn again only as what it shows changes; a frame moves it with its row. As its asks slide (DESIGN,
-/// "Paging"), the ask's own page, its title, age and answers, slides across with the ask beside it, clipped to its
-/// shape; its frame, its top line and its foot stay, its dots and its height following the slide, its foot at its
-/// bottom.
+/// for an ask Lee answers in Claude, numbered in keycaps while the panel holds the keys; and its foot, Ignore, Snooze ▾
+/// and Open in Claude, or, while an answer of its ask is held, the sending line, its ring counting down the two seconds
+/// and Undo. It appears at once, as a Mac submenu does, and is drawn again only as what it shows changes; a frame moves
+/// it with its row. As its asks slide (DESIGN, "Paging"), the ask's own page, its title, age and answers, slides
+/// across with the ask beside it, clipped to its shape; its frame, its top line and its foot stay, its dots and its
+/// height following the slide, its foot at its bottom.
 @MainActor
 final class AsksPanelLayer {
     let layer = CALayer()
@@ -83,8 +83,8 @@ final class AsksPanelLayer {
         for shadow in sliding.shadows {
             shadow.shadowPath = outline(bounds)
         }
-        sliding.page.frame.origin.x = -asks.slid
-        sliding.beside?.frame.origin.x = (asks.slid < 0 ? -1 : 1) * AsksLayout.width - asks.slid
+        sliding.page.frame.origin.x = asks.pageX
+        sliding.beside?.frame.origin.x = asks.besideX
         sliding.band.frame = CGRect(x: 0, y: height - band, width: bounds.width, height: band)
         sliding.foot.frame.origin.y = height - asks.layout.height
         sliding.foot.opacity = sliding.besideFoot == nil ? 1 : Float(1 - asks.share)
@@ -207,10 +207,11 @@ final class AsksPanelLayer {
     }
 
     /// An answer's row (Paper's board H3): its words alone, on up to two lines, Claude's pick filled and bordered in
-    /// lilac with "Recommended" after its words, any other in the panel's greys; each lighter under the pointer; white
-    /// while it is the answer held, its words in ink and a check at its trailing end.
+    /// lilac with "Recommended" after its words, any other in the panel's greys; each lighter under the pointer; its
+    /// number in a keycap at its right end while the panel holds the keys; white while it is the answer held, its words
+    /// in ink and a check in its keycap's room.
     private static func answer(_ index: Int, of asks: AsksShown) -> CALayer {
-        let shows = AsksPanelParts.answerRow(index, of: asks)
+        let shows = AsksPanelParts.answerRow(index, of: asks), lines = asks.layout.answerLines[index]
         let row = rounded(asks.layout.answers[index], AsksLayout.answerRadius, fill: nil)
         let ground = Self.ground(shows)
 
@@ -221,7 +222,9 @@ final class AsksPanelLayer {
             row.addSublayer(Self.line(line, in: box, isHeld: shows.isHeld))
         }
         if shows.isHeld {
-            row.addSublayer(check(in: row.bounds.size))
+            row.addSublayer(check(in: row.bounds.size, lines: lines))
+        } else if let number = shows.number {
+            row.addSublayer(keycap(number, in: AsksLayout.keycap(in: row.bounds.size, lines: lines)))
         }
         return row
     }
@@ -251,11 +254,20 @@ final class AsksPanelLayer {
         return TextLine(text, in: box)
     }
 
-    /// The held answer's check, in ink, at its row's trailing end.
-    private static func check(in row: CGSize) -> CALayer {
-        let check = AsksPanelParts.check(in: row)
+    /// The held answer's check, in ink, in its keycap's room.
+    private static func check(in row: CGSize, lines: Int) -> CALayer {
+        let check = AsksPanelParts.check(in: row, lines: lines)
 
         return stroked(check.path, in: check.box, colour: EdgeStyle.onWhite, width: AsksPanelParts.checkWidth)
+    }
+
+    /// An answer's keycap, its number soft on it.
+    private static func keycap(_ number: Int, in box: CGRect) -> CALayer {
+        let cap = rounded(box, AsksLayout.keycapRadius, fill: EdgeStyle.keycap)
+        let digit = AsksPanelParts.keycapNumber(number)
+
+        cap.addSublayer(TextLine(digit.text, in: digit.box))
+        return cap
     }
 
     /// The foot: Ignore, Snooze ▾ and, for an ask answered here, Open in Claude; while its ask's answer is held, the

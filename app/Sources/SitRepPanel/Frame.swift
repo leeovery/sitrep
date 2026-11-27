@@ -53,6 +53,9 @@ public struct Input {
     /// A panel beside the open one, the asks panel, and while the pointer is on its way there, the way to it: the
     /// pointer on it is on the panel, so leaving both is leaving the panel, and the open edge never clings to it.
     public var beside: CGPath?
+    /// Whether `pointer` is a place a menu holds the panel open at, as if the pointer rested there, and not the
+    /// pointer's own: no move of the pointer's.
+    public var pointerIsHeld = false
 
     public init(
         time: Double, pointer: CGPoint?, pointerAt: Double? = nil, needsLee: Bool, stage: Stage, content: Content,
@@ -80,6 +83,10 @@ public struct Frame {
     public let phase: Phase
     /// The black, notch or panel: one closed path, starting and ending a little past the screen's edge.
     public let outline: CGPath
+    /// The black's own shape: the outline less any bump the open edge bows, stretches or dents with toward the pointer.
+    /// The pointer inside it is on the black, as the open edge has it, while the tongue following a leaving pointer is
+    /// no part of it.
+    public let shape: CGPath
     /// How opaque it is: below 1 only while it cross-fades in under reduced motion, ...
     public let outlineAlpha: Double
     /// ... from the outline it was, fading out.
@@ -100,12 +107,14 @@ public struct Frame {
     public let swapsEdge: Bool
 
     init(
-        time: Double, phase: Phase, outline: CGPath, outlineAlpha: Double = 1, fading: Fading? = nil, panel: Panel?,
-        light: Light, hitRect: CGRect, isMoving: Bool, lift: Double = 0, swapsEdge: Bool = false
+        time: Double, phase: Phase, outline: CGPath, shape: CGPath? = nil, outlineAlpha: Double = 1,
+        fading: Fading? = nil, panel: Panel?, light: Light, hitRect: CGRect, isMoving: Bool, lift: Double = 0,
+        swapsEdge: Bool = false
     ) {
         self.time = time
         self.phase = phase
         self.outline = outline
+        self.shape = shape ?? outline
         self.outlineAlpha = outlineAlpha
         self.fading = fading
         self.panel = panel
@@ -182,7 +191,7 @@ public struct Frame {
         }
 
         /// A point in the content's own frame on the stage, the way back from `contentPoint`.
-        func stagePoint(_ point: CGPoint, mirror: CGAffineTransform, scroll: Double) -> CGPoint {
+        public func stagePoint(_ point: CGPoint, mirror: CGAffineTransform, scroll: Double) -> CGPoint {
             let drawn = drawn(mirror)
 
             return CGPoint(x: point.x + drawn.minX, y: point.y + drawn.minY - scroll).applying(mirror.inverted())

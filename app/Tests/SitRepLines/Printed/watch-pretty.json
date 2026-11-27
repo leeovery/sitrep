@@ -11,7 +11,6 @@
       "project": "humongous",
       "name": "Plan the launch",
       "projectName": "Humongous",
-      "letters": "Hu",
       "lines": [
         {
           "key": "ask:sr-7p4wd2:k1hs",
@@ -36,7 +35,6 @@
       "project": "woodgrove-5c3e91f0",
       "name": "Report caching and snags",
       "projectName": "Woodgrove",
-      "letters": "Wo",
       "lines": [
         {
           "key": "stop:sr-y6m1pr:00000000-0000-4000-8000-000000000002:1792445500000",
@@ -57,7 +55,6 @@
       "project": "code-2c4e6a80",
       "name": "Build the desktop app",
       "projectName": "Trey Research",
-      "letters": "TR",
       "lines": [
         {
           "key": "turn:sr-a8n2xc",

@@ -10,7 +10,7 @@ Type `sitrep` in a terminal, and the terminal view fills it with the board: what
 
 1. Open a terminal on your Mac. Or sign in to the Mac over SSH, with Remote Login on in System Settings › General › Sharing.
 2. Type `sitrep`. The board fills the terminal.
-3. Press `↓` to reach a session no window runs, then press `o` to open it here.
+3. Press `↓` to reach a session no window runs, then `o` to open it here.
 4. Press `q` to return to your shell.
 
 Homebrew links `sitrep` into the Homebrew `bin` folder, which a shell needs on its PATH.
@@ -53,4 +53,4 @@ The last line names the main keys. Here is every key:
 
 - [A click takes you there](jump.md)
 - [Settings, pane by pane](settings.md)
-- [The edge of your screen](notch.md)
+- [Same keys, wherever the board shows](keys.md)

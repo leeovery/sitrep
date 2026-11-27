@@ -1,8 +1,8 @@
 import CoreGraphics
 
-/// A session as the edge shows it: a row on the panel, a mark on the strip, and a mark's tab. One needing Lee has a
-/// line for each ask and stop waiting on Lee, the newest first; its row in Snoozed, on the card and the strip, a line
-/// for each ask asleep, or its turn's alone; any other has its one line.
+/// A session as the edge shows it: a row on the panel. One needing Lee has a line for each ask and stop waiting on
+/// Lee, the newest first; its row in Snoozed a line for each ask asleep, or its turn's alone; any other has its one
+/// line.
 public struct Session: Equatable, Sendable {
     /// Where it stands: its turn over but on its own work, which will wake it, among them; or, a row in Snoozed, its
     /// asks asleep, or its turn Lee snoozed.
@@ -67,21 +67,6 @@ public struct Session: Equatable, Sendable {
 
             return until - Session.minute * (((until - now) / Session.minute).rounded(.up) - 1)
         }
-
-        /// The readings of a wake's countdown a row leaves room for from this time on: its reading now, and the widest
-        /// of each smaller unit still to come, "in 23h" and "in 59m", as wide as any of its unit with the figures
-        /// tabular, as the views set them; none with no wake.
-        public func countdownRoom(after now: Double) -> [String] {
-            guard let until else {
-                return []
-            }
-
-            let left = until - now
-            let minutes = (left / Session.minute).rounded(.up)
-            let later = minutes >= 24 * 60 ? ["in 23h", "in 59m"] : minutes >= 60 ? ["in 59m"] : []
-
-            return [Session.untilText(left)] + later
-        }
     }
 
     public let id: String
@@ -89,11 +74,9 @@ public struct Session: Equatable, Sendable {
     public var project: String
     /// Its name, which its row shows as its title while it needs Lee.
     public var name: String
-    /// The project's two letters, as its mark on the strip shows them.
-    public var letters: String
     public var kind: Kind
-    /// Not here: no window holding it, or none this Mac shows (DESIGN, stage 8). Its row and its tab are drawn away,
-    /// and a click on them carries it on.
+    /// Not here: no window holding it, or none this Mac shows (DESIGN, stage 8). Its row is drawn away, and a
+    /// click on it carries it on.
     public var away: Bool
     /// Needing Lee, the newest first, as core has them; in Snoozed, the soonest to wake first; never none.
     public var lines: [Line]
@@ -104,14 +87,13 @@ public struct Session: Equatable, Sendable {
     public var wakesAt: Double?
 
     public init(
-        id: String, project: String, name: String = "", letters: String? = nil, kind: Kind, away: Bool = false,
-        lines: [Line], sub: String, wakesAt: Double? = nil
+        id: String, project: String, name: String = "", kind: Kind, away: Bool = false, lines: [Line], sub: String,
+        wakesAt: Double? = nil
     ) {
         precondition(!lines.isEmpty, "a session's row has a line")
         self.id = id
         self.project = project
         self.name = name
-        self.letters = letters ?? Self.letters(of: project)
         self.kind = kind
         self.away = away
         self.lines = lines
@@ -121,13 +103,13 @@ public struct Session: Equatable, Sendable {
 
     /// A session of one line.
     public init(
-        id: String, project: String, name: String = "", letters: String? = nil, kind: Kind, away: Bool = false,
-        ask: String? = nil, title: String, code: String? = nil, subject: String? = nil, until: Double? = nil,
-        more: String? = nil, sub: String, since: Double
+        id: String, project: String, name: String = "", kind: Kind, away: Bool = false, ask: String? = nil,
+        title: String, code: String? = nil, subject: String? = nil, until: Double? = nil, more: String? = nil,
+        sub: String, since: Double
     ) {
         let line = Line(ask: ask, title: title, code: code, subject: subject, until: until, more: more, since: since)
 
-        self.init(id: id, project: project, name: name, letters: letters, kind: kind, away: away, lines: [line], sub: sub)
+        self.init(id: id, project: project, name: name, kind: kind, away: away, lines: [line], sub: sub)
     }
 
     /// What its row says, on every surface, on one line with its time: needing Lee, or in Snoozed, its name, and "3"
@@ -156,13 +138,6 @@ public struct Session: Equatable, Sendable {
     /// The time its row counts from: needing Lee, its newest line's; else its one line's.
     public var since: Double { headline.since }
 
-    /// A project's letters as the prototypes have them, where none are given: its two capitals where it has two
-    /// (Trey Research TR, BlueYonder BY), else its first two (Woodgrove Wo, trey tr).
-    static func letters(of project: String) -> String {
-        let caps = project.filter { $0.isASCII && $0.isUppercase }
-        return caps.count >= 2 ? String(caps.prefix(2)) : String(project.prefix(2))
-    }
-
     /// Whether it is an ask's row in Needs you: its lines asks, permission prompts or questions, not its turn.
     public var needsLee: Bool { kind == .needs }
 
@@ -184,12 +159,6 @@ public struct Session: Equatable, Sendable {
 
     /// When on the wall clock its row's words may next read differently: its time, or a wake's countdown.
     public func changes(after now: Double) -> Double { headline.changes(after: now) }
-
-    /// When on the wall clock its wake's countdown next reads differently (`Line.countdownChanges`).
-    public func countdownChanges(after now: Double) -> Double? { headline.countdownChanges(after: now) }
-
-    /// The readings of its wake's countdown a row leaves room for (`Line.countdownRoom`).
-    public func countdownRoom(after now: Double) -> [String] { headline.countdownRoom(after: now) }
 
     fileprivate static let minute = 60_000.0
 

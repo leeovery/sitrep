@@ -100,6 +100,7 @@ extension Meniscus {
     /// cross-fades to the notch.
     func close(_ reason: CloseReason) {
         cancel(.dwell, .grace)
+        awaitsPointer = false
         // a pointer left on the notch doesn't reopen it until it leaves, nor one left within the attraction's reach
         contact.armed = false
         attract.armed = false
@@ -317,9 +318,9 @@ extension Meniscus {
 
     /// Left back over a flare into the bezel (or with the cling off): the grace, shorter the faster the pointer went.
     /// Leaving through any other part of the edge never comes here while it clings: the stretch is the grace. Not while
-    /// a jump's row is pressed in: the jump drains it.
+    /// a jump's row is pressed in: the jump drains it; nor while the shortcut's panel awaits the pointer.
     func maybeClose(_ speed: Double) {
-        guard phase == .open, jumping == nil, !cling.attached, !pointerInside() else {
+        guard phase == .open, jumping == nil, !awaitsPointer, !cling.attached, !pointerInside() else {
             return
         }
 

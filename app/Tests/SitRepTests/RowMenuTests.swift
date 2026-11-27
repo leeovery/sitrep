@@ -274,4 +274,47 @@ struct RowMenuTests {
         #expect(RowMenu.Row(turn) == RowMenu.Row(asks: [], isSnoozed: false))
         #expect(RowMenu.Row(turnAsleep) == RowMenu.Row(asks: [], isSnoozed: true))
     }
+
+    // MARK: Keys
+
+    /// Each choice's key equivalent, the separator aside.
+    private static func keys(_ menu: NSMenu) -> [String] {
+        menu.items.filter { !$0.isSeparatorItem }.map(\.keyEquivalent)
+    }
+
+    /// Shown on its own, as `z` on a row shows it or Snooze ▾, a snooze menu numbers its choices 1 to 9 in order,
+    /// Until it moves among them, each its key pressed alone (DESIGN, "Keys").
+    @Test func onItsOwnASnoozeMenuNumbersItsChoices() {
+        let row = SnoozeMenu.forRow(offering: SnoozeSettings(), at: Self.now, in: Self.london) { _ in }
+        let ask = SnoozeMenu.forAsk(offering: SnoozeSettings(), at: Self.now, in: Self.london) { _ in }
+
+        #expect(Self.choices(row) == Self.choices(Self.snoozeMenu()))
+        #expect(Self.keys(row) == ["1", "2", "3", "4", "5", "6"])
+        #expect(Self.keys(ask) == ["1", "2", "3", "4", "5"])
+        expectEvery(row.choiceItems + ask.choiceItems) { $0.keyEquivalentModifierMask.isEmpty }
+        #expect(row.choiceItems.count == 6 && ask.choiceItems.count == 5)
+    }
+
+    /// As the row's menu's Snooze it numbers nothing, since a submenu's key equivalents fire from its menu.
+    @Test func asTheRowsMenusSnoozeItNumbersNothing() throws {
+        let menu = Self.menu(RowMenu.Row(asks: ["k1"], isSnoozed: false), Heard())
+        let snooze = try #require(menu.items.last?.submenu)
+
+        #expect(Self.keys(snooze) == ["", "", "", "", "", ""])
+        #expect(Self.keys(menu) == ["", ""])
+    }
+
+    /// A digit the tap hands on chooses that choice, Until it moves among them, as a click on it does; past the last,
+    /// nothing.
+    @Test func aNumberChoosesItsChoice() {
+        var untils: [Date?] = []
+        let row = SnoozeMenu.forRow(offering: SnoozeSettings(), at: Self.now, in: Self.london) { untils.append($0) }
+
+        _ = NSApplication.shared
+        row.choose(number: 1)
+        row.choose(number: 6)
+        row.choose(number: 7)
+        row.choose(number: 0)
+        #expect(untils == [Self.now.addingTimeInterval(60 * 60), nil])
+    }
 }

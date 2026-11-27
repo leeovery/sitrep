@@ -143,7 +143,7 @@ struct WelcomeFocusTests {
         #expect(Self.frame(made) == stops.last)
     }
 
-    /// Your edge: the two tiles, the form's rows from the top, Show nothing at the edge, then the footer.
+    /// Your edge: the notch's tile, the form's rows from the top, Show nothing at the edge, then the footer.
     @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func tabGoesThroughAStepsControlsInReadingOrderThenTheFooters() async throws {
         let made = Made()
@@ -153,13 +153,13 @@ struct WelcomeFocusTests {
         let stops = Self.stops(made)
         let reading = stops.sorted { ($1.midY, $0.minX) < ($0.midY, $1.minX) }
 
-        #expect(stops.count == 8)
+        #expect(stops.count == 7)
         #expect(stops == reading)
         expectEvery(stops.suffix(3)) { $0.maxY <= WelcomeStyle.footer }
     }
 
     /// At Nothing, the form's rows take no presses and a line stands in Show nothing at the edge's place: Tab goes from
-    /// the tiles to the footer.
+    /// the tile to the footer.
     @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func atNothingTabGoesFromTheTilesToTheFooter() async throws {
         let made = Made()
@@ -170,8 +170,8 @@ struct WelcomeFocusTests {
 
         let stops = Self.stops(made)
 
-        #expect(stops.count == 5)
-        expectEvery(stops.prefix(2)) { $0.maxX < WelcomeStyle.column && $0.minY > WelcomeStyle.footer }
+        #expect(stops.count == 4)
+        #expect(stops.first.map { $0.maxX < WelcomeStyle.column && $0.minY > WelcomeStyle.footer } == true)
         expectEvery(stops.suffix(3)) { $0.maxY <= WelcomeStyle.footer }
     }
 

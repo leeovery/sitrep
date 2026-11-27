@@ -5,7 +5,9 @@ import Testing
 
 /// Where the asks panel lays out an ask, as Paper's boards F and H3 have it: 12 over its top line of 28, 14 between
 /// its parts, the title's lines of 22 and the age's 16 under it, answers' rows six apart, each 38 or as tall as its
-/// two lines of 18 with 9 above and below, the foot's 28 and 14 under it; a words ask's foot straight under its age;
+/// two lines of 18 with 9 above and below, their words 12 from the left and 40 from the right, the keycap's room, and
+/// the keycap there, the held answer's check in it, the foot's 28 and 14 under it; a words ask's foot straight under
+/// its age;
 /// Snooze ▾ only while Snooze offers a time; the page dots, following a slide, and the clicks each takes; what else
 /// takes a click; where it stands beside its row, kept on the screen, at the height a slide gives it; and the row's
 /// arrow.
@@ -49,18 +51,32 @@ struct AsksLayoutTests {
         #expect(layout.height == oneLine.height + 32)
     }
 
-    /// Its lines on the row's middle, 12 in from its sides; the held answer's check 11 across at its trailing end, 12
-    /// in, on the middle.
-    @Test func anAnswersLinesSitOnItsRowsMiddleItsCheckAtItsEnd() {
+    /// Its lines on the row's middle, 12 in from its left and 40 from its right, keycap or none, so its words wrap
+    /// alike as keycaps come and go.
+    @Test func anAnswersLinesSitOnItsRowsMiddleLeavingItsKeycapRoom() {
         let row = CGSize(width: 348, height: 54)
 
+        #expect(AsksLayout.answerWidth == 296)
         #expect(AsksLayout.answerBoxes(in: row, lines: 2) == [
-            CGRect(x: 12, y: 9, width: 324, height: 18), CGRect(x: 12, y: 27, width: 324, height: 18),
+            CGRect(x: 12, y: 9, width: 296, height: 18), CGRect(x: 12, y: 27, width: 296, height: 18),
         ])
         #expect(AsksLayout.answerBoxes(in: CGSize(width: 348, height: 38), lines: 1) == [
-            CGRect(x: 12, y: 10, width: 324, height: 18),
+            CGRect(x: 12, y: 10, width: 296, height: 18),
         ])
-        #expect(AsksLayout.check(in: row) == CGRect(x: 325, y: 21.5, width: 11, height: 11))
+    }
+
+    /// The keycap 20 across, 12 in from the row's right, centred on its first line, clear of the words' 40; the held
+    /// answer's check 11 across, centred in the keycap's room.
+    @Test func theKeycapEndsTheRowOnItsFirstLineAndTheCheckTakesItsRoom() {
+        let one = CGSize(width: 348, height: 38), two = CGSize(width: 348, height: 54)
+        let firstLine = AsksLayout.answerBoxes(in: two, lines: 2)[0]
+
+        #expect(AsksLayout.keycap(in: one, lines: 1) == CGRect(x: 316, y: 9, width: 20, height: 20))
+        #expect(AsksLayout.keycap(in: two, lines: 2) == CGRect(x: 316, y: 8, width: 20, height: 20))
+        #expect(AsksLayout.keycap(in: two, lines: 2).midY == firstLine.midY)
+        #expect(AsksLayout.keycap(in: one, lines: 1).minX >= 12 + AsksLayout.answerWidth)
+        #expect(AsksLayout.check(in: one, lines: 1) == CGRect(x: 320.5, y: 13.5, width: 11, height: 11))
+        #expect(AsksLayout.check(in: two, lines: 2) == CGRect(x: 320.5, y: 12.5, width: 11, height: 11))
     }
 
     /// Lee switched every Snooze time off, or each has passed for today: no Snooze ▾, and nothing takes a click where
@@ -117,6 +133,24 @@ struct AsksLayoutTests {
         #expect(part(layout.undo, true) == .undo)
     }
 
+    /// Where a key presses each part, the dots where a slide has brought them; none for a part it lacks.
+    @Test func eachPartHasTheBoxAKeyPresses() throws {
+        let layout = AsksLayout(Self.choice, measure: Self.measure)
+        let none = AsksLayout(Self.choice, measure: Self.measure, offersSnooze: false)
+
+        #expect(layout.box(of: .answer(1), progress: 0, of: 2) == layout.answers[1])
+        #expect(layout.box(of: .answer(2), progress: 0, of: 2) == nil)
+        #expect(layout.box(of: .ignore, progress: 0, of: 2) == layout.ignore)
+        #expect(layout.box(of: .snooze, progress: 0, of: 2) == layout.snooze)
+        #expect(none.box(of: .snooze, progress: 0, of: 2) == nil)
+        #expect(layout.box(of: .open, progress: 0, of: 2) == layout.open)
+        #expect(layout.box(of: .undo, progress: 0, of: 2) == layout.undo)
+        #expect(layout.box(of: .page(1), progress: 0.5, of: 2) == layout.dots(at: 0.5, of: 2)[1])
+        #expect(layout.box(of: .page(2), progress: 0, of: 2) == nil)
+        #expect(layout.box(of: .page(-1), progress: 0, of: 2) == nil)
+        #expect(layout.box(of: .page(0), progress: 0, of: 1) == nil)
+    }
+
     /// At the top line's right, the current one 14 wide and orange, the others 5, 4 apart, ending where its words do;
     /// none for one ask.
     @Test func thePageDotsEndTheTopLineTheCurrentOneWide() {
@@ -160,6 +194,35 @@ struct AsksLayoutTests {
         #expect(part(dots[1].midX, 41) == nil)
     }
 
+    /// Where the asks lie right to left, on the right edge, so do their dots, the first nearest the notch: the same
+    /// run at the top line's right, each dot in its mirror's place, the wide one passing leftward as a slide goes on.
+    @Test func pointingLeftTheDotsLieRightToLeft() {
+        let layout = AsksLayout(Self.choice, measure: Self.measure), top = layout.top
+        let first = layout.dots(page: 0, of: 3, pointsLeft: true)
+        let quarter = layout.dots(at: 1.25, of: 3, pointsLeft: true)
+
+        #expect(first.map(\.maxX) == [top.maxX, top.maxX - 18, top.maxX - 27])
+        #expect(first.map(\.width) == [14, 5, 5])
+        #expect(quarter.map(\.width) == [5, 11.75, 7.25])
+        #expect(quarter.last?.minX == top.maxX - 32 && quarter.first?.maxX == top.maxX)
+        #expect(layout.box(of: .page(2), progress: 0, of: 3, pointsLeft: true) == first[2])
+    }
+
+    /// Each dot takes the clicks nearest where it is drawn: lying right to left, the dot at the run's left end is the
+    /// last ask's, at its right end the first's, and 6 past either end are theirs.
+    @Test func pointingLeftEachDotTakesTheClicksNearestWhereItIsDrawn() {
+        let layout = AsksLayout(Self.choice, measure: Self.measure)
+        let dots = layout.dots(page: 0, of: 3, pointsLeft: true)
+        let part = { (x: Double) in
+            layout.part(at: CGPoint(x: x, y: 26), sending: false, page: 0, of: 3, pointsLeft: true)
+        }
+
+        #expect(part(dots[2].minX - 5.5) == .page(2))
+        #expect(part(dots[1].midX) == .page(1))
+        #expect(part(dots[0].maxX + 5.5) == .page(0))
+        #expect(part(dots[2].minX - 6.5) == nil && part(dots[0].maxX + 6.5) == nil)
+    }
+
     /// Overlapping the list's front by 8, its top 12 over its row's, and moved just enough to keep 8 inside the
     /// screen's visible frame, as a submenu.
     @Test func itStandsLevelWithItsRowKeptOnTheScreen() {
@@ -199,22 +262,31 @@ struct AsksLayoutTests {
         #expect(RowArrow.chevron(pointsLeft: true, in: CGSize(width: 26, height: 26)).boundingBox.midX == 13)
     }
 
-    /// A strip's tab's arrow is 40 by 26, 17 in from its words' front end on their middle, as far in as a notch row's
-    /// stands from the list's front: their right on the left edge, their left on the right.
-    @Test func aTabsArrowIs17InFromItsFrontEnd() {
-        let words = CGSize(width: 300, height: 52)
-
-        #expect(RowArrow.tabBox(in: words, pointsLeft: false) == CGRect(x: 243, y: 13, width: 40, height: 26))
-        #expect(RowArrow.tabBox(in: words, pointsLeft: true) == CGRect(x: 17, y: 13, width: 40, height: 26))
-        #expect(RowArrow.fromFront == RowArrow.inset + Content.paddingSide)
-    }
-
-    /// Beside a strip's tab, kept within the span given: the screen's visible frame, above the Dock.
+    /// Beside a row, kept within the span given: the screen's visible frame, above the Dock.
     @Test func itKeepsWithinTheSpanItIsGiven() {
         let layout = AsksLayout(Self.choice, measure: Self.measure)
 
         #expect(layout.frame(besideRowAt: 20, front: 300, within: 37 ... 982).minY == CGFloat(37 + AsksLayout.spare))
         #expect(layout.frame(besideRowAt: 960, front: 300, within: 37 ... 982).maxY == CGFloat(982 - AsksLayout.spare))
         #expect(layout.frame(besideRowAt: 300, front: 300, within: 37 ... 982).minX == 292)
+    }
+}
+
+/// The asks panel as the left edge has it, its asks lying left to right.
+private extension AsksLayout {
+    func part(at point: CGPoint, sending: Bool, page: Int, of pages: Int) -> AsksPart? {
+        part(at: point, sending: sending, page: page, of: pages, pointsLeft: false)
+    }
+
+    func dots(page: Int, of pages: Int) -> [CGRect] {
+        dots(page: page, of: pages, pointsLeft: false)
+    }
+
+    func dots(at progress: Double, of pages: Int) -> [CGRect] {
+        dots(at: progress, of: pages, pointsLeft: false)
+    }
+
+    func box(of part: AsksPart, progress: Double, of pages: Int) -> CGRect? {
+        box(of: part, progress: progress, of: pages, pointsLeft: false)
     }
 }

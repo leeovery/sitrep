@@ -6,8 +6,8 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
-/// The notch's and the strip's menus as `Edge` makes them: a row's Snooze offers the choices as Preferences has them
-/// as its menu opens, a change Lee made since they were made among them. Their display is far off every screen, so
+/// The notch's menus as `Edge` makes them: a row's Snooze offers the choices as Preferences has them as its menu
+/// opens, a change Lee made since it was made among them. Their display is far off every screen, so
 /// nothing shows.
 @MainActor
 @Suite(.backstop)
@@ -32,23 +32,15 @@ struct EdgeMenusTests {
     /// weekend and Next week switched off since the menus were made.
     @Test func aRowsSnoozeOffersTheChoicesAsPreferencesHasThemAsItsMenuOpens() throws {
         let preferences = Preferences(MemoryDefaults())
-        let (notch, strip) = Edge.shapes(preferences, on: Self.display)
+        let notch = Edge.notch(preferences, on: Self.display, keys: .none)
 
-        defer {
-            notch.window.close()
-            strip.window.close()
-        }
+        defer { notch.window.close() }
         for choice in [SnoozeChoice.inAnHour, .tonight, .thisWeekend, .nextWeek] {
             preferences.snooze.set(choice, on: false)
         }
 
-        let menus = [
-            notch.menu(for: Self.session, row: "row"),
-            strip.menu(for: .session(Self.session, section: .needsYou, isFolded: false)),
-        ]
+        let menu = notch.menu(for: Self.session, row: "row")
 
-        for menu in menus {
-            #expect(try Self.offered(menu) == ["Later today", "Tomorrow", "—", "Until it moves"])
-        }
+        #expect(try Self.offered(menu) == ["Later today", "Tomorrow", "—", "Until it moves"])
     }
 }
