@@ -134,6 +134,15 @@ public final class NotchRun: Framed {
     /// The pointer as the moments last gave it, which the keys' hold tells a move by; a menu's place holding the
     /// card is none.
     var felt: CGPoint?
+    /// The Mac heard the pointer move since the moments last gave it, though it may stand where it was felt
+    /// (`pointerMoved`).
+    var movedSinceFelt = false
+    /// When the pointer last moved, as felt, while the panel was in, closing or pouring, and the shortcut has opened
+    /// none since: a panel coming open within `hoverWindow` of it is the hover's, whose hold starts then.
+    var lastMoveIn: Double?
+    /// How soon after the pointer's last move a panel coming open is the hover's, ms: one the notch's swell, return
+    /// or restyle opens under a pointer parked longer takes no keys until it moves.
+    static let hoverWindow = 1000.0
 
     /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
     /// time zone, followed as it changes (`WakeTime.calendar`), and the asks panel's words as `measure` sets them.
@@ -217,7 +226,7 @@ public final class NotchRun: Framed {
     }
 
     /// Hidden, the notch's time ran on: it is taken on to now (`Notch.runOn`), the pointer away, and the frame after
-    /// shows it.
+    /// shows it. The pointer is felt where it is now, which no hover reached: its moves went unheard while hidden.
     public func catchUp(_ moment: Moment) {
         let from = time, to = book.clock(moment.time)
         let input = { [board, list] (time: Double) in
@@ -227,6 +236,7 @@ public final class NotchRun: Framed {
         frame = notch.runOn(from: from, to: to, input) { latch($1, at: $0) }
         placeAsks(in: moment.setting)
         holdKeys(moment)
+        lastMoveIn = nil
     }
 
     /// What a frame at this time showed, for the drawing: the edge swapped, and the panel going in for a click's jump.

@@ -120,6 +120,28 @@ struct ShortcutRunTests {
         #expect(Self.rows(run).first == Self.helpDesk)
     }
 
+    /// Its lit row stays the first in Needs you though the pointer moved just before the shortcut and as the panel
+    /// pours, coming to rest where Shift schedules' row comes to lie before the black reaches it: no hover opened it.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func itsLitRowStaysTheFirstInNeedsYouUnderAPointerMovingAsItPours(style: NotchStyle) throws {
+        let setting = Self.setting(style)
+        let shifts = try Self.words("needs:\(AsksBoard.shifts)", Self.summoned(setting))
+        let run = Self.closed(setting)
+        var pointer = CGPoint(x: 340, y: shifts.y - 3)
+
+        run.step(Self.at(run, pointer, setting))
+        run.summon(Self.at(run, pointer, setting))
+        while pointer.y < shifts.y {
+            pointer.y += 1
+            run.step(Self.at(run, pointer, setting))
+            try #require(run.phase == .opening && !run.frame.shape.contains(pointer), "a move off the pouring black")
+        }
+        Self.frames(run, for: 3000, pointer, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open && run.frame.shape.contains(pointer))
+        try #require(run.row(at: pointer, in: setting)?.key == "needs:\(AsksBoard.shifts)")
+        #expect(Self.lit(run, setting) == Self.helpDesk)
+    }
+
     /// With nothing in Needs you, the first row.
     @Test func withNothingInNeedsYouItsLitRowIsTheFirstRow() throws {
         let run = try Self.summoned(board: Self.workingAlone())

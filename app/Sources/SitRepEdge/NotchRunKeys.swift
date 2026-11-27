@@ -1,9 +1,9 @@
 import CoreGraphics
 import SitRepPanel
 
-/// Whether the panel holds the keys (DESIGN, "Keys"), and whose hold it is: the pointer's, which the pointer moving on
-/// the panel starts and moving off it ends, or the shortcut's, which holds every key until the panel closes, the
-/// pointer's moves aside. Each hold numbered, so the tap tells the hold a key it let go of ended from the next.
+/// Whether the panel holds the keys (DESIGN, "Keys"), and whose hold it is: the pointer's, which the hover's panel
+/// coming open under the pointer or the pointer moving on the panel starts, and moving off it ends; or the shortcut's,
+/// which holds every key until the panel closes, the pointer's moves aside. Each hold numbered, so the tap tells the hold a key it let go of ended from the next.
 struct KeyHold {
     enum Kind {
         case pointer, shortcut
@@ -16,8 +16,8 @@ struct KeyHold {
 
     var isShortcut: Bool { kind == .shortcut }
 
-    /// The pointer moved, on the open list or its asks panel or off them: on, it holds; off, it holds no more. A
-    /// shortcut's hold stays the shortcut's.
+    /// The pointer moved, or the hover's panel came open under it, on the panel's black or its asks panel or off them:
+    /// on, it holds; off, it holds no more. A shortcut's hold stays the shortcut's.
     mutating func moved(onPanel: Bool) {
         guard !isShortcut else {
             return
@@ -40,8 +40,9 @@ struct KeyHold {
     }
 }
 
-/// The panel's keys in the notch's run (DESIGN, "Keys"): the hold the pointer moving on the panel starts, the lit row
-/// the keys move, and what each key does there, by the paths a click takes.
+/// The panel's keys in the notch's run (DESIGN, "Keys"): the hold the hover's panel coming open under the pointer or
+/// the pointer moving on the panel starts, the lit row the keys move, and what each key does there, by the paths a
+/// click takes.
 extension NotchRun {
     /// What the tap decides each key by: the panel's hold while it holds the keys, `⌘Z` its while the asks panel takes
     /// it (`AsksPanel.takesUndo`), every key its in the shortcut's; else nothing.
@@ -60,10 +61,12 @@ extension NotchRun {
     }
 
     /// The panel holds the keys no more, whichever hold it is, until the pointer moves again: as the screens sleep, the
-    /// session goes to another user or a window takes secure input. The shortcut's panel stays open, no row lit.
+    /// session goes to another user or a window takes secure input. The shortcut's panel stays open, no row lit, and
+    /// a panel the hover pours comes open holding nothing, the move before forgotten.
     public func letGoOfKeys(_ moment: Moment) {
         upToNow(moment)
         letGo()
+        lastMoveIn = nil
     }
 
     /// The item lit, by its index: the row the keys lit, while it shows, else the item under the pointer, which an
@@ -112,7 +115,12 @@ extension NotchRun {
         guard !isOut else {
             return closePanel()
         }
-        guard notch.summon(), moment.isShown, moment.setting.takesKeys else {
+        guard notch.summon() else {
+            return
+        }
+
+        lastMoveIn = nil
+        guard moment.isShown, moment.setting.takesKeys else {
             return
         }
 
@@ -238,30 +246,56 @@ extension NotchRun {
 
     /// The keys held as the pointer moves: on the open panel, a move on its black (`Frame.shape`), the flares by the
     /// screen's edge as much as the rows, or on its asks panel holds them, and one off both holds them no more, the row
-    /// the keys lit going back to the pointer either way. A panel opening under a resting pointer holds nothing, nor
+    /// the keys lit going back to the pointer either way; a move is the pointer elsewhere than it was felt, or one the
+    /// Mac heard (`pointerMoved`). A panel coming open within `hoverWindow` of the pointer's last move holds them as it
+    /// comes open with the pointer on it, the hover that opened it counting wherever the pointer rests. None holds
     /// while a menu holds the card, nor while a jump is under way. The shortcut's hold holds on, from its opening,
     /// wherever the pointer goes, a move on the panel taking the lit row back. Hidden, closing or closed, or while the
     /// Mac lets the panel take no keys, it holds nothing.
     func holdKeys(_ moment: Moment) {
         let isHeld = notch.phase == .open || hold.isShortcut && notch.phase == .opening
+        let isFeltMove = moment.pointer != felt || movedSinceFelt
 
+        if notch.phase != .open, isFeltMove, !hold.isShortcut {
+            lastMoveIn = time
+        }
         guard moment.isShown, isHeld, moment.setting.takesKeys else {
             letGo()
-            felt = moment.pointer
+            feel(moment)
             return
         }
-        guard menuAt == nil, moment.pointer != felt else {
+
+        // read at the first open frame the keys may be held in: the Card opens at once under Reduce motion, before
+        // the Mac's tap is made
+        let isHoverOpening = notch.phase == .open && lastMoveIn.map { time - $0 <= Self.hoverWindow } ?? false
+
+        if notch.phase == .open {
+            lastMoveIn = nil
+        }
+        guard menuAt == nil, isFeltMove || isHoverOpening else {
             return
         }
 
         let isJumping = frame.panel?.pressed != nil
         let onPanel = !isJumping && moment.pointer.map { frame.shape.contains($0) || asking.isOn($0) } ?? false
 
-        felt = moment.pointer
+        feel(moment)
         if onPanel || !hold.isShortcut {
             keyLit = nil
         }
         hold.moved(onPanel: onPanel)
+    }
+
+    /// The Mac heard the pointer move: the next moment is a move for the keys' hold, though it gives the pointer where
+    /// it was felt, as pushed on against the screen's edge, where AppKit keeps it in place (Lee's live run, 27
+    /// November 2026).
+    public func pointerMoved() {
+        movedSinceFelt = true
+    }
+
+    private func feel(_ moment: Moment) {
+        felt = moment.pointer
+        movedSinceFelt = false
     }
 
     /// The hold ended, whichever it was, and the row the keys lit let go: the one way the panel lets go of the keys, as

@@ -70,7 +70,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **dimmed session**: A session drawn dimmed, because it isn't open on the device you're looking from. In the panel, that device is this Mac's screen, so a session you reach only over SSH is dimmed. In the terminal view, that device can be a phone or iPad over SSH, and a dimmed session in Needs you has a hollow dot. Its asks still count. While SitRep isn't running, the terminal view dims only a session no window runs.
 
-**holding the keys**: The panel taking its keys, so none reaches the window in front, even one with no use at that moment. It starts when the pointer moves on the panel, and ends at the first key that isn't one of the panel's keys. Opened with the shortcut, the panel holds every key until it closes.
+**holding the keys**: The panel taking its keys, so none reaches the window in front, even one with no use at that moment. It starts when the panel opens under the pointer, or when the pointer moves onto the panel. It ends at the first key that isn't one of the panel's keys. Opened with the shortcut, the panel holds every key until it closes.
 
 **keycap**: The number at the right end of an answer row in the asks panel, while the panel is holding the keys. Press that number to answer with the row.
 

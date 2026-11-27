@@ -57,6 +57,9 @@ final class NotchController: NSObject, CalloutShape, ShortcutNotch {
     private var isWide = false
     /// The panel's keys: internal only for the tests, which read what its tap was told.
     let keys: NotchKeys
+    /// Where AppKit has the pointer, in screen coordinates: settable only for the tests, which hold it on the screen
+    /// they made.
+    var mouseLocation: () -> CGPoint = { NSEvent.mouseLocation }
 
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
@@ -152,7 +155,7 @@ final class NotchController: NSObject, CalloutShape, ShortcutNotch {
     /// Now, as the run takes an input: the time, the pointer, whether the notch shows, and what it runs in.
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> NotchRun.Moment {
         NotchRun.Moment(
-            time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
+            time: time, pointer: pointer ?? edge.stagePoint(mouseLocation()), pointerAt: Displays.now,
             isShown: isShown, setting: setting
         )
     }
@@ -605,17 +608,23 @@ final class NotchController: NSObject, CalloutShape, ShortcutNotch {
         }
     }
 
-    private func heard(clickElsewhere: Bool) {
+    /// A move of the pointer or a click, as the monitors hear it: a move is one for the keys' hold though AppKit keeps
+    /// the pointer where it was, pushed on against the screen's edge (`NotchRun.pointerMoved`). Internal only for the
+    /// tests, which hold the pointer where AppKit would have it (`mouseLocation`).
+    func heard(clickElsewhere: Bool) {
         guard isShown else {
             return
         }
 
         keys.pointerMoved()
+        if !clickElsewhere {
+            run.pointerMoved()
+        }
         if clickElsewhere, run.isOut {
             run.clickElsewhere(moment())
             took()
         } else if window.takesClicks
-            || run.frame.wakes(from: run.seen, to: edge.stagePoint(NSEvent.mouseLocation), field: run.field)
+            || run.frame.wakes(from: run.seen, to: edge.stagePoint(mouseLocation()), field: run.field)
         {
             wake()
         }
