@@ -194,6 +194,35 @@ struct AsksLayoutTests {
         #expect(part(dots[1].midX, 41) == nil)
     }
 
+    /// Where the asks lie right to left, on the right edge, so do their dots, the first nearest the notch: the same
+    /// run at the top line's right, each dot in its mirror's place, the wide one passing leftward as a slide goes on.
+    @Test func pointingLeftTheDotsLieRightToLeft() {
+        let layout = AsksLayout(Self.choice, measure: Self.measure), top = layout.top
+        let first = layout.dots(page: 0, of: 3, pointsLeft: true)
+        let quarter = layout.dots(at: 1.25, of: 3, pointsLeft: true)
+
+        #expect(first.map(\.maxX) == [top.maxX, top.maxX - 18, top.maxX - 27])
+        #expect(first.map(\.width) == [14, 5, 5])
+        #expect(quarter.map(\.width) == [5, 11.75, 7.25])
+        #expect(quarter.last?.minX == top.maxX - 32 && quarter.first?.maxX == top.maxX)
+        #expect(layout.box(of: .page(2), progress: 0, of: 3, pointsLeft: true) == first[2])
+    }
+
+    /// Each dot takes the clicks nearest where it is drawn: lying right to left, the dot at the run's left end is the
+    /// last ask's, at its right end the first's, and 6 past either end are theirs.
+    @Test func pointingLeftEachDotTakesTheClicksNearestWhereItIsDrawn() {
+        let layout = AsksLayout(Self.choice, measure: Self.measure)
+        let dots = layout.dots(page: 0, of: 3, pointsLeft: true)
+        let part = { (x: Double) in
+            layout.part(at: CGPoint(x: x, y: 26), sending: false, page: 0, of: 3, pointsLeft: true)
+        }
+
+        #expect(part(dots[2].minX - 5.5) == .page(2))
+        #expect(part(dots[1].midX) == .page(1))
+        #expect(part(dots[0].maxX + 5.5) == .page(0))
+        #expect(part(dots[2].minX - 6.5) == nil && part(dots[0].maxX + 6.5) == nil)
+    }
+
     /// Overlapping the list's front by 8, its top 12 over its row's, and moved just enough to keep 8 inside the
     /// screen's visible frame, as a submenu.
     @Test func itStandsLevelWithItsRowKeptOnTheScreen() {
@@ -240,5 +269,24 @@ struct AsksLayoutTests {
         #expect(layout.frame(besideRowAt: 20, front: 300, within: 37 ... 982).minY == CGFloat(37 + AsksLayout.spare))
         #expect(layout.frame(besideRowAt: 960, front: 300, within: 37 ... 982).maxY == CGFloat(982 - AsksLayout.spare))
         #expect(layout.frame(besideRowAt: 300, front: 300, within: 37 ... 982).minX == 292)
+    }
+}
+
+/// The asks panel as the left edge has it, its asks lying left to right.
+private extension AsksLayout {
+    func part(at point: CGPoint, sending: Bool, page: Int, of pages: Int) -> AsksPart? {
+        part(at: point, sending: sending, page: page, of: pages, pointsLeft: false)
+    }
+
+    func dots(page: Int, of pages: Int) -> [CGRect] {
+        dots(page: page, of: pages, pointsLeft: false)
+    }
+
+    func dots(at progress: Double, of pages: Int) -> [CGRect] {
+        dots(at: progress, of: pages, pointsLeft: false)
+    }
+
+    func box(of part: AsksPart, progress: Double, of pages: Int) -> CGRect? {
+        box(of: part, progress: progress, of: pages, pointsLeft: false)
     }
 }

@@ -69,7 +69,7 @@ extension NotchRun {
 
     /// The asks panel kept to what shows, closed as the panel goes in, its row goes, or its last ask, and placed
     /// beside its row as the frame has it, once for all that reads it until the next. Kept while the panel is out, so
-    /// `⏎` in the shortcut's hold opens it as the panel still pours, as it would on the open panel.
+    /// the outward arrow in the shortcut's hold opens it as the panel still pours, as it would on the open panel.
     func placeAsks(in setting: Setting) {
         let stage = setting.stage
         let ground = AsksGround(

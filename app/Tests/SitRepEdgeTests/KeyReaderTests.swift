@@ -5,10 +5,11 @@ import Testing
 
 /// How the tap decides each key (DESIGN, "Keys"): while the panel holds the keys every key of the set is taken, matched
 /// by what it types on the layout, the arrows, Return, keypad Enter and Esc by their codes, and pressed alone; any
-/// other goes through and ends the hold; a key taken is taken whole, its repeats acting again only for the arrows and
-/// `k` `j`, its key-up going nowhere; in a snooze menu on its own, digits choose, `z` closes and `k` `j` go on as
-/// arrows; `⌘Z` is the one key taken with a modifier, while the asks panel's sending line shows; with nothing holding,
-/// or the row's menu open, every key goes through.
+/// other goes through and ends the hold, as `o` and `⏎` end it as they are taken, but while `⌘Z` is the panel's; a key
+/// taken is taken whole, its repeats acting again only for the arrows and `k` `j`, its key-up going nowhere; in a
+/// snooze menu on its own, digits choose, `z` closes and `k` `j` go on as arrows; `⌘Z` is the one key taken with a
+/// modifier, while the asks panel's sending line shows; with nothing holding, or the row's menu open, every key goes
+/// through.
 @Suite(.backstop)
 struct KeyReaderTests {
     private static let holding = KeySnapshot.panel(hold: 1)
@@ -28,6 +29,11 @@ struct KeyReaderTests {
         return TapKey(code: code, typed: "\u{1E}", flags: own.union(flags), stroke: stroke)
     }
 
+    /// The key that jumps, `o` or Return.
+    private static func jumping(_ key: PanelKey) -> TapKey {
+        key == .open ? typing("o") : code(KeyCode.enter)
+    }
+
     private static let qwerty: [String: UInt16] = [
         "k": 40, "j": 38, "o": 31, "z": 6, "s": 1, "x": 7, "a": 0, "t": 17, "0": 29,
         "1": 18, "2": 19, "3": 20, "4": 21, "5": 23, "6": 22, "7": 26, "8": 28, "9": 25,
@@ -45,14 +51,16 @@ struct KeyReaderTests {
         #expect(reader.read(Self.typing(typed), in: Self.holding) == .take(.panel(key)))
     }
 
+    /// `←` and `→` are read as they are, whichever edge the notch is on: the run tells out from back.
     @Test(arguments: [
-        (KeyCode.up, PanelKey.up), (KeyCode.down, .down), (KeyCode.left, .left), (KeyCode.right, .right),
-        (KeyCode.enter, .enter), (KeyCode.keypadEnter, .enter), (KeyCode.escape, .escape),
+        (KeyCode.up, KeyAction.panel(.up)), (KeyCode.down, .panel(.down)), (KeyCode.left, .panel(.left)),
+        (KeyCode.right, .panel(.right)), (KeyCode.enter, .panel(.enter, ends: 1)),
+        (KeyCode.keypadEnter, .panel(.enter, ends: 1)), (KeyCode.escape, .panel(.escape)),
     ])
-    func theArrowsReturnEnterAndEscAreReadByTheirCodes(_ code: UInt16, _ key: PanelKey) {
+    func theArrowsReturnEnterAndEscAreReadByTheirCodes(_ code: UInt16, _ action: KeyAction) {
         var reader = KeyReader()
 
-        #expect(reader.read(Self.code(code), in: Self.holding) == .take(.panel(key)))
+        #expect(reader.read(Self.code(code), in: Self.holding) == .take(action))
     }
 
     /// On another layout a key is what it types: `k` where QWERTY has `t`, and QWERTY's `k` typing `t`.
@@ -96,15 +104,19 @@ struct KeyReaderTests {
         #expect(reader.read(Self.typing("o"), in: .panel(hold: 2)) == .take(.panel(.open, ends: 2)))
     }
 
-    /// `o` ends its hold as it is taken: it jumps, so a key typed after it, before the main thread has heard of it,
-    /// goes to the window jumped to. What it hands on says which hold it ended, for the panel to follow.
-    @Test func oEndsItsHoldAsItIsTaken() {
-        var reader = KeyReader()
+    /// `o` and `⏎` end their hold as they are taken, under either hold: they jump, so a key typed after one, before the
+    /// main thread has heard of it, goes to the window jumped to. What it hands on says which hold it ended, for the
+    /// panel to follow.
+    @Test(arguments: [PanelKey.open, .enter], [false, true])
+    func oAndReturnEndTheirHoldAsTheyAreTaken(_ panelKey: PanelKey, takesAll: Bool) {
+        let key = Self.jumping(panelKey)
+        var reader = KeyReader(), lifted = key
 
-        #expect(reader.read(Self.typing("o"), in: Self.holding) == .take(.panel(.open, ends: 1)))
-        #expect(reader.read(Self.code(KeyCode.enter), in: Self.holding) == .pass)
-        #expect(reader.read(Self.typing("o", [], .up), in: Self.holding) == .take(nil))
-        #expect(reader.read(Self.code(KeyCode.enter), in: .panel(hold: 2)) == .take(.panel(.enter)))
+        lifted.stroke = .up
+        #expect(reader.read(key, in: .panel(hold: 1, takesAll: takesAll)) == .take(.panel(panelKey, ends: 1)))
+        #expect(reader.read(Self.typing("k"), in: .panel(hold: 1, takesAll: takesAll)) == .pass)
+        #expect(reader.read(lifted, in: .panel(hold: 1, takesAll: takesAll)) == .take(nil))
+        #expect(reader.read(key, in: .panel(hold: 2, takesAll: takesAll)) == .take(.panel(panelKey, ends: 2)))
     }
 
     @Test(arguments: [KeySnapshot.none, .menu(choices: nil)])
@@ -129,8 +141,8 @@ struct KeyReaderTests {
 
         #expect(reader.read(key, in: Self.holding) == .take(.panel(panelKey)))
         held.stroke = .again
-        #expect(reader.read(held, in: Self.holding) == .take(.panel(panelKey)))
-        #expect(reader.read(held, in: Self.holding) == .take(.panel(panelKey)))
+        #expect(reader.read(held, in: Self.holding) == .take(.panel(panelKey, again: true)))
+        #expect(reader.read(held, in: Self.holding) == .take(.panel(panelKey, again: true)))
     }
 
     @Test(arguments: [Self.typing("z"), Self.typing("1"), Self.typing("o"), Self.code(KeyCode.enter)])
@@ -214,13 +226,15 @@ struct KeyReaderTests {
         #expect(reader.read(Self.typing("z", .maskCommand, .up), in: Self.holding) == .take(nil))
     }
 
-    /// `o` while `⌘Z` is the panel's can't jump: it keeps the hold, ending none as it is handed on, so the `⌘Z` after
-    /// it is still the panel's.
-    @Test func oWhileTheSendingLineShowsKeepsTheHold() {
+    /// `o` or `⏎` while `⌘Z` is the panel's can't jump: it keeps the hold, either hold, ending none as it is handed on,
+    /// so the `⌘Z` after it is still the panel's.
+    @Test(arguments: [PanelKey.open, .enter], [false, true])
+    func oOrReturnWhileTheSendingLineShowsKeepsTheHold(_ panelKey: PanelKey, takesAll: Bool) {
         var reader = KeyReader()
+        let undoing = KeySnapshot.panel(hold: 1, undoes: true, takesAll: takesAll)
 
-        #expect(reader.read(Self.typing("o"), in: Self.undoing) == .take(.panel(.open)))
-        #expect(reader.read(Self.typing("z", .maskCommand), in: Self.undoing) == .take(.panel(.undo)))
+        #expect(reader.read(Self.jumping(panelKey), in: undoing) == .take(.panel(panelKey)))
+        #expect(reader.read(Self.typing("z", .maskCommand), in: undoing) == .take(.panel(.undo)))
     }
 
     // MARK: The shortcut's hold
@@ -272,14 +286,14 @@ struct KeyReaderTests {
     }
 
     /// A key read by its code is itself with Fn held: fn-Return on a laptop's keyboard sends keypad Enter with Fn, and
-    /// looks closer under either hold, as `esc` with Fn closes.
+    /// goes under either hold, ending it, as `esc` with Fn closes.
     @Test(arguments: [KeyCode.keypadEnter, KeyCode.enter, KeyCode.escape], [Self.holding, Self.summoned])
     func aKeyReadByItsCodeIsItselfWithFnHeld(code: UInt16, snapshot: KeySnapshot) {
         var reader = KeyReader()
 
         #expect(
             reader.read(TapKey(code: code, flags: .maskSecondaryFn), in: snapshot)
-                == .take(.panel(code == KeyCode.escape ? .escape : .enter))
+                == .take(code == KeyCode.escape ? .panel(.escape) : .panel(.enter, ends: 1))
         )
     }
 

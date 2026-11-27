@@ -12,8 +12,8 @@ import Testing
 /// click elsewhere on the list closing it and doing nothing else; the asks panel level with its row past the list's
 /// front, read left to right on either edge, holding the panel open while the pointer is on it; its answers held,
 /// taken back and gone, stepping to the session's next ask and closing after the last; its dots and a horizontal swipe
-/// paging it, its asks sliding with the fingers and the spring; its Snooze ▾ snoozing the ask it shows; and an ask
-/// leaving the board leaving it.
+/// paging it, its asks lying out from the notch and sliding with the fingers and the spring; its Snooze ▾ snoozing the
+/// ask it shows; and an ask leaving the board leaving it.
 @Suite(.backstop)
 struct AsksPanelRunTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
@@ -119,7 +119,7 @@ struct AsksPanelRunTests {
         let layout = asks.layout
         let own = switch part {
         case let .answer(row): layout.answers[row]
-        case let .page(page): layout.dots(at: asks.progress, of: asks.pages)[page]
+        case let .page(page): asks.dots[page]
         case .ignore: layout.ignore
         case .snooze: try #require(layout.snooze)
         case .open: layout.open
@@ -1514,8 +1514,8 @@ struct AsksPanelRunTests {
         #expect(run.press(Self.at(run, try Self.part(.page(2), run), setting)) == .asks)
         run.step(Self.at(run, try Self.onAsks(run, down: 70), setting))
 
-        let asks = try #require(run.asksShown), drawn = asks.layout.dots(at: asks.progress, of: 3)[1]
-        let rest = asks.layout.dots(page: 2, of: 3)
+        let asks = try #require(run.asksShown), drawn = asks.dots[1]
+        let rest = asks.layout.dots(page: 2, of: 3, pointsLeft: false)
 
         #expect(asks.progress < 0.5 && rest[2].minX < drawn.midX)
         #expect(run.press(Self.at(run, try Self.part(.page(1), run), setting)) == .asks)
@@ -1572,6 +1572,78 @@ struct AsksPanelRunTests {
         }
         Self.frames(run, for: 2000, to, setting)
         #expect(run.phase == .open && run.asksShown?.hover == .answer(2))
+    }
+
+    /// The asks lie out from the notch, the first nearest it, as their dots do: on the right edge right to left, the
+    /// first ask's dot, wide, at the dots' right end; on the left edge left to right, the last ask's there.
+    @Test(arguments: [false, true])
+    func theDotsLieOutFromTheNotchTheFirstNearestIt(right: Bool) throws {
+        let setting = Self.setting(right: right)
+        let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(withNotes: true))
+        let asks = try #require(run.asksShown), across = asks.dots.map(\.midX)
+
+        #expect(asks.pages == 3 && asks.pointsLeft == right)
+        #expect(across == (right ? across.sorted(by: >) : across.sorted()))
+        #expect(asks.dots[right ? 0 : 2].maxX == asks.layout.top.maxX)
+        #expect(Double(asks.dots[0].width) == AsksLayout.currentDot)
+    }
+
+    /// A click on a dot, where it is drawn, goes to its own ask: on the right edge the dot at the left end is the last
+    /// ask's, on the left edge the first's.
+    @Test(arguments: [false, true])
+    func aDotsClickGoesToItsOwnAsk(right: Bool) throws {
+        let setting = Self.setting(right: right), board = AsksBoard.board(withNotes: true)
+        var reached: [Int] = []
+
+        for slot in 0 ..< 3 {
+            let run = try Self.asksOpen(Self.helpDesk, setting, board: board), asks = try #require(run.asksShown)
+            let dot = asks.dots.sorted { $0.minX < $1.minX }[slot]
+            let point = CGPoint(
+                x: right ? asks.frame.maxX - dot.midX : asks.frame.minX + dot.midX, y: asks.frame.minY + dot.midY
+            )
+
+            #expect(run.press(Self.at(run, point, setting)) == .asks)
+            reached.append(try #require(run.asksShown?.page))
+        }
+        #expect(reached == (right ? [2, 1, 0] : [0, 1, 2]))
+    }
+
+    /// The next ask slides in from the side it lies on, away from the notch: from the right on the left edge, from the
+    /// left on the right; the ask it leaves slides out toward the notch.
+    @Test(arguments: [false, true])
+    func theNextAskSlidesInFromTheSideItLiesOn(right: Bool) throws {
+        let setting = Self.setting(right: right), run = try Self.asksOpen(Self.helpDesk, setting)
+
+        #expect(run.press(Self.at(run, try Self.part(.page(1), run, setting), setting)) == .asks)
+
+        let asks = try #require(run.asksShown), away = right ? -1.0 : 1.0
+
+        #expect(asks.page == 1 && asks.beside?.page == 0)
+        #expect(asks.pageX == away * AsksLayout.width && asks.besideX == 0)
+
+        run.step(Self.at(run, try Self.onAsks(run, down: 70), setting))
+
+        let sliding = try #require(run.asksShown)
+
+        #expect(sliding.pageX * away > 0 && sliding.pageX * away < AsksLayout.width)
+        #expect(sliding.besideX * away < 0)
+    }
+
+    /// With natural scrolling, fingers moving toward the notch bring in the next ask: left on the left edge, where the
+    /// Mac scrolls along, right on the right, where it scrolls back; a wheel's step goes the same way.
+    @Test(arguments: [false, true])
+    func fingersMovingTowardTheNotchBringInTheNextAsk(right: Bool) throws {
+        let setting = Self.setting(right: right), run = try Self.asksOpen(Self.helpDesk, setting)
+        let towardTheNotch = right ? -1.0 : 1.0
+
+        try Self.drag(run, 130 * towardTheNotch, setting)
+        #expect(run.asksShown?.slid == 130 && run.asksShown?.beside?.page == 1)
+        try Self.swipe(run, .ended, along: 0, setting)
+        #expect(run.asksShown?.ask.id == "k2")
+        _ = try Self.settling(run, setting)
+
+        try Self.swipe(run, .wheel, along: -16 * towardTheNotch, after: AsksSwipe.wheelGap + 1, setting)
+        #expect(run.asksShown?.ask.id == "k1")
     }
 
     /// Mirrored on the right edge, it still reads left to right: its rows where they are drawn.

@@ -9,9 +9,9 @@ import Testing
 /// The shortcut in the notch's run (DESIGN, "Keys"): it pours the panel open with no pointer, which stays open wherever
 /// the pointer is until the pointer has come onto it and left; its lit row the first in Needs you, else the first row;
 /// holding every key until it closes, a key of the set acting as under a hover's hold, the pointer moving on it taking
-/// the lit row back while the hold stays the shortcut's; closed by the shortcut again, a key with ⌘, ⌃ or ⌥, `o`,
-/// `esc` once nothing inside is open, or a click elsewhere. Without the leave, or under secure input, it opens holding
-/// nothing, no row lit.
+/// the lit row back while the hold stays the shortcut's; closed by the shortcut again, a key with ⌘, ⌃ or ⌥, `⏎` or
+/// `o`, `esc` once nothing inside is open, or a click elsewhere. Without the leave, or under secure input, it opens
+/// holding nothing, no row lit.
 @Suite(.backstop)
 struct ShortcutRunTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
@@ -21,10 +21,11 @@ struct ShortcutRunTests {
     private static let helpDesk = "needs:\(AsksBoard.helpDesk)", working = "sr-wg0005"
 
     private static func setting(
-        _ style: NotchStyle = .meniscus, takesKeys: Bool = true, reducesMotion: Bool = false
+        _ style: NotchStyle = .meniscus, takesKeys: Bool = true, reducesMotion: Bool = false, right: Bool = false
     ) -> NotchRun.Setting {
         NotchRun.Setting(
-            stage: stage, mirror: .identity, style: style, reducesMotion: reducesMotion, takesKeys: takesKeys
+            stage: stage, mirror: right ? CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 800, ty: 0) : .identity,
+            style: style, reducesMotion: reducesMotion, takesKeys: takesKeys
         )
     }
 
@@ -143,15 +144,17 @@ struct ShortcutRunTests {
         #expect(Self.lit(run) == Self.rows(run).dropFirst().first)
     }
 
-    /// `⏎` as the panel still pours opens the lit row's asks panel, as on the open panel, and the asks panel stays open
-    /// as the panel opens; its keys act at once, as on the open panel, in either style.
-    @Test(arguments: [NotchStyle.meniscus, .card])
-    func returnAsThePanelPoursOpensTheAsksPanel(style: NotchStyle) throws {
-        let setting = Self.setting(style), run = Self.closed(setting)
+    /// The arrow pointing away from the notch, `→` on the left edge and `←` on the right, as the panel still pours
+    /// opens the lit row's asks panel, as on the open panel, and the asks panel stays open as the panel opens; its keys
+    /// act at once, as on the open panel, in either style. The arrow pointing back does nothing.
+    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
+    func theOutwardArrowAsThePanelPoursOpensTheAsksPanel(style: NotchStyle, right: Bool) throws {
+        let setting = Self.setting(style, right: right), run = Self.closed(setting)
         let threaded = Answering(.words("Threaded"), to: "k1", of: AsksBoard.helpDesk, wanting: .choice)
 
         run.summon(Self.at(run, Self.away, setting))
-        #expect(Self.press(.enter, run, Self.away, setting) == .asks)
+        #expect(Self.press(right ? .right : .left, run, Self.away, setting) == nil && run.asksShown == nil)
+        #expect(Self.press(right ? .left : .right, run, Self.away, setting) == .asks)
         #expect(run.phase == .opening && run.asksShown?.row == Self.helpDesk)
         #expect(Self.press(.digit(1), run, Self.away, setting) == .answer(threaded))
         guard case .snooze(ask: "k1", of: AsksBoard.helpDesk, at: _)? = Self.press(.snooze, run, Self.away, setting)
@@ -229,12 +232,12 @@ struct ShortcutRunTests {
         #expect(run.phase == .open)
     }
 
-    /// `⏎` opening the asks panel beside the lit row, the pointer away, leaves the panel open.
+    /// The outward arrow opening the asks panel beside the lit row, the pointer away, leaves the panel open.
     @Test(arguments: [NotchStyle.meniscus, .card])
     func theAsksPanelOpeningIsNoPointerComingOntoIt(style: NotchStyle) throws {
         let setting = Self.setting(style), run = try Self.summoned(setting)
 
-        #expect(Self.press(.enter, run, Self.away, setting) == .asks)
+        #expect(Self.press(.right, run, Self.away, setting) == .asks)
         Self.frames(run, for: 2000, Self.away, setting)
         #expect(run.phase == .open && run.asksShown != nil)
     }
@@ -310,12 +313,13 @@ struct ShortcutRunTests {
         #expect(run.phase == .closing && !run.holdsKeys)
     }
 
-    /// `o` jumps to the lit row; with none to jump to, it closes the panel all the same.
-    @Test func oJumpsOrClosesIt() throws {
+    /// `⏎` and `o` jump to the lit row; with none to jump to, either closes the panel all the same.
+    @Test(arguments: [PanelKey.enter, .open])
+    func returnAndOJumpOrCloseIt(_ key: PanelKey) throws {
         let run = try Self.summoned()
 
-        guard case .jump(_, to: AsksBoard.helpDesk, click: _)? = Self.press(.open, run, ending: 1) else {
-            Issue.record("o did not jump to the lit row")
+        guard case .jump(_, to: AsksBoard.helpDesk, click: _)? = Self.press(key, run, ending: 1) else {
+            Issue.record("\(key) did not jump to the lit row")
             return
         }
         #expect(!run.holdsKeys)
@@ -323,26 +327,46 @@ struct ShortcutRunTests {
         let empty = try Self.summoned(board: PanelBoard())
 
         #expect(Self.lit(empty) == nil)
-        #expect(Self.press(.open, empty, ending: 1) == nil)
+        #expect(Self.press(key, empty, ending: 1) == nil)
         #expect(empty.phase == .closing && !empty.holdsKeys)
     }
 
-    /// The tap alone decides whether `o` ends the hold: `1` then `o` on the asks panel, the tap ending the hold at `o`
-    /// before the answer showed, closes the panel, though the sending line shows by the time the panel hears `o`.
-    @Test func oTheTapEndedTheHoldWithClosesItThoughTheSendingLineShowsBy() throws {
+    /// The tap alone decides whether `⏎` or `o` ends the hold: `1` then the key on the asks panel, the tap ending the
+    /// hold at it before the answer showed, closes the panel, though the sending line shows by the time the panel
+    /// hears it.
+    @Test(arguments: [PanelKey.enter, .open])
+    func returnOrOTheTapEndedTheHoldWithClosesItThoughTheSendingLineShowsBy(_ key: PanelKey) throws {
         let setting = Self.setting(), run = try Self.summoned()
         let threaded = Answering(.words("Threaded"), to: "k1", of: AsksBoard.helpDesk, wanting: .choice)
         let now = Date(timeIntervalSince1970: Double(AsksBoard.at) / 1000)
 
-        #expect(Self.press(.enter, run) == .asks)
+        #expect(Self.press(.right, run) == .asks)
         #expect(Self.press(.digit(1), run) == .answer(threaded))
         run.heard(
             .held(HeldAnswer(answering: threaded, heldAt: now, goesAt: now.addingTimeInterval(2))),
             Self.at(run, Self.away, setting)
         )
         try #require(run.asksShown?.sending != nil)
-        #expect(Self.press(.open, run, ending: 1) == nil)
+        #expect(Self.press(key, run, ending: 1) == nil)
         #expect(run.phase == .closing && !run.holdsKeys && run.keySnapshot == .none)
+    }
+
+    /// `⏎` or `o` while the asks panel's sending line shows keeps the panel and the hold: the tap ended none.
+    @Test(arguments: [PanelKey.enter, .open])
+    func returnOrOWhileSendingKeepsThePanelAndTheHold(_ key: PanelKey) throws {
+        let setting = Self.setting(), run = try Self.summoned()
+        let threaded = Answering(.words("Threaded"), to: "k1", of: AsksBoard.helpDesk, wanting: .choice)
+        let now = Date(timeIntervalSince1970: Double(AsksBoard.at) / 1000)
+
+        #expect(Self.press(.right, run) == .asks)
+        run.heard(
+            .held(HeldAnswer(answering: threaded, heldAt: now, goesAt: now.addingTimeInterval(2))),
+            Self.at(run, Self.away, setting)
+        )
+        try #require(run.keySnapshot == .panel(hold: 1, undoes: true, takesAll: true))
+        #expect(Self.press(key, run) == nil)
+        #expect(run.phase == .open && run.holdsKeys && run.asksShown != nil)
+        #expect(Self.press(.undo, run) == .undo)
     }
 
     /// A hold the tap ended while a menu holds the card, as `o` or a chord racing the snooze menu `z` opened, is let
@@ -372,7 +396,7 @@ struct ShortcutRunTests {
         let threaded = Answering(.words("Threaded"), to: "k1", of: AsksBoard.helpDesk, wanting: .choice)
         let now = Date(timeIntervalSince1970: Double(AsksBoard.at) / 1000)
 
-        #expect(Self.press(.enter, run) == .asks)
+        #expect(Self.press(.right, run) == .asks)
         run.heard(
             .held(HeldAnswer(answering: threaded, heldAt: now, goesAt: now.addingTimeInterval(2))),
             Self.at(run, Self.away, setting)
@@ -406,7 +430,7 @@ struct ShortcutRunTests {
     @Test func escClosesTheAsksPanelThenThePanel() throws {
         let run = try Self.summoned()
 
-        #expect(Self.press(.enter, run) == .asks)
+        #expect(Self.press(.right, run) == .asks)
         try #require(run.asksShown != nil)
         Self.press(.escape, run)
         #expect(run.asksShown == nil && run.phase == .open && run.holdsKeys)

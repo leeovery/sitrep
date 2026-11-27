@@ -6515,7 +6515,8 @@ first:
 - **The top line:** the session's name, 12 semibold in white, and its
   project, 12 in the faint grey. At its right, page dots where the session
   has more than one ask: the current one orange, 14 × 5, the others 5 × 5,
-  #3A3A40. They page the asks (below, "Paging").
+  #3A3A40, in the order the asks lie, the first nearest the notch. They
+  page the asks (below, "Paging").
 - **The ask's title,** 17 semibold, letter-spacing -0.02em, its line 22;
   under it "Asked 4m ago", 12 in the faint grey, the age from the ask's
   posting or reopening, as its line on the row counts from.
@@ -6603,10 +6604,14 @@ with its ask.
 - **A horizontal swipe** of two fingers on the asks panel follows the
   fingers, as the Mac's swipe between Spaces does (Lee, 25 November 2026,
   after his second live try; until then a swipe stepped once it had gone
-  12 points across, and the ask changed at once). The asks lie left to
-  right, as their dots do, and the scroll goes the way the Mac scrolls
-  anything sideways: with natural scrolling, fingers moving left bring in
-  the next, as swiping between pages in Safari does. A gesture takes hold
+  12 points across, and the ask changed at once). The asks lie in a line
+  out from the notch, as their dots do: left to right on the left edge,
+  right to left on the right, the first ask nearest the notch either way
+  (Lee, 27 November 2026, so the arrow keys step along what is drawn; see
+  "Keys"; until then they lay left to right on both edges). The scroll
+  goes the way the Mac scrolls anything sideways: with natural
+  scrolling, fingers moving toward the notch bring in the next, as
+  swiping between pages in Safari does. A gesture takes hold
   once it has gone 6 points, more across than down; more down than
   across, it is no swipe.
   - **As the fingers move,** the ask slides with them, a point for a
@@ -6751,19 +6756,30 @@ see "Answering from the panel").
 | Key | Does |
 |---|---|
 | `↑` `↓`, `k` `j` | moves the lit row, or a menu's highlight |
-| `⏎` | looks closer: on the notch, opens the lit row's asks panel or closes it again; in the terminal view, expands the row or folds it; in a menu, chooses |
-| `o` | opens: jumps to the lit row's window; in the terminal view, runs the resume command |
+| `⏎` | on the notch, goes: jumps to the lit row's window, as `o`; in the asks panel, Open in Claude ↗; in the terminal view, looks closer: expands the row or folds it; in a menu, chooses |
+| `o` | opens: jumps to the lit row's window; in the asks panel, Open in Claude ↗; in the terminal view, runs the resume command |
 | `z` | snoozes: on a row that needs Lee, the snooze menu; on a snoozed row, wakes it; in the asks panel, the snooze menu for the ask shown; in a snooze menu, closes it |
 | `1`–`9` | chooses by number in what is open: a snooze menu's times, an ask's answers |
 | `x` | ignores the ask shown; on the pane, presses ✕ |
-| `←` `→` | pages the asks panel's asks |
+| `←` `→` | on the notch, steps along one line out from it: the arrow pointing away from the notch opens the lit row's asks panel and pages on through its asks; the arrow pointing back pages back and, from the first ask, closes it |
 | `s` | folds or unfolds Snoozed |
 | `esc` | closes the innermost: a menu, then the asks panel, then the panel; in the terminal view, the menu, else the band |
 | `⌘Z` | takes back the answer the asks panel is sending, as its Undo |
 
-`⏎` looks closer and `o` opens, as in the terminal view, so no `⏎` moves
-the screen by accident: Lee chose it over `⏎` jumping as a click does. `x`
-is the ✕ the pane draws on its ignore and its drop. A key is the panel's
+On the notch `⏎` goes and the arrows look closer (Lee, 27 November 2026,
+after his live run of the keys): "I think enter should probably take me to
+the window… left and right show and hide the card. Obviously, if the notch
+is on the right-hand side, then the keys would be swapped." The notch's
+panel comes out sideways from the notch and the asks panel further out
+beside it, so the arrows move along that line, as a Mac menu's `→` opens a
+submenu and `←` closes it; and `⏎` acts on the lit row, as a menu's Return
+chooses its item. Until then `⏎` looked closer there too, opening the
+asks panel, so no `⏎` moved the screen (26 November 2026). The terminal
+view keeps `⏎` looking closer and has no use for `←` `→`: its list runs
+down, a row opening under itself, so a sideways key has nothing to move
+along (Lee, 27 November 2026: "sideways arrows don't make sense with the
+terminal view"). `o` opens everywhere. `x` is the ✕ the pane draws on its
+ignore and its drop. A key is the panel's
 only pressed alone: Shift, ⌘, ⌃ or ⌥ held with it makes it another key,
 `⌘Z` aside while the asks panel takes it: while its sending line shows,
 and through the beat after the line goes (below).
@@ -6813,9 +6829,10 @@ the panel's, acting on the lit row, until:
   window in front, and the panel takes none until the pointer moves
   again, so typing into Ghostty with the pointer left on the panel goes
   on there from its first key the panel doesn't take;
-- `o` is pressed, whether or not it jumps, or a click jumps: what is
-  typed next is for the window jumped to, and no hold starts while the
-  jump is under way; but for `o` while `⌘Z` is the asks panel's (below);
+- `o` or `⏎` is pressed, whether or not it jumps, or a click jumps: what
+  is typed next is for the window jumped to, and no hold starts while the
+  jump is under way; but for either while `⌘Z` is the asks panel's
+  (below), and for `⏎` in a menu, where it chooses;
 - the screens sleep, the screen locks, the screen saver starts, the
   session goes to another user, or a window takes secure input, as the
   lock screen's password field and a sudo prompt do, so what is typed on
@@ -6825,8 +6842,8 @@ the panel's, acting on the lit row, until:
 The tap alone decides whether a key ends the hold, as it reads the key,
 and hands that on with what the key does; the panel follows it, whatever
 it reads by the time it hears the key, so the two never disagree on
-whose the keys are (the phase review, 26 November 2026). So `o` it took
-ending no hold, as `⌘Z` was the asks panel's then, acts on nothing,
+whose the keys are (the phase review, 26 November 2026). So `o` or `⏎`
+it took ending no hold, as `⌘Z` was the asks panel's then, acts on nothing,
 though the beat has passed by the time the panel hears it. A hold it
 ended while a menu holds the card is let go, but the shortcut's panel
 stays open under the menu, holding nothing. A hold ending,
@@ -6837,17 +6854,20 @@ A panel that opens under a resting pointer holds nothing until the pointer
 moves. With the pointer on an eyebrow or the black between rows, no row is
 lit: `↑` `↓` light the first or the last row, `s` folds, and a key needing
 a row does nothing. A key of the set with no use at that moment, `z` on a
-working row or `⏎` on a row with no arrow, is taken and does nothing, so a
-`⏎` meant for the panel never reaches the window behind it.
+working row, the outward arrow on a row with no arrow drawn, or the arrow
+back toward the notch on the list, is taken and does nothing, so a key
+meant for the panel never reaches the window behind it.
 
 **On the notch's panel:**
 - `↑` `↓`, `k` `j` move the lit row over the rows, past eyebrows and
   folded sections, scrolling it into view, as a Mac menu's arrows move its
   highlight; the pointer moving takes the highlight back.
-- `⏎` on a row with the arrow opens its asks panel, as a click on the
-  arrow does, or closes it again.
-- `o` jumps, as a click on the row's words does: the press-in, the spin,
-  the drain and the caption.
+- `⏎` and `o` jump, as a click on the row's words does: the press-in, the
+  spin, the drain and the caption.
+- The arrow pointing away from the notch, `→` on the left edge and `←` on
+  the right, on a row with the arrow drawn, opens its asks panel at its
+  first ask, as a click on the arrow does. The arrow pointing back does
+  nothing on the list.
 - `z` on a Needs you row, of asks or of a turn alone, opens the snooze
   menu at the row's end: the row's right-click Snooze, as a menu of its own
   (see "The row snoozes"). On a row in Snoozed it wakes the session, as
@@ -6859,7 +6879,8 @@ working row or `⏎` on a row with no arrow, is taken and does nothing, so a
 
 **On the asks panel.** While it is open and the panel holds the keys,
 every key of the set but `↑` `↓`, `k` `j` is its, wherever the pointer is
-on the panel, acting on the ask it shows; `s` does nothing there:
+on the panel, acting on the ask it shows, but for `⏎` and `o`, which go to
+the lit row (below); `s` does nothing there:
 - `1`–`9` answer with that answer row, as a click on it, the sending line
   and its two seconds with it; `1` is the first row, Claude's pick where
   Claude has one.
@@ -6873,18 +6894,33 @@ on the panel, acting on the ask it shows; `s` does nothing there:
   `→` or `←` away from the line leaves `⌘Z` a chord at once, beat or
   none, as does the asks panel closing, its last ask's answer gone or by
   a key: opened again, it takes no `⌘Z`.
-- `x` is Ignore, `z` opens Snooze ▾'s menu, and `o` is Open in Claude ↗.
-- `→` shows the next ask and `←` the one before, as the dots lie, one ask
-  a step, sliding as a dot's click does.
-- `⏎` and `esc` close it; `↑` `↓`, `k` `j` move the lit row and close
-  it, as a menu's arrows close its submenu.
+- `x` is Ignore, and `z` opens Snooze ▾'s menu.
+- `⏎` and `o` go to the lit row: with the asks panel's own row lit, the
+  pointer on it, on the asks panel or neither, they are Open in Claude ↗,
+  with every rule it has here; with the pointer lighting another row,
+  they jump to that row's window, as a click on its words does, so they
+  never move the screen to a session the pointer isn't on (the review,
+  27 November 2026).
+- The arrow pointing away from the notch shows the next ask, and the
+  arrow pointing back the one before, as the dots lie, one ask a step,
+  sliding as a dot's click does; from the first ask the arrow pointing
+  back closes the asks panel, the row staying lit, as a menu's `←` closes
+  its submenu. From the last, the outward arrow does nothing. On the left
+  edge that is `→` on and `←` back, as before 27 November 2026; on the
+  right edge, where the asks lie right to left, `←` on and `→` back. A
+  held arrow's repeats only page: they never open the asks panel from the
+  list nor close it from the first ask; and the arrow back closes it only
+  once a key would act there, within the beat (below) doing nothing, as a
+  key on the ask does (the review, 27 November 2026).
+- `esc` closes it; `↑` `↓`, `k` `j` move the lit row and close it, as a
+  menu's arrows close its submenu.
 - A digit past its answers, or `z` with no Snooze ▾, does nothing. Nor do
-  `z` and `o` on the ask whose answer is sending, whose foot is the
+  `z`, `⏎` and `o` on the ask whose answer is sending, whose foot is the
   sending line, with no Snooze ▾ or Open in Claude ↗ to click (the build,
   26 November 2026); `→` or `←` to another ask finds them in its foot.
-  `o` there, which can't jump, leaves the hold, so `⌘Z` after it still
-  undoes (the review, 26 November 2026); so does `o` in the beat after
-  the line goes, which acts on nothing.
+  `⏎` or `o` there, which can't jump, leaves the hold, so `⌘Z` after it
+  still undoes (the review, 26 November 2026); so does either in the beat
+  after the line goes, which acts on nothing.
 - The 300ms beat (see "Answering from the panel") holds keys as it holds
   clicks: within it after a change the keys didn't make, the board's, a
   send's or the pointer's paging, a key does nothing, as a press there
@@ -6957,9 +6993,9 @@ anywhere, with no pointer:
   does nothing, where a hover's hold lets it through. A key with ⌘, ⌃ or
   ⌥ closes it and goes through, `⌘Z` while the asks panel takes it
   aside. It closes on `esc` once nothing inside is open, on the shortcut
-  again, on `o`, on a click elsewhere, or as the pointer, having come onto
-  it, leaves; but `o` while `⌘Z` is the asks panel's keeps the panel and
-  the hold.
+  again, on `⏎` or `o`, on a click elsewhere, or as the pointer, having
+  come onto it, leaves; but `⏎` or `o` while `⌘Z` is the asks panel's
+  keeps the panel and the hold.
 - Without the leave, or under secure input, it opens the panel holding
   nothing, with no row lit, until the shortcut again, a click elsewhere,
   or the pointer coming onto it and leaving. If its keys let go while it
@@ -6973,8 +7009,8 @@ anywhere, with no pointer:
 
 Settled in the build (26 November 2026):
 - The hold starts with the shortcut, so a key pressed as the panel still
-  pours is taken, and acts as it would on the open panel: `⏎` opens the
-  lit row's asks panel, which shows beside its row as the panel pours,
+  pours is taken, and acts as it would on the open panel: the outward
+  arrow opens the lit row's asks panel, which shows beside its row as the panel pours,
   its keys acting at once (the phase review, 26 November 2026). Under
   Card, it shows before the rows have landed; Lee judges that live.
 - Shift held makes a key no chord: in the shortcut's hold, `A` is taken
@@ -6989,7 +7025,7 @@ Settled in the build (26 November 2026):
   hot key alone acts on it; and the shortcut does nothing while the panel
   closes, so pressed again it never reopens it. With the menu bar item's
   menu open, it closes the menu and does nothing else.
-- `o` with no row to jump to closes the panel all the same.
+- `⏎` or `o` with no row to jump to closes the panel all the same.
 - A pointer resting where the panel pours has not come onto it: only the
   pointer's own move onto the panel or the notch counts, never a menu
   holding the panel at a row, nor the pointer found where it rested as

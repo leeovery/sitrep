@@ -361,7 +361,10 @@ public final class NotchRun: Framed {
         }
 
         upToNow(moment)
-        asking.swiped(scroll, at: time, panelRows, board, reducesMotion: moment.setting.reducesMotion)
+        asking.swiped(
+            scroll, at: time, panelRows, board, mirror: moment.setting.mirror,
+            reducesMotion: moment.setting.reducesMotion
+        )
         placeAsks(in: moment.setting)
     }
 

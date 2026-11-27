@@ -8,11 +8,12 @@ import Testing
 
 /// The asks panel's keys as the notch's run has them (DESIGN, "Keys", "On the asks panel"): while it is open and the
 /// panel holds the keys, wherever the pointer is on the panel, `1`–`9` press that answer's row, `x` Ignore, `z`
-/// Snooze ▾ and `o` Open in Claude, each as its click does; `←` `→` page as the dots lie, sliding as a dot's click
-/// does; `s` does nothing. While an answer is sending, digits and `x` do nothing and `⌘Z` is the sending line's Undo,
-/// every other key acting and the answer still going. The 300ms beat holds a key after a change the keys didn't make,
-/// and none after their own paging. The answers show their keycaps while the panel holds the keys and no answer is
-/// held.
+/// Snooze ▾ and `⏎` and `o` Open in Claude, each as its click does; the arrow pointing away from the notch shows the
+/// next ask and the one pointing back the one before, as the dots lie, sliding as a dot's click does, closing it from
+/// the first ask; `s` does nothing. While an answer is sending, digits and `x` do nothing and `⌘Z` is the sending
+/// line's Undo, every other key acting and the answer still going. The 300ms beat holds a key after a change the keys
+/// didn't make, and none after their own paging. The answers show their keycaps while the panel holds the keys and no
+/// answer is held.
 @Suite(.backstop)
 struct AsksPanelKeysRunTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
@@ -74,7 +75,9 @@ struct AsksPanelKeysRunTests {
         _ part: AsksPart, _ run: NotchRun, _ setting: NotchRun.Setting = setting()
     ) throws -> CGPoint {
         let asks = try #require(run.asksShown)
-        let own = try #require(asks.layout.box(of: part, progress: asks.progress, of: asks.pages))
+        let own = try #require(
+            asks.layout.box(of: part, progress: asks.progress, of: asks.pages, pointsLeft: asks.pointsLeft)
+        )
 
         return CGPoint(
             x: setting.mirror.a < 0 ? asks.frame.maxX - own.midX : asks.frame.minX + own.midX,
@@ -82,8 +85,8 @@ struct AsksPanelKeysRunTests {
         )
     }
 
-    /// The run holding the keys, the pointer moved onto the row `key`'s words, its asks panel opened by `⏎`; the
-    /// pointer still on the row.
+    /// The run holding the keys, the pointer moved onto the row `key`'s words, its asks panel opened by the arrow
+    /// pointing away from the notch; the pointer still on the row.
     private static func asksOpen(
         _ key: String = helpDesk, _ setting: NotchRun.Setting = setting(), board: PanelBoard = AsksBoard.board()
     ) throws -> (run: NotchRun, pointer: CGPoint) {
@@ -91,18 +94,28 @@ struct AsksPanelKeysRunTests {
 
         run.step(at(run, pointer, setting))
         try #require(run.holdsKeys)
-        try #require(run.key(.enter, at(run, pointer, setting)) == .asks)
+        try #require(run.key(outward(setting), at(run, pointer, setting)) == .asks)
         try #require(run.asksShown?.row == key)
         return (run, pointer)
     }
 
-    /// A key pressed, the pointer where it was, the hold the tap ended with it `ending`, as it ends one with `o`.
+    /// The arrow pointing away from the notch, `→` on the left edge and `←` on the right, and the one pointing back.
+    private static func outward(_ setting: NotchRun.Setting) -> PanelKey {
+        setting.mirror.a < 0 ? .left : .right
+    }
+
+    private static func back(_ setting: NotchRun.Setting) -> PanelKey {
+        setting.mirror.a < 0 ? .right : .left
+    }
+
+    /// A key pressed, the pointer where it was, the hold the tap ended with it `ending`, as it ends one with `o`; or,
+    /// `again`, its repeat as it is held.
     @discardableResult
     private static func press(
         _ key: PanelKey, _ run: NotchRun, _ pointer: CGPoint, _ setting: NotchRun.Setting = setting(),
-        ending: Int? = nil
+        ending: Int? = nil, again: Bool = false
     ) -> NotchRun.Press? {
-        run.key(key, ending: ending, at(run, pointer, setting))
+        run.key(key, ending: ending, again: again, at(run, pointer, setting))
     }
 
     private static func held(_ answering: Answering) -> AnswerNews {
@@ -194,26 +207,56 @@ struct AsksPanelKeysRunTests {
         #expect(run.asksShown?.row == Self.helpDesk)
     }
 
-    /// `o` is Open in Claude: the row pressed in, the jump asked for, the asks panel closed and the hold ended.
-    @Test func oIsOpenInClaude() throws {
-        let (run, pointer) = try Self.asksOpen()
+    /// `⏎` and `o` are Open in Claude: the row pressed in, the jump asked for, the asks panel closed and the hold
+    /// ended, on either edge.
+    @Test(arguments: [PanelKey.enter, .open], [false, true])
+    func returnAndOAreOpenInClaude(_ key: PanelKey, right: Bool) throws {
+        let setting = Self.setting(right: right), (run, pointer) = try Self.asksOpen(Self.helpDesk, setting)
 
-        guard case let .jump(session, to: target, click: _)? = Self.press(.open, run, pointer, ending: 1) else {
-            Issue.record("o did not jump")
+        guard case let .jump(session, to: target, click: _)? = Self.press(key, run, pointer, setting, ending: 1) else {
+            Issue.record("\(key) did not jump")
             return
         }
         #expect(session.id == AsksBoard.helpDesk && target == AsksBoard.helpDesk)
         #expect(run.asksShown == nil && !run.holdsKeys)
-        run.step(Self.at(run, pointer, Self.setting()))
+        run.step(Self.at(run, pointer, setting))
         #expect(run.frame.panel?.pressed == Self.helpDesk)
     }
 
-    /// `o` that lands on nothing, as within the beat, still ends the hold, as the tap ended it as it took `o`.
-    @Test func oThatJumpsNowhereStillEndsTheHold() throws {
+    /// `⏎` and `o` go to the lit row: with the pointer lighting another row than the asks panel's, that row's window,
+    /// as a click on its words, on either edge; with the pointer on the asks panel, its own row's, Open in Claude.
+    @Test(arguments: [PanelKey.enter, .open], [false, true])
+    func returnAndOGoToTheLitRow(_ key: PanelKey, right: Bool) throws {
+        let setting = Self.setting(right: right), (run, _) = try Self.asksOpen(Self.helpDesk, setting)
+        let shifts = try Self.words(Self.shifts, run, setting)
+
+        run.step(Self.at(run, shifts, setting))
+        try #require(run.holdsKeys && run.asksShown?.row == Self.helpDesk)
+        guard case let .jump(session, to: target, click: _)? = Self.press(key, run, shifts, setting, ending: 1) else {
+            Issue.record("\(key) did not jump to the row the pointer lit")
+            return
+        }
+        #expect(session.id == AsksBoard.shifts && target == AsksBoard.shifts && run.asksShown == nil)
+
+        let (onAsks, _) = try Self.asksOpen(Self.helpDesk, setting)
+        let asks = try #require(onAsks.asksShown), point = CGPoint(x: asks.frame.maxX - 40, y: asks.frame.midY)
+
+        onAsks.step(Self.at(onAsks, point, setting))
+        try #require(onAsks.holdsKeys)
+        guard case let .jump(own, to: _, click: _)? = Self.press(key, onAsks, point, setting, ending: 1) else {
+            Issue.record("\(key) on the asks panel was no Open in Claude")
+            return
+        }
+        #expect(own.id == AsksBoard.helpDesk)
+    }
+
+    /// `⏎` or `o` that lands on nothing, as within the beat, still ends the hold, as the tap ended it as it took it.
+    @Test(arguments: [PanelKey.enter, .open])
+    func returnOrOThatJumpsNowhereStillEndsTheHold(_ key: PanelKey) throws {
         let (run, pointer) = try Self.asksOpen()
 
         _ = run.show(AsksBoard.board(without: ["k1"]), Self.at(run, pointer, Self.setting()))
-        #expect(Self.press(.open, run, pointer, ending: 1) == nil)
+        #expect(Self.press(key, run, pointer, ending: 1) == nil)
         #expect(!run.holdsKeys && run.keySnapshot == .none && run.phase == .open)
     }
 
@@ -274,34 +317,101 @@ struct AsksPanelKeysRunTests {
 
     // MARK: Paging
 
-    /// `→` shows the next ask and `←` the one before, sliding as a dot's click does.
-    @Test func theArrowsPageAsTheDotsLieSlidingAsADotDoes() throws {
-        let (run, pointer) = try Self.asksOpen()
+    /// The arrow pointing away from the notch shows the next ask and the one pointing back the one before, as the dots
+    /// lie, sliding as a dot's click does, the next ask coming in from the side away from the notch: `→` on and `←`
+    /// back on the left edge, `←` on and `→` back on the right.
+    @Test(arguments: [false, true])
+    func theArrowsPageAsTheDotsLieSlidingAsADotDoes(right: Bool) throws {
+        let setting = Self.setting(right: right), (run, pointer) = try Self.asksOpen(Self.helpDesk, setting)
 
-        #expect(Self.press(.right, run, pointer) == .asks)
+        #expect(Self.press(Self.outward(setting), run, pointer, setting) == .asks)
 
         let next = try #require(run.asksShown)
 
         #expect(next.ask.id == "k2" && next.page == 1 && next.slid == -AsksLayout.width && next.beside?.page == 0)
+        #expect(next.pageX == (right ? -1 : 1) * AsksLayout.width && next.besideX == 0)
         #expect(run.needsFrames(at: run.time))
-        #expect(Self.press(.left, run, pointer) == .asks)
+        #expect(Self.press(Self.back(setting), run, pointer, setting) == .asks)
         #expect(run.asksShown?.ask.id == "k1" && run.asksShown?.page == 0)
     }
 
-    /// Nothing wraps: `←` on the first ask and `→` on the last do nothing; a session of one ask has nothing to page.
-    @Test func pastTheFirstOrTheLastAskTheArrowsDoNothing() throws {
-        let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
+    /// Nothing wraps: the outward arrow on the last ask does nothing, on either edge, as on a session of one ask.
+    @Test(arguments: [false, true])
+    func theOutwardArrowOnTheLastAskDoesNothing(right: Bool) throws {
+        let setting = Self.setting(right: right), (run, pointer) = try Self.asksOpen(Self.helpDesk, setting)
 
-        #expect(Self.press(.left, run, pointer) == nil)
-        #expect(run.asksShown?.page == 0 && !run.asking.isSliding)
-        Self.press(.right, run, pointer)
+        Self.press(Self.outward(setting), run, pointer, setting)
         Self.frames(run, for: 600, pointer, setting)
-        #expect(Self.press(.right, run, pointer) == nil)
+        #expect(Self.press(Self.outward(setting), run, pointer, setting) == nil)
         #expect(run.asksShown?.page == 1 && !run.asking.isSliding)
 
-        let (alone, onIt) = try Self.asksOpen(Self.dataImport)
+        let (alone, onIt) = try Self.asksOpen(Self.dataImport, setting)
 
-        #expect(Self.press(.right, alone, onIt) == nil && Self.press(.left, alone, onIt) == nil)
+        #expect(Self.press(Self.outward(setting), alone, onIt, setting) == nil)
+        #expect(alone.asksShown?.row == Self.dataImport)
+    }
+
+    /// The arrow pointing back from the first ask closes the asks panel, the row staying lit, on either edge, under
+    /// either hold, as on a session of one ask; from a later ask it pages back.
+    @Test(arguments: [false, true], [false, true])
+    func theArrowBackFromTheFirstAskClosesTheAsksPanel(right: Bool, summoned: Bool) throws {
+        let setting = Self.setting(right: right)
+        let (run, pointer) = summoned ? try Self.summonedAsksOpen(setting) : try Self.asksOpen(Self.helpDesk, setting)
+
+        Self.press(Self.outward(setting), run, pointer, setting)
+        #expect(Self.press(Self.back(setting), run, pointer, setting) == .asks)
+        #expect(run.asksShown?.row == Self.helpDesk && run.asksShown?.page == 0)
+        #expect(Self.press(Self.back(setting), run, pointer, setting) == .asks)
+        #expect(run.asksShown == nil && run.phase == .open && run.holdsKeys)
+        #expect(run.lit(in: setting).flatMap { run.list.item($0)?.key } == Self.helpDesk)
+
+        let (alone, onIt) = try Self.asksOpen(Self.dataImport, setting)
+
+        #expect(Self.press(Self.back(setting), alone, onIt, setting) == .asks && alone.asksShown == nil)
+    }
+
+    /// A held arrow's repeats page only, on either edge: the outward arrow's never opens the asks panel from the list,
+    /// and the back arrow's never closes it from the first ask, though each pages between.
+    @Test(arguments: [false, true])
+    func aHeldArrowsRepeatsPageOnly(right: Bool) throws {
+        let setting = Self.setting(right: right), (run, pointer) = try Self.asksOpen(Self.helpDesk, setting)
+        let outward = Self.outward(setting), back = Self.back(setting)
+
+        Self.press(.escape, run, pointer, setting)
+        #expect(Self.press(outward, run, pointer, setting, again: true) == nil && run.asksShown == nil)
+        #expect(Self.press(outward, run, pointer, setting) == .asks)
+        #expect(Self.press(outward, run, pointer, setting, again: true) == .asks && run.asksShown?.page == 1)
+        #expect(Self.press(back, run, pointer, setting, again: true) == .asks && run.asksShown?.page == 0)
+        #expect(Self.press(back, run, pointer, setting, again: true) == nil && run.asksShown?.page == 0)
+        #expect(Self.press(back, run, pointer, setting) == .asks && run.asksShown == nil)
+    }
+
+    /// The arrow back from the first ask closes the asks panel only once it has settled for keys: within the beat
+    /// after a change the keys didn't make, the board's, it does nothing, as a key on the ask does.
+    @Test func theArrowBackFromTheFirstAskWaitsOutTheBeat() throws {
+        let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
+
+        _ = run.show(AsksBoard.board(without: ["k1"]), Self.at(run, pointer, setting))
+        try #require(run.asksShown?.ask.id == "k2" && run.asksShown?.page == 0)
+        #expect(Self.press(.left, run, pointer) == nil && run.asksShown != nil)
+        Self.frames(run, for: AsksPanel.settle, pointer, setting)
+        #expect(Self.press(.left, run, pointer) == .asks && run.asksShown == nil)
+    }
+
+    /// The run opened by the shortcut, its keys the shortcut's, the pointer away, its lit row's asks panel opened by
+    /// the arrow pointing away from the notch.
+    private static func summonedAsksOpen(_ setting: NotchRun.Setting) throws -> (run: NotchRun, pointer: CGPoint) {
+        let run = NotchRun(at: 1000, in: setting, folding: Folding()), away = CGPoint(x: 1300, y: 300)
+
+        _ = run.show(AsksBoard.board(), at(run, away, setting))
+        run.summon(at(run, away, setting))
+        while run.time < 4000, run.phase != .open || run.frame.isMoving {
+            run.step(at(run, away, setting))
+        }
+        try #require(run.keySnapshot == .panel(hold: 1, takesAll: true))
+        try #require(run.key(outward(setting), at(run, away, setting)) == .asks)
+        try #require(run.asksShown?.row == helpDesk)
+        return (run, away)
     }
 
     @Test func underReduceMotionTheArrowsPageAtOnce() throws {
@@ -451,7 +561,8 @@ struct AsksPanelKeysRunTests {
         #expect(asks.contains(point))
     }
 
-    /// While fingers carry the asks, a key lands on nothing, as a press then does, not even a page.
+    /// While fingers carry the asks, a key lands on nothing, as a press then does, not even a page, nor `⏎` or `o`,
+    /// though the tap ended the hold with it.
     @Test func whileFingersCarryTheAsksNoKeyActs() throws {
         let (run, pointer) = try Self.asksOpen()
 
@@ -461,28 +572,38 @@ struct AsksPanelKeysRunTests {
             #expect(Self.press(key, run, pointer) == nil)
         }
         #expect(run.asksShown?.ask.id == "k1")
+
+        for key in [PanelKey.enter, .open] {
+            let (carried, onRow) = try Self.asksOpen()
+
+            try Self.drag(carried, 60)
+            #expect(Self.press(key, carried, onRow, ending: 1) == nil && carried.asksShown != nil)
+        }
     }
 
-    /// `o` while the ask's own answer is sending can't jump, and leaves the hold its `⌘Z`.
-    @Test func oWhileSendingKeepsTheHoldForCommandZ() throws {
+    /// `⏎` or `o` while the ask's own answer is sending can't jump, and leaves the hold its `⌘Z`.
+    @Test(arguments: [PanelKey.enter, .open])
+    func returnOrOWhileSendingKeepsTheHoldForCommandZ(_ key: PanelKey) throws {
         let (run, pointer) = try Self.asksOpen()
 
         run.heard(Self.held(Self.threaded), Self.at(run, pointer, Self.setting()))
-        #expect(Self.press(.open, run, pointer) == nil)
+        #expect(Self.press(key, run, pointer) == nil)
         #expect(run.holdsKeys && run.keySnapshot == .panel(hold: 1, undoes: true))
         #expect(Self.press(.undo, run, pointer) == .undo)
     }
 
-    /// The tap alone decides whether `o` ends the hold, and the panel follows it whatever it reads by the time it
-    /// hears `o`: `1` then `o`, the tap ending the hold at `o` before the answer showed, lets the hold go though the
-    /// sending line shows by then; `o` the tap read with the line showing keeps it though the answer went since.
-    @Test func whetherOEndsTheHoldIsTheTapsDecision() throws {
+    /// The tap alone decides whether `⏎` or `o` ends the hold, and the panel follows it whatever it reads by the time
+    /// it hears the key: `1` then the key, the tap ending the hold at it before the answer showed, lets the hold go
+    /// though the sending line shows by then; the key the tap read with the line showing keeps it though the answer
+    /// went since.
+    @Test(arguments: [PanelKey.enter, .open])
+    func whetherReturnOrOEndsTheHoldIsTheTapsDecision(_ key: PanelKey) throws {
         let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
 
         #expect(Self.press(.digit(1), run, pointer) == .answer(Self.threaded))
         run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
         try #require(run.asksShown?.sending != nil)
-        #expect(Self.press(.open, run, pointer, ending: 1) == nil)
+        #expect(Self.press(key, run, pointer, ending: 1) == nil)
         #expect(!run.holdsKeys && run.keySnapshot == .none)
 
         let (kept, onIt) = try Self.asksOpen()
@@ -490,7 +611,7 @@ struct AsksPanelKeysRunTests {
         kept.heard(Self.held(Self.threaded), Self.at(kept, onIt, setting))
         kept.heard(.went(Self.threaded), Self.at(kept, onIt, setting))
         try #require(kept.asksShown?.sending == nil)
-        #expect(Self.press(.open, kept, onIt) == nil)
+        #expect(Self.press(key, kept, onIt) == nil)
         #expect(kept.holdsKeys)
     }
 
@@ -510,36 +631,38 @@ struct AsksPanelKeysRunTests {
         #expect(run.needsFrames(at: run.time))
         #expect(Self.press(.undo, run, pointer) == nil)
         #expect(Self.press(.open, run, pointer) == nil && run.holdsKeys)
+        #expect(Self.press(.enter, run, pointer) == nil && run.holdsKeys)
 
         Self.frames(run, for: AsksPanel.settle, pointer, setting)
         #expect(run.keySnapshot == .panel(hold: 1, undoes: false))
     }
 
-    /// `o` the tap took ending no hold, as `⌘Z` was the panel's then, acts on nothing, though the main thread hears it
-    /// only once the beat has passed, when Open in Claude would jump; `o` ending the hold there jumps.
-    @Test func oTheTapKeptTheHoldWithActsOnNothingThoughTheBeatPassed() throws {
+    /// `⏎` or `o` the tap took ending no hold, as `⌘Z` was the panel's then, acts on nothing, though the main thread
+    /// hears it only once the beat has passed, when Open in Claude would jump; the key ending the hold there jumps.
+    @Test(arguments: [PanelKey.enter, .open])
+    func returnOrOTheTapKeptTheHoldWithActsOnNothingThoughTheBeatPassed(_ key: PanelKey) throws {
         let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
 
         run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
         run.heard(.went(Self.threaded), Self.at(run, pointer, setting))
         Self.frames(run, for: AsksPanel.settle, pointer, setting)
-        #expect(Self.press(.open, run, pointer) == nil)
+        #expect(Self.press(key, run, pointer) == nil)
         #expect(run.holdsKeys && run.asksShown != nil)
-        guard case .jump? = Self.press(.open, run, pointer, ending: 1) else {
-            Issue.record("o ending the hold did not jump")
+        guard case .jump? = Self.press(key, run, pointer, ending: 1) else {
+            Issue.record("\(key) ending the hold did not jump")
             return
         }
     }
 
-    /// The asks panel closed and opened again within the beat takes no `⌘Z`: closing ends the beat.
+    /// The asks panel closed by `esc` and opened again within the beat takes no `⌘Z`: closing ends the beat.
     @Test func closingTheAsksPanelEndsTheBeat() throws {
         let (run, pointer) = try Self.asksOpen(), setting = Self.setting()
 
         run.heard(Self.held(Self.threaded), Self.at(run, pointer, setting))
         run.heard(.went(Self.threaded), Self.at(run, pointer, setting))
         try #require(run.keySnapshot == .panel(hold: 1, undoes: true))
-        #expect(Self.press(.escape, run, pointer) == .asks)
-        #expect(Self.press(.enter, run, pointer) == .asks)
+        #expect(Self.press(.escape, run, pointer) == .asks && run.asksShown == nil)
+        #expect(Self.press(.right, run, pointer) == .asks)
         #expect(run.asksShown != nil && run.keySnapshot == .panel(hold: 1, undoes: false))
     }
 
@@ -631,7 +754,7 @@ struct AsksPanelKeysRunTests {
         let other = try Self.words(Self.dataImport, run, setting)
 
         run.step(Self.at(run, other, setting))
-        #expect(Self.press(.enter, run, other) == .asks)
+        #expect(Self.press(.right, run, other) == .asks)
         #expect(run.asksShown?.row == Self.dataImport && run.asksShown?.keycaps == false)
         #expect(Self.press(.digit(1), run, other) == nil)
     }

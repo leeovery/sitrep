@@ -75,14 +75,15 @@ extension NotchRun {
     /// A key of the set while the panel holds the keys, open, or in the shortcut's hold out, acting on the lit row as
     /// its click would: on the asks panel while it is open (`asksKey`), else on the list (`listKey`). A key with no use
     /// at the moment does nothing, as does one heard while a menu holds the card, the menu's. A key the tap took as
-    /// `ending` a hold, as it takes `o` whether or not `o` jumps (`KeyReader`), lets that hold go here too, acting or
-    /// not, so the panel holds what the tap holds: the tap alone decides it. So the keys typed after it go to the
-    /// window in front, and the shortcut's panel closes where `o` didn't jump. `o` the tap took ending none, as `⌘Z`
-    /// was the asks panel's, where `o` can't act, acts on nothing, though the beat has passed by the time it is heard.
-    public func key(_ key: PanelKey, ending number: Int? = nil, _ moment: Moment) -> Press? {
+    /// `ending` a hold, as it takes `o` and `⏎` whether or not they jump (`KeyReader`), lets that hold go here too,
+    /// acting or not, so the panel holds what the tap holds: the tap alone decides it. So the keys typed after it go to
+    /// the window in front, and the shortcut's panel closes where it didn't jump. `o` or `⏎` the tap took ending none,
+    /// as `⌘Z` was the asks panel's, where it can't act, acts on nothing, though the beat has passed by the time it is
+    /// heard. A held arrow's repeat, `again`, only pages the asks panel: it never opens it nor closes it.
+    public func key(_ key: PanelKey, ending number: Int? = nil, again: Bool = false, _ moment: Moment) -> Press? {
         upToNow(moment)
 
-        let press = key == .open && number == nil ? nil : acted(on: key, in: moment.setting)
+        let press = key.jumps && number == nil ? nil : acted(on: key, again: again, in: moment.setting)
 
         if let number {
             letGo(of: number)
@@ -93,12 +94,12 @@ extension NotchRun {
 
     /// What a key does while it acts: while the panel holds the keys, open, or out in the shortcut's hold, and no menu
     /// holds the card.
-    private func acted(on key: PanelKey, in setting: Setting) -> Press? {
+    private func acted(on key: PanelKey, again: Bool, in setting: Setting) -> Press? {
         guard hold.isOn, notch.phase == .open || hold.isShortcut && isOut, menuAt == nil else {
             return nil
         }
 
-        return asking.row == nil ? listKey(key, in: setting) : asksKey(key, in: setting)
+        return asking.row == nil ? listKey(key, again: again, in: setting) : asksKey(key, again: again, in: setting)
     }
 
     /// The shortcut (DESIGN, "Keys"): out, the panel closes, as a click elsewhere closes it; closing, nothing; closed,
@@ -126,24 +127,26 @@ extension NotchRun {
         return rows.first { list.item($0)?.session?.section == .needsYou } ?? rows.first
     }
 
-    /// On the list: `↑` `↓` move the lit row; `⏎` opens the lit row's asks panel where it has the arrow; `o` jumps to
-    /// its window; `z` offers its snooze, or in Snoozed wakes it; `s` folds Snoozed or unfolds it; `esc` closes the
-    /// panel, which stays closed until the pointer leaves the notch and comes back.
-    private func listKey(_ key: PanelKey, in setting: Setting) -> Press? {
+    /// On the list: `↑` `↓` move the lit row; `⏎` and `o` jump to its window; the arrow pointing away from the notch
+    /// opens its asks panel where it has the arrow, as a click on the arrow does, at its first ask, but not `again` as
+    /// it repeats, and the arrow pointing back does nothing; `z` offers its snooze, or in Snoozed wakes it; `s` folds
+    /// Snoozed or unfolds it; `esc` closes the panel, which stays closed until the pointer leaves the notch and comes
+    /// back.
+    private func listKey(_ key: PanelKey, again: Bool, in setting: Setting) -> Press? {
         let row = litRow(in: setting)
 
         switch key {
         case .up, .down:
             move(key == .up ? -1 : 1, from: row, in: setting)
             return nil
-        case .enter:
-            guard let row, arrowRow(row) != nil else {
+        case .left, .right:
+            guard !again, isOutward(key, in: setting), let row, arrowRow(row) != nil else {
                 return nil
             }
 
             toggleAsks(row)
             return .asks
-        case .open:
+        case .enter, .open:
             return row.flatMap { jump($0) }
         case .snooze:
             return row.flatMap { snooze($0, in: setting) }
@@ -152,40 +155,84 @@ extension NotchRun {
         case .escape:
             closePanel()
             return nil
-        case .left, .right, .ignore, .digit, .undo:
+        case .ignore, .digit, .undo:
             return nil
         }
     }
 
     /// On the asks panel, wherever the pointer is on the panel: `↑` `↓` move the lit row and close it, as a menu's
-    /// arrows close its submenu; `⏎` and `esc` close it; `s` does nothing; every other key presses its part of it as a
-    /// click on the part does (`AsksPanel.key`).
-    private func asksKey(_ key: PanelKey, in setting: Setting) -> Press? {
+    /// arrows close its submenu; `esc` closes it; `←` `→` step along its asks (`stepAsks`); `⏎` and `o` go to the lit
+    /// row (`goes`); `s` does nothing; every other key presses its part of it as a click on the part does
+    /// (`AsksPanel.key`).
+    private func asksKey(_ key: PanelKey, again: Bool, in setting: Setting) -> Press? {
         switch key {
         case .up, .down:
             move(key == .up ? -1 : 1, from: litRow(in: setting), in: setting)
-        case .enter, .escape:
+        case .escape:
             break
+        case .left, .right:
+            return stepAsks(outward: isOutward(key, in: setting), again: again, in: setting)
         case .fold:
             return nil
-        case .left, .right, .open, .snooze, .ignore, .digit, .undo:
+        case .enter, .open:
+            return goes(in: setting)
+        case .snooze, .ignore, .digit, .undo:
             return asksPart(pressedBy: key).flatMap { keyAsks($0, in: setting) }
         }
         asking.close()
         return .asks
     }
 
-    /// The part of the asks panel a key presses: `1`–`9` an answer's row, `x` Ignore, `z` Snooze ▾, `o` Open in Claude,
-    /// `⌘Z` the sending line's Undo, and `←` `→` the dot of the ask before the one shown and of the next.
+    /// `⏎` or `o` with the asks panel open goes to the lit row: on the asks panel's own row, its Open in Claude, with
+    /// every rule that has (`AsksPanel.key`); on another row the pointer lights, that row's window, as a click on its
+    /// words, so it never moves the screen to a session the pointer isn't on.
+    private func goes(in setting: Setting) -> Press? {
+        guard let row = litRow(in: setting), list.item(row)?.key != asking.row else {
+            return keyAsks(.open, in: setting)
+        }
+
+        return jump(row)
+    }
+
+    /// An arrow on the asks panel: pointing away from the notch, the next ask, nothing past the last; pointing back,
+    /// the one before, each as its dot pages it, or from the first the asks panel closed, its row left lit, as a
+    /// menu's `←` closes its submenu, but not `again` as it repeats, nor within the beat after a change the keys
+    /// didn't make, which holds a key on it (`AsksPanel.isSettled(forKeysAt:)`). While fingers carry its asks, it
+    /// lands on nothing, as a page there does.
+    private func stepAsks(outward: Bool, again: Bool, in setting: Setting) -> Press? {
+        guard let page = asking.shown?.page, !asking.isFollowing else {
+            return nil
+        }
+
+        let to = page + (outward ? 1 : -1)
+
+        guard to < 0 else {
+            return keyAsks(.page(to), in: setting)
+        }
+        guard !again, asking.isSettled(forKeysAt: time) else {
+            return nil
+        }
+
+        keyLit = asking.row
+        asking.close()
+        return .asks
+    }
+
+    /// Whether an arrow points away from the notch, along the line the list, the asks panel and its asks lie on out
+    /// from it: `→` on the left edge, `←` on the right, mirrored there.
+    private func isOutward(_ key: PanelKey, in setting: Setting) -> Bool {
+        (key == .right) == (setting.mirror.a > 0)
+    }
+
+    /// The part of the asks panel a key presses: `1`–`9` an answer's row, `x` Ignore, `z` Snooze ▾, and `⌘Z` the
+    /// sending line's Undo.
     private func asksPart(pressedBy key: PanelKey) -> AsksPart? {
         switch key {
         case let .digit(number): .answer(number - 1)
         case .ignore: .ignore
         case .snooze: .snooze
-        case .open: .open
         case .undo: .undo
-        case .left, .right: asking.shown.map { .page($0.page + (key == .left ? -1 : 1)) }
-        case .up, .down, .enter, .escape, .fold: nil
+        case .up, .down, .left, .right, .enter, .open, .escape, .fold: nil
         }
     }
 

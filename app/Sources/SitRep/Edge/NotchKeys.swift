@@ -11,9 +11,9 @@ import SitRepEdge
 /// prompt do, let go of the keys.
 @MainActor
 final class NotchKeys {
-    /// A key of the set while the panel holds the keys, with the hold it ended, if any, as the tap ends one with `o`;
-    /// and a key it doesn't take, in the hold of this number.
-    var onKey: (PanelKey, _ ending: Int?) -> Void = { _, _ in }
+    /// A key of the set while the panel holds the keys, with the hold it ended, if any, as the tap ends one with `o`,
+    /// and whether it is a held key's repeat; and a key it doesn't take, in the hold of this number.
+    var onKey: (PanelKey, _ ending: Int?, _ again: Bool) -> Void = { _, _, _ in }
     var onLetGo: (Int) -> Void = { _ in }
     /// The screens slept, the screen locked, the screen saver started, the session went to another user, or a window
     /// took secure input: the panel is to hold the keys no more, so what is typed after goes to the window in front.
@@ -138,7 +138,7 @@ final class NotchKeys {
     /// main thread woke.
     private func heard(_ action: KeyAction) {
         switch action {
-        case let .panel(key, ends): onKey(key, ends)
+        case let .panel(key, ends, again): onKey(key, ends, again)
         case let .letGo(hold): onLetGo(hold)
         case let .choose(number): takeSnoozeMenu()?.choose(number: number)
         case .closeMenu: takeSnoozeMenu()?.cancelTracking()

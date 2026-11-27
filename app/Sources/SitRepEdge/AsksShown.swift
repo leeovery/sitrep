@@ -29,6 +29,10 @@ public struct AsksShown: Equatable, Sendable {
     /// Whether its answers' rows show their numbers in keycaps: while the panel holds the keys, no menu holds the card
     /// and no answer is held, when the digits answer (DESIGN, "Keys").
     public internal(set) var keycaps = false
+    /// Whether it opens leftward, from the right edge, where its asks lie right to left: out from the notch, the first
+    /// nearest it, as its dots lie and its asks slide (DESIGN, "Paging"). Only the asks' order turns: its words, its
+    /// keycaps and its foot read as on the left edge.
+    public internal(set) var pointsLeft = false
 
     /// An ask beside the one shown as the asks slide: its page among the session's, laid out, the answer held for it.
     public struct Beside: Equatable, Sendable {
@@ -47,6 +51,20 @@ public struct AsksShown: Equatable, Sendable {
     /// How tall it is as it slides, from its ask's height toward the ask beside's.
     var height: Double { layout.height + ((beside?.layout.height ?? layout.height) - layout.height) * share }
 
+    /// Its page dots in its own frame, by their asks' places, as far as its asks have slid, lying as its asks lie.
+    public var dots: [CGRect] { layout.dots(at: progress, of: pages, pointsLeft: pointsLeft) }
+
+    /// How far across its own frame its ask's page stands as its asks slide: back toward the notch as it slides toward
+    /// the next ask, so the next comes in from the side away from the notch, as the dots lie.
+    public var pageX: Double { -slid * outward }
+
+    /// How far across its own frame the ask beside's page stands as its asks slide: an ask's width from the ask
+    /// shown's, on the side it is slid toward.
+    public var besideX: Double { pageX + (slid < 0 ? -1 : 1) * AsksLayout.width * outward }
+
+    /// Which way across its own frame the asks lie from the first: 1 left to right, -1 right to left.
+    private var outward: Double { pointsLeft ? -1 : 1 }
+
     /// The ask beside as a showing of its own at rest, nothing under the pointer, for a drawing to draw its page as it
     /// draws the ask shown.
     public var shownBeside: AsksShown? {
@@ -54,7 +72,7 @@ public struct AsksShown: Equatable, Sendable {
             AsksShown(
                 row: row, session: session, ask: beside.ask, page: beside.page, pages: pages, layout: beside.layout,
                 frame: CGRect(origin: .zero, size: beside.layout.size), sending: beside.sending, hover: nil,
-                keycaps: keycaps
+                keycaps: keycaps, pointsLeft: pointsLeft
             )
         }
     }
@@ -85,7 +103,8 @@ public struct AsksShown: Equatable, Sendable {
     /// The middle of a part in its own frame, its page dots where its slide has brought them; none where it has no such
     /// part.
     func middle(of part: AsksPart) -> CGPoint? {
-        layout.box(of: part, progress: progress, of: pages).map { CGPoint(x: $0.midX, y: $0.midY) }
+        layout.box(of: part, progress: progress, of: pages, pointsLeft: pointsLeft)
+            .map { CGPoint(x: $0.midX, y: $0.midY) }
     }
 
     /// A point in its own frame on the stage, as drawn through the edge's mirror: `ownPoint` the other way.
