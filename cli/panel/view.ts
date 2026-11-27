@@ -94,7 +94,7 @@ export type PanelView = {
   /** The snooze menu, open under the chosen row: its choices, the one picked, and the first drawn as the layout last kept it. */
   menu?: Pick<Menu, 'row' | 'options' | 'at' | 'top'>
   /** The chosen row's asks, open under it: the row's key, the ask shown by its place among them, and whether Snooze offers a time. */
-  opened?: { row: string; at: number; offersSnooze: boolean }
+  asking?: { row: string; at: number; offersSnooze: boolean }
   top: number
   answer?: string
   board: 'looking' | 'read' | 'stale'
@@ -111,7 +111,7 @@ export type ViewState = {
   /** The snooze menu, open under the chosen row: never another row's. */
   menu?: Menu
   /** The chosen row's asks, open under it, by its key, at the ask shown, by its id: never another row's. */
-  opened?: { row: string; ask: string }
+  asking?: { row: string; ask: string }
   /** Snooze's choices as Lee set them in SitRep; core's defaults where none were read. */
   snoozeSettings?: SnoozeSettings
   /** The first row in view: its index over the rows of the open sections, in order, one a row, not a screen line. */
@@ -280,13 +280,13 @@ const sectionsOf = (
 }
 
 /** The asks open under the chosen row, the one shown by its place; none where the state's ask is not among the row's. */
-const openedOf = (sections: PanelView['sections'], { opened, snoozeSettings = SNOOZE_DEFAULTS }: ViewState, now: number) => {
-  const row = sections.flatMap(section => section.rows).find(each => rowKey(each) === opened?.row)
-  const at = row?.answerable?.findIndex(ask => ask.id === opened?.ask) ?? -1
+const askingOf = (sections: PanelView['sections'], { asking, snoozeSettings = SNOOZE_DEFAULTS }: ViewState, now: number) => {
+  const row = sections.flatMap(section => section.rows).find(each => rowKey(each) === asking?.row)
+  const at = row?.answerable?.findIndex(ask => ask.id === asking?.ask) ?? -1
 
-  return opened === undefined || at === -1
+  return asking === undefined || at === -1
     ? {}
-    : { opened: { row: opened.row, at, offersSnooze: snoozeChoicesAt(now, snoozeSettings).length > 0 } }
+    : { asking: { row: asking.row, at, offersSnooze: snoozeChoicesAt(now, snoozeSettings).length > 0 } }
 }
 
 /**
@@ -308,7 +308,7 @@ export const viewOf = (
     ...(band === undefined ? {} : { band }),
     ...(expanded === undefined ? {} : { expanded }),
     ...(menu === undefined ? {} : { menu: { row: menu.row, options: menu.options, at: menu.at, top: menu.top } }),
-    ...openedOf(sections, state, now),
+    ...askingOf(sections, state, now),
     top,
     ...(answer === undefined ? {} : { answer: cleaned(answer) }),
     board,

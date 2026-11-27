@@ -1372,7 +1372,7 @@ const asking = (
     },
   ],
   band: rowKey(band),
-  ...(isOpen ? { opened: { row: rowKey(band), at, offersSnooze } } : {}),
+  ...(isOpen ? { asking: { row: rowKey(band), at, offersSnooze } } : {}),
   top: 0,
   board: 'read',
 })
@@ -1529,6 +1529,43 @@ test('the foot names Snooze only while Snooze offers a time; its keys bold in th
   ])
 })
 
+test('short of columns the foot drops whole hints, `z Snooze` first, then `x Ignore`, `o Open` kept; it never runs past W−2', () => {
+  const footAt = (width: number) => {
+    const lines = frame(asking(ASKING), width, 20)
+
+    return lines.find(line => line.includes(' Open')) ?? ''
+  }
+
+  expect([footAt(24), footAt(27), footAt(30)]).toEqual(['   x Ignore  o Open', '   x Ignore  o Open', '   x Ignore  z Snooze  o Open'])
+  expect([24, 27, 30].every(width => footAt(width).length <= width - 1)).toBe(true)
+})
+
+test('the page dots go where they would leave `Asked …` less than its whole words: the asks still page by `←→`, as the key line says', () => {
+  const asks = Array.from({ length: 14 }, (_, at): PanelAsk => ({ ...OFFICE, id: `k${at + 1}`, age: '4m' }))
+  const crowded = { ...ASKING, count: 14, answerable: asks }
+  const askedAt = (width: number) => frame(asking(crowded, { rows: [crowded] }), width, 15).find(line => line.startsWith('   Asked')) ?? ''
+  const at69 = askedAt(69)
+
+  expect(askedAt(30)).toBe('   Asked 4m ago')
+  expect(frame(asking(crowded, { rows: [crowded] }), 30, 15).at(-1)).toBe(' ←→ ask  esc close')
+  expect([at69.startsWith('   Asked 4m ago '), at69.endsWith(`━━${' ━'.repeat(13)}`), at69.length]).toEqual([true, true, 68])
+})
+
+test("Claude's pick is the first answer alone: another option whose words clean to the same is drawn as any other", () => {
+  const twins = { ...ASKING, answerable: [{ ...THREAD, answers: ['Now', 'Now', 'Later'], pick: 'Now' }] }
+  const [first = '', second = ''] = drawn(asking(twins), 39, 15, NORDFOX, 7, 9)
+
+  expect(first).toContain(`${ESC}[0;38;2;177;185;249;48;2;52;61;75mNow`)
+  expect(second).not.toContain('38;2;177;185;249')
+  expect(frame(asking(twins), 39, 15).slice(7, 10)).toEqual(['   1 Now · Recommended', '   2 Now', '   3 Later'])
+})
+
+test("an expanded band row that has come to hold asks draws `▹` in its time's place, as its folded line would", () => {
+  const view = { ...asking(ASKING, { isOpen: false }), expanded: rowKey(ASKING) }
+
+  expect(frame(view, 39, 15).slice(3, 5)).toEqual([' ● Help desk redesign 2              ▹', '   Northwind · Thread replies, or keep'])
+})
+
 test('only the first nine answers are numbered, as the digits send them; the key line says `1–9 answer`', () => {
   const many = { ...ASKING, answerable: [{ ...THREAD, answers: Array.from({ length: 10 }, (_, at) => `Option ${at + 1}`), pick: 'Option 1' }] }
   const lines = frame(asking(many, { rows: [many] }), 39, 20)
@@ -1547,10 +1584,24 @@ test("an away row's head dims as the row's words do, toward the band's ground; t
   const ground = '48;2;52;61;75'
   const [head = '', project = '', title = '', asked = ''] = drawn(asking(away, { rows: [away] }), 39, 15, NORDFOX, 2, 6)
 
-  expect(head).toContain(`${ESC}[0;1;38;2;145;149;156;${ground}mHelp${ESC}[0;${ground}m ${ESC}[0;1;38;2;145;149;156;${ground}mdesk`)
+  expect(head).toContain(`${ESC}[0;1;38;2;145;149;156;${ground}mHelp desk redesign${ESC}[0;38;2;95;103;134;${ground}m 2`)
   expect(project).toContain(`${ESC}[0;38;2;95;103;134;${ground}mNorthwind`)
   expect(title).toContain(`${ESC}[0;1;${ground}mThread replies, or keep them flat?`)
   expect(asked).toContain(`${ESC}[0;38;2;122;130;171;${ground}mAsked 4m ago`)
+})
+
+test("a head's spaces take the pen of the word after them, as the row's one line draws them: bold in the name, grey before the count", () => {
+  const [head = ''] = drawn(asking(ASKING, { rows: [ASKING] }), 39, 15, NONE, 2, 3)
+
+  expect(head).toContain(`${ESC}[0;1;7mHelp desk redesign${ESC}[0;2;7m 2`)
+})
+
+test("an away row's arrow dims with its row's words, folded and open", () => {
+  const away = { ...ASKING, isAway: true }
+  const dimmedArrow = (glyph: string) => `${ESC}[0;1;38;2;145;149;156;48;2;52;61;75m${glyph}${ESC}[0m`
+
+  expect(drawn(asking(away, { rows: [away], isOpen: false }), 39, 15, NORDFOX, 2, 3)[0]).toContain(dimmedArrow('▹'))
+  expect(drawn(asking(away, { rows: [away] }), 39, 15, NORDFOX, 2, 3)[0]).toContain(dimmedArrow('▿'))
 })
 
 /** An ask whose block gives way step by step: a head of two lines, a title of two, three answers of one, and the foot: 9 lines whole. */

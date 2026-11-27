@@ -94,7 +94,7 @@ const layoutIn = (state: PanelState) => layoutOf(viewIn(state), state.size)
 const frameOf = (state: PanelState) => text(draw(viewIn(state), state.size, { level: 'none' })).split('\n').slice(0, -1)
 
 /** Where the band is, and the asks open, if any. */
-const shown = (state: PanelState) => [state.band, state.opened]
+const shown = (state: PanelState) => [state.band, state.asking]
 
 /** The terminal row of the first line of the row `key`. */
 const yOf = (state: PanelState, key: string) => layoutIn(state).rows.find(each => each.key === key)?.y ?? -1
@@ -105,15 +105,15 @@ const lineWith = (state: PanelState, words: string) => frameOf(state).findIndex(
 test("⏎ on a row with asks the view answers opens them under it, at the first, the band staying on the row; ⏎ again closes them", () => {
   const opened = open()
 
-  expect([opened.band, opened.opened, opened.expanded]).toEqual([ASKING, { row: ASKING, ask: 'k1' }, undefined])
-  expect(pressed(opened, ENTER).opened).toBeUndefined()
+  expect([opened.band, opened.asking, opened.expanded]).toEqual([ASKING, { row: ASKING, ask: 'k1' }, undefined])
+  expect(pressed(opened, ENTER).asking).toBeUndefined()
   expect(pressed(opened, ENTER).band).toBe(ASKING)
 })
 
 test("a tap on the band's row opens its asks as ⏎ does; a tap on another row puts the band there and opens nothing", () => {
   const banded = onRow(read(), 0)
 
-  expect(pressed(banded, tap(yOf(banded, ASKING))).opened).toEqual({ row: ASKING, ask: 'k1' })
+  expect(pressed(banded, tap(yOf(banded, ASKING))).asking).toEqual({ row: ASKING, ask: 'k1' })
   expect(shown(pressed(banded, tap(yOf(banded, YES))))).toEqual([YES, undefined])
 })
 
@@ -121,7 +121,7 @@ test('⏎ on a row with no asks the view answers expands it, as before: a prompt
   for (const index of [2, 3, 4]) {
     const state = pressed(onRow(read(), index), ENTER)
 
-    expect([state.expanded, state.opened], String(index)).toEqual([state.band, undefined])
+    expect([state.expanded, state.asking], String(index)).toEqual([state.band, undefined])
   }
 
   expect(frameOf(open()).slice(3, 7)).toEqual(['   Northwind', '   Thread replies, or keep them flat?', '   Asked 4m ago                   ━━ ━', '   1 Threaded · Recommended'])
@@ -132,16 +132,16 @@ test('⏎ on an expanded row that has come to hold asks opens them, folding it',
   const asked = boarded(expanded, board())
 
   expect(asked.expanded).toBe(ASKING)
-  expect([pressed(asked, ENTER).opened, pressed(asked, ENTER).expanded]).toEqual([{ row: ASKING, ask: 'k1' }, undefined])
+  expect([pressed(asked, ENTER).asking, pressed(asked, ENTER).expanded]).toEqual([{ row: ASKING, ask: 'k1' }, undefined])
 })
 
 test('→ shows the ask after, ← the one before, at once, in the row\'s order, newest first; nothing wraps', () => {
   const opened = open()
 
-  expect(pressed(opened, RIGHT).opened?.ask).toBe('k2')
-  expect(pressed(opened, RIGHT, RIGHT).opened?.ask).toBe('k2')
-  expect(pressed(opened, RIGHT, LEFT).opened?.ask).toBe('k1')
-  expect(pressed(opened, LEFT).opened?.ask).toBe('k1')
+  expect(pressed(opened, RIGHT).asking?.ask).toBe('k2')
+  expect(pressed(opened, RIGHT, RIGHT).asking?.ask).toBe('k2')
+  expect(pressed(opened, RIGHT, LEFT).asking?.ask).toBe('k1')
+  expect(pressed(opened, LEFT).asking?.ask).toBe('k1')
   expect(frameOf(pressed(opened, RIGHT))[5]).toBe('   Asked 12m ago                  ━ ━━')
 })
 
@@ -152,10 +152,10 @@ test('a tap on a page dot shows its ask, each dot taking its own cells and the s
   const first = line.indexOf('━')
   const second = line.lastIndexOf('━')
 
-  expect(pressed(opened, tap(y, second)).opened?.ask).toBe('k2')
-  expect(pressed(opened, tap(y, second - 1)).opened?.ask).toBe('k2')
-  expect(pressed(opened, tap(y, second), tap(y, first)).opened?.ask).toBe('k1')
-  expect(pressed(opened, tap(y, first - 1)).opened, 'left of the dots, on the ask: nothing').toEqual({ row: ASKING, ask: 'k1' })
+  expect(pressed(opened, tap(y, second)).asking?.ask).toBe('k2')
+  expect(pressed(opened, tap(y, second - 1)).asking?.ask).toBe('k2')
+  expect(pressed(opened, tap(y, second), tap(y, first)).asking?.ask).toBe('k1')
+  expect(pressed(opened, tap(y, first - 1)).asking, 'left of the dots, on the ask: nothing').toEqual({ row: ASKING, ask: 'k1' })
 })
 
 test('esc closes the asks, the band kept; ↑ and ↓ close them and move the band, a row a press; at the first row ↑ closes them alone', () => {
@@ -174,8 +174,8 @@ test('a tap anywhere but the ask closes the asks and does nothing more: on the r
   expect(shown(pressed(opened, tap(head + 1)))).toEqual([ASKING, undefined])
   expect(shown(pressed(opened, tap(yOf(opened, YES))))).toEqual([ASKING, undefined])
   expect(shown(pressed(opened, tap(SIZE.height - 3)))).toEqual([ASKING, undefined])
-  expect(pressed(opened, tap(lineWith(opened, 'Thread replies'))).opened).toEqual({ row: ASKING, ask: 'k1' })
-  expect(pressed(opened, tap(lineWith(opened, 'Threaded'))).opened).toEqual({ row: ASKING, ask: 'k1' })
+  expect(pressed(opened, tap(lineWith(opened, 'Thread replies'))).asking).toEqual({ row: ASKING, ask: 'k1' })
+  expect(pressed(opened, tap(lineWith(opened, 'Threaded'))).asking).toEqual({ row: ASKING, ask: 'k1' })
 })
 
 test("with the asks open, s, z and the digits do nothing, reaching none of the row's own keys; o asks to open the session", () => {
@@ -201,10 +201,10 @@ test('an ask that leaves the board passes the asks to the next still on it, else
   const third = boardAsk('k3', 'Which week first?', { wants: 'words' }, NOW - 20 * MIN)
   const three = open(board([THREAD, OFFICE, third]))
 
-  expect(boarded(three, board([OFFICE, third])).opened?.ask).toBe('k2')
-  expect(boarded(three, board([third])).opened?.ask).toBe('k3')
-  expect(boarded(pressed(three, RIGHT, RIGHT), board([THREAD, OFFICE])).opened?.ask).toBe('k2')
-  expect(boarded(pressed(three, RIGHT), board([THREAD])).opened?.ask).toBe('k1')
+  expect(boarded(three, board([OFFICE, third])).asking?.ask).toBe('k2')
+  expect(boarded(three, board([third])).asking?.ask).toBe('k3')
+  expect(boarded(pressed(three, RIGHT, RIGHT), board([THREAD, OFFICE])).asking?.ask).toBe('k2')
+  expect(boarded(pressed(three, RIGHT), board([THREAD])).asking?.ask).toBe('k1')
   expect(shown(boarded(three, board([])))).toEqual([ASKING, undefined])
 })
 
@@ -212,7 +212,7 @@ test('an ask new to the board leaves the one shown in its place; an ask edited w
   const newer = boardAsk('k3', 'Ship it?', { wants: 'yes', yes: 'Ship' }, NOW - MIN)
   const edited = { ...THREAD, title: 'Thread the replies?' }
 
-  expect(boarded(open(), board([newer, THREAD, OFFICE])).opened?.ask).toBe('k1')
+  expect(boarded(open(), board([newer, THREAD, OFFICE])).asking?.ask).toBe('k1')
   expect(frameOf(boarded(open(), board([edited, OFFICE])))[4]).toBe('   Thread the replies?')
 })
 

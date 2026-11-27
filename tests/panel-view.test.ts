@@ -422,7 +422,7 @@ test("the view says the band's asks open, by the ask shown's place, and whether 
   const feed = boardWith(helpDesk([[T0, yesAsk('k1', 'Ship it')], [T0 + MIN, yesAsk('k2', 'Tag it')]]))
   const allOff = snoozeSettingsOf('{"v":1,"hour":{"on":false},"later":{"on":false},"tonight":{"on":false},"tomorrow":{"on":false},"weekend":{"on":false},"week":{"on":false}}')
   const opened = (ask: string, snoozeSettings = SNOOZE_DEFAULTS) =>
-    viewOf(feed, { ...STATE, band: META.id, opened: { row: META.id, ask }, snoozeSettings }, ASKED_NOW, NONE).opened
+    viewOf(feed, { ...STATE, band: META.id, asking: { row: META.id, ask }, snoozeSettings }, ASKED_NOW, NONE).asking
 
   expect(opened('k1')).toEqual({ row: META.id, at: 1, offersSnooze: true })
   expect(opened('k2')).toEqual({ row: META.id, at: 0, offersSnooze: true })

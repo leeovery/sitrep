@@ -2,10 +2,9 @@
  * The keys in what a terminal sends in raw mode, as bytes, in whatever
  * pieces they come.
  *
- * - `CSI` and `SS3` arrows both read as arrows (`ESC [ A`, `ESC O A`), so
- *   application cursor mode doesn't matter, `←` and `→` as `↑` and `↓`, and
- *   Home and End the same. PgUp
- *   and PgDn come as `ESC [ 5 ~` and `ESC [ 6 ~`.
+ * - `CSI` and `SS3` arrows both read as arrows (`ESC [ A`, `ESC O A`), all
+ *   four of them, so application cursor mode doesn't matter; Home and End
+ *   the same. PgUp and PgDn come as `ESC [ 5 ~` and `ESC [ 6 ~`.
  * - `j` and `k` move as `↓` and `↑`; `q` and Ctrl-C both leave.
  * - `1` to `9` each carry their number; `0` is nothing.
  * - A mouse report, in SGR's form or in the old X10 form a terminal without

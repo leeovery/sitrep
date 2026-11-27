@@ -528,6 +528,7 @@ const SCREENS: Record<string, Screen> = {
   yes: { world: AT_REST, keys: [...downTo(AT_REST, 'Shift schedules'), ENTER], sizes: [[39, 27], [69, 46]] },
   prompt: { world: AT_REST, keys: downTo(AT_REST, 'Data import'), sizes: [[39, 27]] },
   busyasks: { world: CROWDED, keys: [...downTo(CROWDED, 'Help desk redesign'), ENTER], sizes: [[39, 27], [73, 15]] },
+  nocolorasks: { world: AT_REST, paint: NO_COLOR, keys: [...downTo(AT_REST, 'Help desk redesign'), ENTER], sizes: [[39, 27]] },
 }
 
 export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], sizes }]) =>
