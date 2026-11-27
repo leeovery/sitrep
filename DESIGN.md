@@ -6736,7 +6736,8 @@ until the strip went the next day (see "The strip").
 
 **Not in this build** (see "Later"): the menu bar item; permission
 prompts and Claude Code's question dialog. Keys came on 26 November 2026
-(see "Keys").
+(see "Keys"). The terminal view answers a row's asks too, from the same
+day, under the row and by the same keys (see "The board in a terminal").
 
 ### Keys
 
@@ -6756,15 +6757,15 @@ see "Answering from the panel").
 | Key | Does |
 |---|---|
 | `↑` `↓`, `k` `j` | moves the lit row, or a menu's highlight |
-| `⏎` | on the notch, goes: jumps to the lit row's window, as `o`; in the asks panel, Open in Claude ↗; in the terminal view, looks closer: expands the row or folds it; in a menu, chooses |
+| `⏎` | on the notch, goes: jumps to the lit row's window, as `o`; in the asks panel, Open in Claude ↗; in the terminal view, looks closer: opens the band's row's asks under it where it has any the view answers, else expands the row, and closes or folds it again; in a menu, chooses |
 | `o` | opens: jumps to the lit row's window; in the asks panel, Open in Claude ↗; in the terminal view, runs the resume command |
 | `z` | snoozes: on a row that needs Lee, the snooze menu; on a snoozed row, wakes it; in the asks panel, the snooze menu for the ask shown; in a snooze menu, closes it |
 | `1`–`9` | chooses by number in what is open: a snooze menu's times, an ask's answers |
 | `x` | ignores the ask shown; on the pane, presses ✕ |
-| `←` `→` | on the notch, steps along one line out from it: the arrow pointing away from the notch opens the lit row's asks panel and pages on through its asks; the arrow pointing back pages back and, from the first ask, closes it |
+| `←` `→` | on the notch, steps along one line out from it: the arrow pointing away from the notch opens the lit row's asks panel and pages on through its asks; the arrow pointing back pages back and, from the first ask, closes it; in the terminal view, with a row's asks open, pages them, as the dots lie |
 | `s` | folds or unfolds Snoozed |
 | `esc` | closes the innermost: a menu, then the asks panel, then the panel; in the terminal view, the menu, else the band |
-| `⌘Z` | takes back the answer the asks panel is sending, as its Undo |
+| `⌘Z` | takes back the answer the asks panel is sending, as its Undo; in the terminal view, `u`, since the view reads keys as plain bytes, which carry no ⌘ |
 
 On the notch `⏎` goes and the arrows look closer (Lee, 27 November 2026,
 after his live run of the keys): "I think enter should probably take me to
@@ -7076,7 +7077,19 @@ Settled in the build (26 November 2026):
 
 **The terminal view** keeps its keys (see "The board in a terminal") and
 adds `1`–`9` to its snooze menu, each choice drawn with its number before
-it, in the key line's grey.
+it, in the key line's grey. With a row's asks open (26 November 2026, see
+"The board in a terminal"), they are the asks panel's: `1`–`9` answer,
+each answer drawn with its number before it, `x` ignores, `z` snoozes the
+ask shown, `o` opens, `←` `→` page, and `↑` `↓` move the band and close
+them. `⏎` and `esc` close them: `⏎` looks closer and folds in the view,
+and never opens a session there. `u` takes back an answer sending, in
+`⌘Z`'s place.
+
+**`⏎` stays the terminal view's way into a row's asks** (Lee, 27 November
+2026), though on the notch `⏎` now goes and the arrows open the asks
+panel (#222). The notch's asks panel comes out sideways from it, so the
+arrows step along that line; the view opens a row's asks under the row,
+where `↑` `↓` already move the band. Lee: "the notch lends itself to sideways arrows due to how it presents on the screen. sitrep tui isnt the same."
 
 **The pane** in Claude Code takes them through a Button's `hotkey`, a digit
 or a lowercase letter that presses it while the pane holds the keyboard,
@@ -11060,7 +11073,8 @@ to the Mac over SSH in rootshell, and for a Ghostty tab on the Mac. The
 full spec, the code it builds on, what that code can't give yet, the
 questions still Lee's and the slices it is built in, is
 `design/terminal-ui.md`; the looks are in Paper's "SitRep · terminal
-look", the pick on its page "FINAL · board in a terminal".
+look", the pick on its page "FINAL · one line, asks under the row · signed off 26 Nov 2026"
+(round 4's, "FINAL · board in a terminal", until then).
 
 - **One panel, drawn the same everywhere:** a dashboard to leave open
   beside your work, and a launcher to pick from. `sitrep` alone opens it on
@@ -11071,9 +11085,33 @@ look", the pick on its page "FINAL · board in a terminal".
 - **Sessions by state, as the notch orders them:** Needs you, its asks in
   orange, then its Stopped in blue; Working; then Snoozed, folded at first.
   Each row names its project.
-- **It doesn't answer asks**, as the notch didn't when it was settled; the
-  notch's asks panel answers since 24 November 2026 (see "Answering from
-  the panel").
+- **It answers a row's asks** (Lee, 26 November 2026), as the notch's
+  asks panel has since 24 November 2026 (see "Answering from the panel").
+  It hadn't only because the notch hadn't. `⏎`, or a tap on the band's
+  row, opens the row's asks under it, as the snooze menu opens under its
+  row, one ask at a time, and the keys answer them as the asks panel's do,
+  `⏎` aside, which closes them (see "Keys"):
+  - **Which rows:** a Needs you row with a yes, a choice or a words ask on
+    the board, as the notch's arrow takes them. On the band's row `▹`
+    stands in the time's place, as the notch's arrow over the time of the
+    row under the pointer: the band is the view's hover. A row of Claude
+    Code's prompts or questions alone expands, as before.
+  - **What opens:** the row's name and project; the ask's title; "Asked
+    4m ago" with page dots, `━━` orange for the ask shown; its answers,
+    each after its number, Claude's pick first, in the lilac with
+    "· Recommended"; and `x Ignore  z Snooze  o Open`. The band lies over
+    all of it, one card, as the asks panel stands on its own black. A words
+    ask opens its session by `o`.
+  - **Two seconds to undo:** a digit or a tap holds the answer, its row
+    ink on white with a check, and "Sending Threaded ◔ u undo"; `u` takes
+    it back, since the view reads keys as plain bytes, which carry no ⌘.
+    Then the view runs
+    `sitrep answer`'s code in its own process, `--wants` with it, as the
+    snooze menu writes `sitrep snooze`'s line, and the session's window
+    delivers it as "From the board:".
+  - Drawn as round 5 in Paper, which Lee signed off the same day, the
+    page "FINAL · one line, asks under the row · signed off 26 Nov 2026". The full spec is `design/terminal-ui.md`, "Answering a row's
+    asks". It is built once the keys across SitRep have landed.
 - **Picking a row, by `o`, runs SitRep's resume command in place**, in
   the panel's own terminal, on the Mac as over SSH, so it behaves the same on
   every screen: the command a click runs for a session this Mac doesn't
@@ -11110,6 +11148,12 @@ look", the pick on its page "FINAL · board in a terminal".
   grey capital headings with a rule, `NEEDS YOU ●4 ●2 ───── ▿`, the words
   in `#7A82AB` at regular weight and the rule in `#565F89`. Every row starts
   flush at the margin, with no `▸`: the band alone marks the chosen row.
+- **One line a session** (Lee, 26 November 2026, round 5), as the notch
+  draws its rows: the mark, the row's words, its project at their right,
+  its time. A row of asks says its session's name and count, a Stopped row
+  what Claude left, a working row what it is doing, as the notch's rows
+  do. Lee chose it over keeping two lines, which kept 33 columns for a
+  name at 39 against 17, and showed what an ask asked without opening it.
 - **It fits the terminal it is in**, drawn first for 39×27, rootshell's
   narrowest, and for 69×46, 73×36 and 114×45, Lee's measured sizes, down to
   15 rows. Lee: "We build it dynamically. It will fit regardless."
@@ -11163,7 +11207,11 @@ look", the pick on its page "FINAL · board in a terminal".
   its name and its words wrapped whole, each of several asks on a line of
   its own, and folds it again; one row at most, the band's. `o` alone
   opens, as `⏎` did, every answer as before. There is no view-only flag.
-  "Open" stays the docs' word, and nothing says "attach".
+  "Open" stays the docs' word, and nothing says "attach". Since 26
+  November 2026 `⏎` on a row with asks the view answers opens them under
+  it instead, `⏎` looking closer at them; the notch opens its asks panel
+  by its arrows since 27 November 2026, as it comes out sideways (see
+  "Keys").
 - **`z` snoozes** (Lee, 20 November 2026), from that same strip: on a row
   that needs him, of asks or of his turn alone, it opens a menu of
   Snooze's times under the row, the notch's choices and words, worked out

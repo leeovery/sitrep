@@ -1,13 +1,13 @@
 # The board in a terminal
 
-SitRep shows the board at the edge of a Mac's screen, in the notch (and, until 26 November 2026, the strip). Away from that screen there was nothing: on an iPad or a phone signed in to the Mac over SSH in rootshell, what needs you couldn't be seen until you went looking. The board in a terminal is the notch's panel as a terminal app, for those screens and for a Ghostty tab on the Mac. Its looks were drawn in four rounds in the Paper file "SitRep · terminal look", and on 19 November 2026 Lee picked round 4, now the page "FINAL · board in a terminal": **Two-line under grey capitals**, each session on two lines, its name and time, then its project and status line, under ruled section headings in grey capitals, every row flush at the margin and the chosen row marked by a band alone. This doc settles that look and how it's built.
+SitRep shows the board at the edge of a Mac's screen, in the notch (and, until 26 November 2026, the strip). Away from that screen there was nothing: on an iPad or a phone signed in to the Mac over SSH in rootshell, what needs you couldn't be seen until you went looking. The board in a terminal is the notch's panel as a terminal app, for those screens and for a Ghostty tab on the Mac. Its looks were drawn in four rounds in the Paper file "SitRep · terminal look", and on 19 November 2026 Lee picked round 4, the page "FINAL · board in a terminal" until 26 November 2026: **Two-line under grey capitals**, each session on two lines, its name and time, then its project and status line, under ruled section headings in grey capitals, every row flush at the margin and the chosen row marked by a band alone. On 26 November 2026 round 5 put each session on one line, as the notch draws it, and the view began answering a row's asks; Lee signed it off that day, now the page "FINAL · one line, asks under the row · signed off 26 Nov 2026", round 4's page renamed "superseded · round 4 · FINAL · board in a terminal". This doc settles that look and how it's built.
 
 **Settled with Lee on 18 November 2026:**
 - **One panel,** drawn the same everywhere. It is a dashboard to leave open beside your work, and a launcher to pick from.
 - **The command.** `sitrep` alone opens the panel in a terminal; `sitrep help` keeps the help.
 - **Sessions by state,** as the notch orders them: Needs you (asks in orange, Stopped in blue), then Working, then Snoozed, folded at first. The project shows on each row.
 - **It suits a terminal.** It's drawn for a narrow terminal first, such as a 25% split on an iPad or a phone held upright, and grows with the width. Lee: "We build it dynamically. It will fit regardless."
-- **It doesn't answer asks,** because the notch doesn't.
+- **It doesn't answer asks,** because the notch doesn't. (Until 26 November 2026: the notch has answered since 24 November, and so does the view; see below.)
 - **Picking a row** opens that session in place (by `o` since 20 November 2026), on the Mac as over SSH, so it behaves the same on every screen. Detaching comes back to the panel.
   - A session whose Claude has ended resumes in place, by the resume command.
   - A session running in a terminal with no tmux or zmx can't be reached from here, and the panel says so.
@@ -27,12 +27,19 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 
 **Decided by Lee on 20 November 2026,** for the narrow strip he keeps open on his iPad over SSH to see what needs him: he snoozes rows from there, reads rows the width cuts short, and must never open a session by accident. **`⏎`, or a tap on the chosen row, expands it; `o` opens it; `z` snoozes it, or wakes it in Snoozed.** Opening takes the deliberate `o`, and a tap or `⏎` never opens anything. There is no view-only flag. "Open" stays the docs' word, and nothing says "attach" (see "Keys", "Expanding a row" and "Snoozing a row").
 
+**Decided by Lee on 26 November 2026,** once the notch's asks panel answered asks (24 November) and every surface took one set of keys (DESIGN.md, "Keys"): **the view answers a row's asks.** It hadn't only because the notch hadn't. Four choices settled how:
+- **Each session on one line, as the notch draws it:** its mark, its words, its project at their right, its time. Lee chose it over keeping two lines, which kept 33 columns for a name at 39 where one line keeps 17 beside a project like Northwind, and showed what an ask asked without opening it (see "Rows and structure").
+- **A row's asks open under it,** one at a time, as the snooze menu opens under its row: not in place of the list, nor beside it on wide terminals alone (see "Answering a row's asks").
+- **`⏎` looks closer:** on a row with asks the view answers, it opens them; on any other row it expands it, as before. It stayed so when the notch gave `⏎` to the jump and its arrows to the asks panel on 27 November 2026 (DESIGN.md, "Keys"): the notch's asks panel comes out sideways, so its arrows step along that line, where the view opens a row's asks under it. Lee: "the notch lends itself to sideways arrows due to how it presents on the screen. sitrep tui isnt the same."
+- **`u` takes back an answer sending,** in the notch's `⌘Z`'s place: the view reads keys as bytes, and none of the forms it reads carries ⌘.
+
 ## The looks
 
 - **Round 1** drew four looks with diamonds: List, borderless sections and rows, the pane's idiom; Card, the notch's card in rounded box lines; Two-line, each session on two lines, roomy for a phone; Marks, the strip's two letters on pills, the densest.
 - **Round 2** drew the same four with circles, from round 1's generator changed in place (`design/paper/round1/round1.py`, whose READ ME says round 2), so the repo holds no `round2/`.
 - **Round 3** drew Two-line's rows under List's ruled headings, flush left, with no `▸` (`round3/round3.py`).
-- **Round 4** is round 3 with the headings' words in grey capitals (`round4/round4.py`), the generator of record. It imports round 3, which imports round 1's worlds, scenes, colours and helpers, so all three are kept. `python3 -I design/paper/round4/round4.py` writes every frame to `round4/frames/`, reads each `.ansi` back cell for cell, and runs the width checks: 21 frames, none broken, the quiet board's short line listed on purpose.
+- **Round 5** (26 November 2026) is round 4 with each session on one line, as the notch draws it, and a row's asks opened under it (`round5/round5.py`). It draws the page as the build has since 20 November 2026, a blank top row and no title, from round 1's worlds with the asks the round adds. `python3 -I design/paper/round5/round5.py` writes 33 frames, reads each `.ansi` back cell for cell, and runs the width checks: none broken but the quiet board's, listed on purpose. Lee signed it off on 26 November 2026, and it is the generator of record.
+- **Round 4** is round 3 with the headings' words in grey capitals (`round4/round4.py`), the generator of record until round 5. It imports round 3, which imports round 1's worlds, scenes, colours and helpers, so all three are kept. `python3 -I design/paper/round4/round4.py` writes every frame to `round4/frames/`, reads each `.ansi` back cell for cell, and runs the width checks: 21 frames, none broken, the quiet board's short line listed on purpose.
 
 ## Scope
 
@@ -86,7 +93,11 @@ Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"
 | `▿` / `▹` | faint `#565F89` | a section open / folded |
 | `▲` / `▼` | grey `#7A82AB` | rows out of view above / below |
 | `!` | bold | a pick's answer |
-| the band | the background, one step toward `#3E4A5B` | the chosen row, over both its lines |
+| `▹` / `▿` | the terminal's ink, bold | on the band's row, in the time's place: asks the view answers / their asks open under it |
+| `━━ ━` | orange `#D77757` / faint `#565F89` | the ask shown, and the row's others, where it has more than one |
+| `1` `2` `3` | grey `#7A82AB` | an answer's number: the digit sends it |
+| `✓` | the background's colour, on the terminal's ink | an answer sending, for its two seconds |
+| the band | the background, one step toward `#3E4A5B` | the chosen row, over its line, or every line of it expanded or opened |
 
 **Without colour** (`NO_COLOR`), the shapes carry it. An ask and a turn share `●`, so an ask's name is bold and a turn's regular. The band is reverse video over both lines. A new ask keeps `◉` and loses its wash. In Needs you's heading, the asks' count is bold and the Stopped count regular, so `●4 ●2` don't rest on colour (19 November 2026). Metadata is faint (SGR 2): times, projects, counts in grey, the rule, the chevron, `▲ N more`, an away row's words. A bold name is never faint too, since many terminals draw SGR 1 and 2 as one intensity.
 
@@ -103,19 +114,34 @@ Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"
 - **Working:** its rows, grey.
 - **Snoozed:** its lines, grey: the asks asleep, and the turns put off.
 
-**A row** is a session, on two lines:
-- **Line one.** The mark at column 1. From column 3, the session's name, then, where more than one line waits, a space and their count in grey: `Help desk redesign 2`. The name is cut before the count, never the count. Then the time, right-aligned to end at column W−2, in grey, with at least 2 spaces before it.
-- **Line two,** from column 3: the project's name and ` · ` in grey, then the status line in soft `#A9B1D6`, cut with `…` at column W−2.
+**A row** is a session, on one line, as the notch draws it (Lee, 26 November 2026; until then on two, the project and status line under the name):
+
+```text
+ NEEDS YOU ●5 ●2 ─────────────────── ▿
+ ● Data import            Litware   1m
+ ● Help desk redesi… 2  Northwind   4m
+ ● Drafted the 2.4 rel…  Tailspin  31m
+```
+
+- **The mark** at column 1.
+- **Its words** from column 3, as the notch's row says them:
+  - a row of asks, permission prompts or questions: the session's name, then, where more than one line waits, a space and their count in grey (`Help desk redesign 2`), the name cut before the count, never the count;
+  - a Stopped row: what Claude left you, its status line;
+  - a working row, or one on its own work: what it is doing, its status line;
+  - a Snoozed row: the session's name and count, as a row of asks says them.
+- **Its project** in grey at their right, ending 2 columns before the time's lane, so a section's projects stand right-aligned in a column, 2 columns after the words at the least.
+- **The time** in its lane, right-aligned to end at column W−2, in grey. A section's lane is its widest time, 3 columns at the least: an age is `now`, `4m` or `26m`, and Snoozed's lane takes its wakes.
+- **The arrow:** on the band's row, where the view answers one of its asks, `▹` stands in the time's place, in the terminal's ink, bold, as the notch's arrow stands over the time of the row under the pointer; `▿` while the row's asks are open (see "Answering a row's asks"). The band is the view's hover: the terminal sends no pointer moves.
 
 **The words.**
-- **The name:** an ask's in the terminal's ink, bold; a turn's in that ink, regular; a working or own-work row's in soft. In Snoozed, grey, an ask's bold.
+- **The words:** an ask's name in the terminal's ink, bold; a Stopped row's status line in that ink, regular; a working or own-work row's in soft. In Snoozed, the name grey, an ask's bold.
 - **The status line** is the row's first line (`RowLine`): its lead, then its subject after a space (`Running npm test`). A permission prompt joins its subject with `: ` (`Allow Bash: psql -f import.sql`). A question adds its `+2` after a space, in grey. A wake reads `Wakes in 12m`.
 - **The time:** in Needs you, how long its newest line has waited; in Working, how long the turn has run; on its own work, how long since its turn ended. Each reads as the notch's `Age` words it, rounded down: `now`, `12m`, `1h` at 90 minutes, `3d`, core's `ago`, which the pane uses too since 22 November 2026, when it stopped rounding to the nearest. In Snoozed, when it wakes, as core's `wakeWords` says it (`14:00`, `tomorrow 09:00`, `Sat 09:00`, `next week`), or `until it moves`.
 
 **Dimming.**
 - **An away row** dims its words as one, as the notch does: each ink 0.61 of the way from the background, its mark kept full and hollow (`DIMMED` in round 1). A Snoozed row is never drawn away: its mark stays filled and its words undimmed, as the notch draws it (`SessionRow.swift`, 19 November 2026).
-- **A Snoozed row** dims its mark, and only its mark. Its name is grey, as "The words" says, and its project and status line are as any row's.
-- **The band and the wash** sit over both lines of a row, from column 1 to W−2.
+- **A Snoozed row** dims its mark, and only its mark. Its name is grey, as "The words" says, and its project is as any row's.
+- **The band and the wash** sit over a row's line, or every line of a row expanded or opened, from column 1 to W−2.
 - **A new ask's wash** is orange mixed 22% into the background, `#534345` on Nordfox, for two seconds from the first frame that shows the line.
 
 **The order** is the notch's (DESIGN.md, "The rows", 13 November 2026):
@@ -149,21 +175,24 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 | `↑` `↓`, `k` `j` | The first press puts the band on the top row in view; then each moves it a row, across sections, skipping headings |
 | `PgUp` `PgDn` | Moves the band by the rows in view, so none is skipped unseen |
 | `Home` `End` | Moves the band to the first or the last row |
-| `⏎` | Expands the band's row, and folds it again (see "Expanding a row") |
-| `o` | Opens the band's session (see "Picking a row") |
-| `z` | Snoozes the band's row by a menu of times, or wakes it in Snoozed (see "Snoozing a row") |
-| `1`–`9` | In the snooze menu, snoozes to the choice of that number; elsewhere does nothing |
+| `⏎` | Looks closer: on a row with asks the view answers, opens them under it, and closes them again (see "Answering a row's asks"); on any other row, expands it, and folds it again (see "Expanding a row") |
+| `o` | Opens the band's session, its asks open or not (see "Picking a row") |
+| `z` | Snoozes the band's row by a menu of times, or wakes it in Snoozed (see "Snoozing a row"); with its asks open, snoozes the ask shown |
+| `1`–`9` | In the snooze menu, snoozes to the choice of that number; with a row's asks open, sends the answer of that number; elsewhere does nothing |
+| `x` | With a row's asks open, ignores the ask shown |
+| `←` `→` | With a row's asks open, shows the ask before or after |
+| `u` | Takes back the answer sending, within its two seconds |
 | `s` | Opens or folds Snoozed |
-| `esc` | Drops the band and any pick's answer |
+| `esc` | Closes the snooze menu, else the row's asks, else drops the band and any pick's answer |
 | `q`, `Ctrl-C` | Leaves |
 | `Ctrl-Z` | Suspends the panel; `fg` brings it back, drawn afresh |
 
-**The key line** names the keys that work now, most needed first: `↑↓ pick  s snoozed  q quit` with no band, and with one `↑↓ move  ⏎ expand  o open  z snooze  s snoozed  q quit`. While the band's row is expanded `⏎ fold` stands in place of `⏎ expand`; on a Snoozed row `z wake` in place of `z snooze`; and on a row that can't be snoozed, a window's prompt alone or a working row, `z` isn't named. In the snooze menu the line is the menu's own, `↑↓ pick  ⏎ snooze  esc cancel`. Each key is bold in the terminal's ink, its word grey, two spaces between hints. `s snoozed` shows only while Snoozed holds rows; an empty board's line is `q quit`. Short of room, whole hints drop from the right, `q quit` last, since it always applies, or in the menu `esc cancel`: at 39 columns the band's line is `↑↓ move  ⏎ expand  o open  q quit`, at 52 `↑↓ move  ⏎ expand  o open  z snooze  q quit`. `↑↓` is named only while a row is in view. PgUp, Home, `j`, `k`, `esc` and `Ctrl-Z` work but aren't named, nor are the digits, which the menu's choices show.
+**The key line** names the keys that work now, most needed first: `↑↓ pick  s snoozed  q quit` with no band, and with one `↑↓ move  ⏎ expand  o open  z snooze  s snoozed  q quit`. While the band's row is expanded `⏎ fold` stands in place of `⏎ expand`; on a Snoozed row `z wake` in place of `z snooze`; and on a row that can't be snoozed, a window's prompt alone or a working row, `z` isn't named. On a row with asks the view answers, `⏎ asks` stands in place of `⏎ expand`. In the snooze menu the line is the menu's own, `↑↓ pick  ⏎ snooze  esc cancel`. With a row's asks open, the line is theirs: `1–3 answer  ←→ ask  esc close`, the digits' range the answers' (`1 answer` for a yes, none for a words ask), `←→ ask` only where the row has more than one; while an answer sends, `u undo  esc close`. Each key is bold in the terminal's ink, its word grey, two spaces between hints. `s snoozed` shows only while Snoozed holds rows; an empty board's line is `q quit`. Short of room, whole hints drop from the right, `q quit` last, since it always applies, or in the menu `esc cancel`, or with a row's asks open `esc close`: at 39 columns the band's line is `↑↓ move  ⏎ expand  o open  q quit`, or `↑↓ move  ⏎ asks  o open  q quit` on a row with asks, at 52 `↑↓ move  ⏎ expand  o open  z snooze  q quit`. `↑↓` is named only while a row is in view. PgUp, Home, `j`, `k`, `esc` and `Ctrl-Z` work but aren't named, nor are the digits in the snooze menu, whose choices show them, nor `x`, `z` and `o` with a row's asks open, whose foot shows them.
 
 **Decoding.** Keys come in raw mode as bytes. `CSI` and `SS3` arrows both read as arrows (`ESC [ A`, `ESC O A`), so application cursor mode doesn't matter. A lone `ESC` with nothing after it within 50 ms is `esc`. Any other sequence cut short by that quiet gap is held: when the rest of it comes, however late, the sequence is read whole and its key thrown away, so the rest of a mouse report split over a slow link is never read as keys, `1`–`9` among them, to snooze a row unasked (26 November 2026). One that turns out a paste's start is held to the paste's end and dropped, as any paste is. What a stop from outside cuts short is let go, so the first key after `fg` is read. `1` to `9` each carry their number; `0`, and any other byte, does nothing.
 
 **Mouse and touch** (Lee, 19 November 2026). The panel turns on button reporting in SGR's form (`CSI ?1000h`, `CSI ?1006h`), never motion, and turns it off on leaving and for a hand-over. A terminal that sends the older X10 form (`ESC [ M` and three bytes) is read the same way, so a click never reads as a key. Bracketed paste is on too (`CSI ?2004h`), and a paste is dropped whole, so pasted text never acts as keys.
-- **A tap or a click** on any line of a row puts the band on it; one on the band's row expands it or folds it, as `⏎` does, and never opens it (Lee, 20 November 2026).
+- **A tap or a click** on any line of a row puts the band on it; one on the band's row looks closer, as `⏎` does, opening its asks or expanding it, and closing or folding it again, and never opens the session (Lee, 20 November 2026). With a row's asks open, a tap acts as the notch's click does (see "Answering a row's asks").
 - **The wheel or a swipe** scrolls the view a row a notch; the band stays on its session, in view or not.
 - **No hover:** hover needs every pointer move sent over SSH.
 - **Selecting text** in the panel needs the terminal's modifier held while reporting is on.
@@ -172,23 +201,19 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 
 ## Expanding a row
 
-A narrow terminal cuts a row's words short. `⏎`, or a tap on the chosen row, expands it, so nothing is cut; again, it folds (Lee, 20 November 2026).
+A row on one line cuts its words short, and says either the session's name or what it is doing. `⏎`, or a tap on the chosen row, expands it, so nothing is cut and both show; again, it folds (Lee, 20 November 2026). A row with asks the view answers opens them instead (see "Answering a row's asks").
 
 ```text
- NEEDS YOU ●4 ●1 ──────────────────────────────── ▿
- ● Help desk redesign for the support team in    4m
-   every regional office 3
-   Northwind
-   Thread replies, or keep them flat?
-   Keep the old ticket numbers once the new desk
-   goes live?
-   Which office moves first?
- ○ Data import                                   2h
-   Litware · Keep the old CSV columns?
+ NEEDS YOU ●5 ●2 ─────────────────── ▿
+ ● Data import                      1m
+   Litware · Allow Bash: psql -f
+   import.sql
+ ● Help desk redesi… 2  Northwind   4m
 ```
 
+- **Which rows:** every row but one with asks the view answers, whose `⏎` opens them. A prompt alone, a question, a Stopped row, a working one and a Snoozed one expand.
 - **One expanded row at most:** the band's. Moving the band to another row folds it, by a key, a tap, or a changing board that passes the band on; coming back finds it folded. A row that only moves keeps it expanded.
-- **What it shows,** from what the feed gives the row (core's `Row` and `SnoozedRow`, each `RowLine`), nothing read beyond it:
+- **What it shows,** what the two-line rows showed until 26 November 2026, whole, from what the feed gives the row (core's `Row` and `SnoozedRow`, each `RowLine`), nothing read beyond it:
   - **line one:** the mark, then the name and its count, wrapping under the names' column (column 3) as far as they need, the time kept at the first line's right, fitted as a folded row's is;
   - **a row of one line:** its project and ` · `, then its status line and a question's `+2`, wrapped as one, as line two reads them; ` ·` stays with the project's last word, so no line starts on it;
   - **a row of several lines,** as several asks: its project alone, then each line's words on a line of its own, each wrapped, in the row's order.
@@ -231,6 +256,78 @@ A narrow terminal cuts a row's words short. `⏎`, or a tap on the chosen row, e
 - **Waking:** `z` on a Snoozed row writes `sitrep wake`'s line, with no menu. A second `z` on it before a board shows the wake writes nothing, rather than a refusal that it is not snoozed.
 - **Afterwards:** the next look finds the row in Snoozed, and the band passes on as "The band and a changing board" says: to the session's Snoozed row while Snoozed is open, else to the row now in its place.
 - **A failed write,** refused by the command's checks or failing in the files, gives its words in the answer line and changes nothing: an ask that landed since the menu opened answers `An ask waits on you that the snooze did not name: look at it, then snooze again.` A choice whose time came while the menu stood open writes nothing, and says so as the notch says it (`WakeTime.comeAlready`, core's `wakeWords`): `18:00 has come already.`
+
+## Answering a row's asks
+
+`⏎` on a row with asks the view answers opens them under it, one at a time, and a digit sends an answer, as the notch's asks panel does (Lee, 26 November 2026; DESIGN.md, "Answering from the panel" and "Keys").
+
+```text
+ NEEDS YOU ●5 ●2 ─────────────────── ▿
+ ● Data import            Litware   1m
+ ● Help desk redesign 2              ▿
+   Northwind
+   Thread replies, or keep them flat?
+   Asked 4m ago                   ━━ ━
+   1 Threaded · Recommended
+   2 Flat
+   3 Flat, with a quote of the one it
+     answers
+   x Ignore  z Snooze  o Open
+ ● Shift schedules        Contoso  26m
+
+ 1–3 answer  ←→ ask  esc close
+```
+
+- **Which rows,** as the notch's arrow takes them: a Needs you row with at least one board ask the view answers, a yes, a choice or a words ask. A row of Claude Code's own permission prompts or questions alone has none, nor has a Stopped, working or Snoozed row. A row of both opens only its board asks.
+- **Opening:** `⏎`, or a tap on the band's row, its `▹` among it. The band stays on the row, over every line of it and its asks, as over an expanded row, so the asks read as one card, as the notch's asks panel stands on its own black.
+- **The row's head:** its name and count wrapped whole under the names' column, `▿` in the time's place, then its project alone, in grey, as the asks panel's top line names the session and its project.
+- **One ask at a time,** the session's asks in the row's order, newest first:
+  - **the title,** bold, in the terminal's ink, wrapped whole;
+  - **when it was asked,** `Asked 4m ago` in grey, its age counted as its line on the row counts it; at its right, ending at column W−2, the page dots, where the row has more than one ask: `━━` in orange for the ask shown, `━` in faint for each other, a space between;
+  - **its answers,** a row each: its number in grey in the names' column, a space, its words from column 5, wrapped there to two lines at most, the second cut with `…`. A yes has one, its yes; a choice one for each option, Claude's pick first. Claude's pick is in Claude Code's suggestion lilac `#B1B9F9`, ` · Recommended` after its words in `#9AA2EE`, on a line of its own within the two where its words leave no room, the words cut before it past two lines, so it always shows. Any other answer's words are in the terminal's ink. No answer has a ground of its own: a ground in a terminal reads as the band;
+  - **a words ask** has no answers, nor has a choice with no options: its title, its age, then the foot, whose `o Open` opens its session, as the notch's Open in Claude does;
+  - **the foot:** `x Ignore  z Snooze  o Open`, each key bold in the terminal's ink, its word grey, as the key line's hints. `z Snooze` shows only while Snooze offers a time, as the notch's Snooze ▾ does.
+- **Its keys,** the notch's asks panel's (DESIGN.md, "Keys"), but `⏎`, which on the notch's asks panel is Open in Claude and here closes, since `⏎` never opens a session in the view (Lee, 20 November 2026):
+  - `1` to `9` send the answer of that number, `1` the first, Claude's pick where Claude has one; a digit past the answers does nothing;
+  - `x` ignores the ask shown, with the same two seconds;
+  - `z` opens a menu of Snooze's times in the foot's place, as the row's snooze menu, for the ask shown alone, and no Until it moves; `esc` or `z` closes it, back to the ask;
+  - `o` opens the session, as `o` on the row does (see "Picking a row");
+  - `←` `→` show the ask before or after, as the dots lie, one a press, at once; nothing wraps;
+  - `⏎` and `esc` close the asks; `↑` `↓`, `k` `j` move the band and close them, as a menu's arrows close its submenu;
+  - `s` does nothing while they are open; `q`, `Ctrl-C` and `Ctrl-Z` work as ever.
+- **Its taps,** as the notch's clicks: a tap on an answer sends it, as its digit; on a dot, shows its ask; on `Ignore`, `Snooze` or `Open`, acts as its key; on `undo` while an answer sends, takes it back. A tap anywhere else, on the row's head or another row, closes the asks and does nothing more, as a click off a Mac submenu only closes it; the next tap acts.
+- **A key lands only on what has stood 300ms,** as the notch's press does: a digit, `x` or a tap within 300ms of the board changing the ask under it, an ask leaving, an edit, a send stepping on, does nothing. The keys' own paging starts no beat.
+
+**Answering, with two seconds to undo.** A digit, or a tap on an answer, holds it: its row turns ink on white, the background's colour on the terminal's foreground, reverse video without colour, a `✓` at column W−2, its words keeping their lines. The foot reads `Sending Threaded  ◔  u undo`, `Sending` in grey, the answer's words in the ink, cut to fit, and a ring in orange that fills a quarter each half second, `◔` `◑` `◕`. After 2 seconds the view sends it. `x` holds an ignore the same way, its line reading `Ignoring`.
+
+```text
+ ● Help desk redesign 2              ▿
+   Northwind
+   Thread replies, or keep them flat?
+   Asked 4m ago                   ━━ ━
+   1 Threaded · Recommended
+   2 Flat                            ✓
+   3 Flat, with a quote of the one it
+     answers
+   Sending Flat  ◑  u undo
+```
+
+- **`u`, or a tap on `undo`,** within the two seconds takes it back, and nothing is written.
+- **While an answer is held,** digits and `x` do nothing, as the notch's answer rows take no click then. Every other key acts as ever, and the answer still goes: `esc` closes the asks, `↑` `↓` move the band.
+- **Once it goes,** the asks step to the session's next ask; after its last, they close.
+- **`q` or `Ctrl-C` while an answer is held** sends it at once, waits on the write, then leaves, as quitting SitRep does. A hangup or `SIGTERM` leaves at once: the answer is not sent.
+- **What it writes:** exactly what `sitrep answer` writes, run in the view's process as the command runs (`cli/acts.ts`), as the snooze menu writes `sitrep snooze`'s line: `sitrep answer <ask> <answer> --wants <what it wanted> --session <id>`, or `--ignore` in the answer's place. `--wants` gives what the ask wanted as it was shown, so an ask Claude reshaped since is refused, as the notch's are. The reply goes into the session's inbox, and its window delivers it as "From the board:", as every answer from the board goes.
+- **A refusal,** as an ask answered in its window meanwhile, gives the command's words in the answer line, as a pick's refusals do, and the ask stays.
+
+**Snoozing the ask shown:** a choice writes exactly what `sitrep snooze --ask <id> --until <ms> --session <id>` writes, the ask alone, as the pane's one-ask snooze and the notch's Snooze ▾ do. A refusal gives its words in the answer line.
+
+**A changing board.**
+- **An ask that leaves the board,** answered in its window, ignored or resolved, leaves the asks with it; the next takes its place, else the one before; with none left, the asks close.
+- **An ask edited** while shown is drawn as it now reads.
+- **The row leaving Needs you,** its asks gone to a prompt alone, or the session Working, Snoozed or gone, closes the asks, as the snooze menu closes.
+- **Moving the band** to another row, by a key, a tap or a board that passes it on, closes them. An answer held still goes.
+
+**Short of room.** The asks are kept whole in sight with their row, as the snooze menu is with its. Short of rows, the head gives way first, to its first line; then the title to its first line, cut with `…`; then the `Asked` line, the dots with it; then the foot, its keys still working. The answers stay whole, and the view scrolls the least that keeps them in sight. A digit sends only an answer drawn: where even the answers don't fit, a digit past those drawn does nothing.
 
 ## Picking a row
 
@@ -390,6 +487,9 @@ Doesn't apply: the panel collects no remedies. A pick's answer says what to do i
 | A working name, the status line, `✻` | `#A9B1D6` | 146 | default |
 | Times, projects, counts, headings, key words, `◌` | `#7A82AB` | 103 | bright black |
 | The rule and the chevron | `#565F89` | 60 | bright black, faint |
+| Claude's pick | `#B1B9F9` | 147 | bright blue |
+| Its `· Recommended` | `#9AA2EE` | 111 | blue, faint |
+| An answer sending | the background on the terminal's foreground | the same | reverse video |
 | The band | the background, one step toward `#3E4A5B` (`#343D4B` on Nordfox, `#282B30` on `#212121`) | the nearest (237 on Nordfox, 236 on `#212121`) | reverse video |
 
 - **The terminal's ink:** names and the keys are in the terminal's own foreground, never a hex, so they read on any theme.
@@ -442,17 +542,17 @@ A light background draws in reverse video, as at 16.
 
 | Part | Natural | Least, and below it |
 |---|---|---|
-| The name, with its count | its own width | 6 cells, the `…` among them; the count is never cut |
+| A row's words: the name with its count, or the status line | its own width | 12 cells while the project gives way, then 6, the `…` among them; the count is never cut |
 | The time | its own width | a Snoozed wake drops its clock (`tomorrow`) where the name would get under 6, then goes |
-| The status line | its own width | 6 cells, the `…` among them; below that it goes, its ` · ` with it |
-| The project, on line two | its own width | cut with `…` once the status line has gone |
+| The project | its own width | cut with `…` once the words are down to 12 cells, to 4 cells; below that it goes |
+| An ask's title, an answer | wraps at W−2 | an answer to two lines, the second cut with `…` |
 | The heading's rule | out to W−4 | 3 cells; below that it goes, the counts and the chevron kept |
 | The key line | every hint | whole hints drop from the right |
 | A pick's answer | wraps at W−4 | wraps; cut with `…` only where it is taller than the rows above the key line |
 
-**What gives way first,** as the width falls: the status line is cut, then dropped; then the project is cut; then the name is cut to its least; then a Snoozed wake loses its clock; then the time goes. At 39 columns, Lee's narrowest, only the status line is cut. Below 24 columns the panel draws `Too small`.
+**What gives way first,** as the width falls: the words are cut, down to 12 cells; then the project is cut, then goes; then a Snoozed wake loses its clock; then the words are cut to 6; then the time goes. At 39 columns, Lee's narrowest, the words of most rows are cut, the projects of Snoozed rows too (`Onboarding…   Cont…  tomorrow 09:00`). Below 24 columns the panel draws `Too small`.
 
-**Wide terminals.** Past 120 columns the layout stays 120 and stands at the left. The rows don't change form with width: line two holds the status line at every width, as round 4 drew at 114 and 173.
+**Wide terminals.** Past 120 columns the layout stays 120 and stands at the left. The rows don't change form with width: one line at every width, as round 5 drew at 114 and 173.
 
 **Cutting.** A name is cut from its end with one `…`, only below its natural width, with no space left before the `…` (`Thread…`, never `Thread …`). Nothing is cut that a wider terminal would show whole, and nothing cut can't be read by widening the terminal.
 
@@ -463,7 +563,7 @@ A light background draws in reverse video, as at 16.
 - a combining mark joins the cell before;
 - a cut never splits a grapheme.
 
-**Height.** It gives way in the order "The frame" gives. The least is 8 rows: a heading, `▲`, one two-line row, `▼` and the key line, with two rows to spare. A pick's answer takes its rows from the body.
+**Height.** It gives way in the order "The frame" gives. The least is 8 rows: a heading, `▲`, a row, `▼` and the key line, with rows to spare. A pick's answer takes its rows from the body.
 
 ## Per command
 
@@ -684,10 +784,13 @@ The fakes in `tests/` stand in for all of it.
   - the mixes with and without the terminal's answers;
   - the chosen row expanded: its name and line two wrapped, a row of several lines its project alone then each line's words, the band over every line, and one taller than the body cut, its last line `…`;
   - the snooze menu's choices after their numbers in grey, the first nine alone numbered, the words of any past them in line, a name cut and never its number;
+  - a row on one line in each state, its words as the notch's, the projects right-aligned in a column, the time's lane a section's widest, and the cuts in their order down to 24 columns; the arrow on the band's row with asks, and on no other;
+  - a row's asks: the head, the title wrapped, the age and its dots, the answers numbered, wrapped to two lines and cut, Claude's pick in lilac with its tag on its line or its own, a yes, a words ask, the foot with and without Snooze; an answer held, white with its check, and the sending line; each given way as "Short of room" says;
   - `Too small` below 24×8.
 - **`panel-keys.test.ts`:** byte sequences to keys, a lone `esc` by its 50 ms, `CSI` and `SS3` arrows; `1` to `9` with their numbers, `0` nothing; a sequence cut short past the 50 ms read whole once its rest comes, its key thrown away, an X10 report, a paste's start and a colour answer cut twice among them.
 - **`panel-state.test.ts`:** the band's first press, moves, pages and ends; the view's scroll; the band following its session and passing on; folding; expanding and folding a row, one at most, folded as the band moves, kept whole in sight, a tap on any of its lines landing on it; `o` alone asking to open, never `⏎` or a tap; answers dropped on a key; the sessions SitRep's file dims moving behind those drawn filled, the band on its session.
 - **`panel-snooze.test.ts`,** in London at a fixed clock: the menu's choices and their words under the defaults, under a `snooze.json`, and after Tonight's time; `↑↓` within the first and the last, the menu scrolled at 39×8 with seven choices so the seventh is reached, drawn and made, and an answer landing while it is open keeping the pick drawn; ⏎ and a tap on a drawn choice asking for the snooze, naming the asks the row showed, with no time for Until it moves; a digit making the choice of its number as ⏎ on it would, scrolled out of sight or not, one past the choices and one with no menu doing nothing; neither ⏎ nor a digit choosing while the menu is drawn on no line; a turn alone naming none; `esc`, `z` and a tap elsewhere closing it, writing nothing; every other key doing nothing; `z` waking a Snoozed row, and refused in words on a prompt alone and a working row; the menu closed as a board passes the band on, or leaves the row nothing to snooze, its asks kept as it opened; the choices worked out from a failed look's time; a second `z` on a Snoozed row writing nothing until a board comes; a failed write's answer; the menu and its row kept in sight, the row giving way first.
+- **`panel-asks.test.ts`:** `⏎` and a tap opening a row's asks only on a row with one the view answers, a prompt alone expanding; the asks in the row's order; digits sending their answer, one past them nothing; `x`, `z` for the ask shown and `o`; `←` `→` paging, nothing wrapping; `⏎`, `esc`, `↑` `↓` and a tap elsewhere closing; the 300ms beat after a change the board made, none after paging; an answer held for two seconds, `u` and a tap on `undo` taking it back, digits and `x` doing nothing meanwhile, its going stepping to the next ask and closing after the last; an ask leaving, edited, and the row leaving Needs you; a digit past the answers drawn doing nothing when short of room.
 - **`snooze.test.ts`:** core's `timeBeside`, the time alone or the weekday and time, as the app's menu words them.
 - **`here.test.ts`:**
   - `sightingsOf` on the file as the app writes it (`tests/here.ts`, the text the Swift tests hold the app's encoder to); fresh up to 30 seconds either side of `at`, nothing from then; nothing for a file missing, torn, of a later version or none, or of the wrong shape; a version 1 file dimming what it named wherever the panel is;
@@ -710,6 +813,7 @@ The fakes in `tests/` stand in for all of it.
   - SIGINT ignored while a program has the terminal;
   - the fill: a fresh `here.json` naming a held session seen by nobody draws it hollow and dimmed at the next look on an unchanged board, and the first board with it; the file stale, or gone, fills it again, a failing look among them; a file naming no session on the board, or none, writes nothing more; over SSH, a session open on the phone filled and one open only on the Mac hollow, and on the Mac the other way round; inside a multiplexer session, the panel's own tty's viewers, and its stale `SSH_CONNECTION` once its tty is unlisted;
   - the keys over time: a mouse report cut by the 50 ms gap read whole once its rest comes, its digits choosing nothing in the snooze menu, the `1` after it choosing In an hour; a sequence a stop from outside cut short never read with the first key after the SIGCONT;
+  - answering: a digit's answer, after its two seconds, writing the very text `sitrep answer` writes in a twin world, `--wants` with it, a yes, a choice and an ignore; `u` writing nothing; `q` while held writing it at once before leaving; a reshaped ask refused in the answer line; the one-ask snooze writing `sitrep snooze --ask`'s line;
   - the writes: `z` and ⏎ writing the very text `sitrep snooze` writes in a twin world, for a row of asks and for a turn alone, In an hour from the test's clock; `z` on a Snoozed row writing `sitrep wake`'s; a snooze refused, an ask landed since the menu opened, said above the key line, nothing written;
   - notifications: one OSC each for new asks only, oldest first, in one look and across two, none on the first board, none with the flag, wrapped inside tmux, posted during a hand-over and while `Too small`, never inside a frame's write, none after the panel closes, once after a failed look and none on a first board after one, the text cleaned.
 - **`panel-notices.test.ts`:** `newAsks`' kinds, order and words, an away row's place; `osc777`'s bytes, cleaning and cut; tmux's wrapping.
@@ -731,7 +835,7 @@ The fakes in `tests/` stand in for all of it.
 - **Writing them again:** `--update` writes the frames again and deletes those nothing draws; a kept frame nothing draws fails.
 - **The checker's own tests:** its reader and comparer are pure TypeScript in `cli/frames/cells.ts`, tested under the kit with inline strings.
 - **The fixtures** (`cli/frames/fixtures.ts`) are moments: a world, a size, the terminal's answers (Nordfox's `#CDCECF` on `#2E3440`), a fixed clock, and the keys pressed to reach them.
-- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, `docs-73x18`, the docs page's still, `expanded`, at 52×27 and 114×45: a row of a long name and three asks, expanded; `snoozing`, at the same sizes, the snooze menu open; and `waking`, at 52×27, a Snoozed row chosen, its key line naming `z wake` (20 November 2026).
+- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, `docs-73x18`, the docs page's still, `expanded`, at 52×27 and 114×45: a row of a long name and three asks, expanded; `snoozing`, at the same sizes, the snooze menu open; and `waking`, at 52×27, a Snoozed row chosen, its key line naming `z wake` (20 November 2026). Round 5's screens join them (26 November 2026): every screen drawn again on one line, and `asks`, `words`, `yes`, `sending`, `prompt` and `busyasks`, at round 5's sizes.
 - **The first goldens** are round 4's frames, with one change on purpose: the names and a pick's answer, which round 4 drew in Nordfox's `#CDCECF`, are in the terminal's own ink, as its title and keys already are.
 
 **The sweep.** The checker draws every fixture at 39×27, 69×46, 73×36, 114×45, 173×53 and 73×15, and runs the four width checks from termgrid's `sweep`, ported:
@@ -753,11 +857,12 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 - **The demo world** is round 1's: `REST`, `BUSY` and the arriving `Room bookings`, in `cli/frames/fixtures.ts`, all placeholder names.
 - **No VHS tapes:** the golden frames and the live runs hold the panel.
 - **The still** for the docs page, `docs/terminal.md`, is the golden frame `panel-docs-73x18`, drawn from the fixtures' docs world: only the six sessions and six projects the docs may name (CLAUDE.md, "Writing the docs"), with asks, a Stopped row, a hollow one, `✻`, `◌` and Snoozed folded. It is read by `termgrid.py`'s `read_ansi` and drawn as the rounds' previews are (`preview_page`, its title bar `sitrep`, Nordfox), shot by headless Chrome at 2× and made lossless webp by `cwebp`: `art/screens/terminal.webp`. Remake it after a change to that frame.
-- **Later rounds** start from the build's frames read into termgrid, not from round 1's model of them.
+- **Later rounds** start from the build's frames read into termgrid, not from round 1's model of them. Round 5 is the exception: its rows change form, so it draws from round 1's model, as the build drew then, a blank top row and no title.
+- **Round 5** is on the page "FINAL · one line, asks under the row · signed off 26 Nov 2026" of "SitRep · terminal look", first in the file: its READ ME, then the 39×27 frames at rest, the band on a row with asks, its asks open, a words ask, a yes ask, an answer sending, a prompt expanded and `NO_COLOR`; then the asks open at 69×46 and 114×45.
 
 ## Out of scope
 
-- Answering asks (settled with Lee). Snoozing and waking were out of scope until Lee asked for them on 20 November 2026 (see "Snoozing a row").
+- Typing a words ask's words, a comment, and Claude Code's own permission prompts and questions: a words ask opens its session, as the notch's Open in Claude does. Answering asks was out of scope until 26 November 2026, and snoozing and waking until 20 November 2026.
 - Opening a session's own Ghostty window on the Mac, as the notch's jump does: the panel attaches in place everywhere.
 - An ASCII fallback, colour settings, themes, and a `--no-color` flag: `NO_COLOR` covers it.
 - Remembering the fold or the band between runs.
@@ -839,3 +944,18 @@ A PR a slice, in order. Slices 2 and 3 can run in parallel once 1 is in; 4 waits
 10. **Hollow from where you look** (Lee, 20 November 2026).
    - **Delivers:** each client's viewer and each multiplexer tty's in the read of here; `here.json` version 2, written at once on a change and every 10 seconds while sessions are held; the panel's own viewers, by its tty and its `SSH_CONNECTION`; the notch unchanged.
    - **Checked by:** `ViewerTests`, `HereFileTests`, `HereWatchTests` and `KernelProcessesTests`; `here.test.ts` and `panel.test.ts`; the viewers read live over this Mac's table, and the panel in a pty three ways (see "Testing").
+
+**Answering a row's asks** (Lee, 26 November 2026), built once the keys across SitRep have landed (DESIGN.md, "Keys"), whose build edits the same keys and frames:
+
+11. **Rows on one line.**
+   - **Delivers:** the row's words by state, the project's lane, the time's lane by section, the cuts in their new order, and the expanded row showing what two lines showed; the arrow on the band's row with asks the view answers, and `⏎ asks` in the key line, `⏎` still expanding until slice 12.
+   - **Checked by:** `panel-draw` and `panel-state`; every golden drawn again on one line beside round 5's frames, the sweep clean.
+12. **A row's asks, open.**
+   - **Delivers:** the feed's asks for the view (each ask's title, what it wants, its yes, options and pick, and its age); `⏎` and a tap opening them; the head, the ask, the dots, the answers and the foot; paging, closing, a changing board, the 300ms beat, and the rules short of room.
+   - **Checked by:** `panel-view`, `panel-draw` and `panel-asks`; the goldens `asks`, `words`, `yes`, `prompt` and `busyasks`.
+13. **Answering.**
+   - **Delivers:** digits and taps holding an answer, the sending line, `u`, the write through `sitrep answer`'s code with `--wants`, `x`, the one-ask snooze, `o`, `q` while held, and the refusals.
+   - **Checked by:** `panel-asks` and `panel`'s golden runs; the golden `sending`. Then a live run on a seeded state folder: an ask answered from the view over SSH from the phone and delivered in its window, one taken back by `u`, and a reshaped one refused.
+14. **The docs.**
+   - **Delivers:** `docs/terminal.md` on rows of one line and answering, the glossary's new terms, and the still `art/screens/terminal.webp` made again.
+   - **Checked by:** the docs' measure script.
