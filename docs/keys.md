@@ -20,8 +20,8 @@ Press `z` on a session to snooze it, `o` to go to its window, and `1` to answer 
 ## Good to know
 
 - **The panel needs Accessibility to read keys.** Without it, the panel takes no keys and shows no keycaps, and ⌃⌥S opens it with nothing chosen. Settings › Edge then says "Not allowed, so the notch's panel takes no keys".
-- **Keys with ⌘, ⌃, ⌥ or Fn go through.** Unless a menu is open, such a key reaches the window in front, and so does F1 to F20. Only the shortcut itself, and `⌘Z` while an answer sends, stay with SitRep.
-- **A password prompt turns the keys off.** While a window takes a password, for example Ghostty at a `sudo` prompt, macOS gives SitRep no keys.
+- **Keys with ⌘, ⌃, ⌥ or Fn go through.** Unless a menu is open, such a key reaches the window in front, and so does F1 to F20. Under the shortcut, it closes the panel too. Only the shortcut itself, and `⌘Z` while an answer sends, stay with SitRep.
+- **A password prompt turns the keys off.** While a window takes a password, macOS gives SitRep no keys.
 - **The pane takes keys only while it holds the keyboard.** Press ctrl+x tab or click the pane first, and `esc` hands the keys back to the prompt. The pane draws no numbers.
 
 ## Reference
