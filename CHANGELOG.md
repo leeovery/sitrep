@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-11-27
+
+Answer and drive the notch's panel from the keyboard, opened with a shortcut from anywhere.
+
+💥 Breaking
+- The strip is gone as an edge display — a Show setting of Strip now reads as Notch, and its Length and Max settings are dropped; choose Notch or Nothing in Settings › Edge.
+- `sitrep` board JSON no longer includes the per-row `letters` field — stop reading it in scripts or tools.
+
+✨ Added
+- Keyboard control of the notch's panel — ↑↓ or k/j move the lit row, ⏎ or o jump to its window, ←/→ open and step through its asks, z snoozes or wakes, s folds Snoozed, esc closes.
+- A global shortcut (⌃⌥S by default) opens the notch's panel holding the keys, or the menu bar's menu when the notch is hidden; pressing it again closes it.
+- Shortcut recorder in Settings › Edge — record, change or clear the shortcut, with a note when macOS refuses one.
+- Numbered keycaps on the asks panel's answers — press 1–9 to answer, x to ignore, z for Snooze, ⌘Z to undo a sending answer.
+- Accessibility row in Settings › Edge with Allow… — the panel takes keys only once macOS grants the leave.
+- Snooze menus number their choices 1–9 — press a digit to choose, z to close.
+- Terminal panel and ask buttons take number keys — 1–9 choose snooze times, answers and options, with x for ignore and z for snooze in Claude's session hooks.
+
+🔧 Changed
+- The asks panel's dots and paging follow the notch's side — on the right edge, asks lie right to left and swipes go the matching way.
+- A new ask now always unfolds Needs you on the card, whatever Show is set to.
+
+🐛 Fixed
+- Pressing a key sequence cut short in the terminal panel no longer leaks its digits as key presses.
+- The terminal panel reads the first key after resuming from `fg`.
+- The notch's panel closes when a click lands in another SitRep window or when the notch is hidden.
+
 ## [0.11.0] - 2026-11-26
 
 Answer asks from the notch or strip without leaving what you're doing, with two seconds to undo.
