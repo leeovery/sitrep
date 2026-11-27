@@ -234,6 +234,13 @@ test("a tap on any line of a row puts the band on it, a tap on the band's row ex
   expect(pressed(read(), tap(2, 40)).band, 'past the layout').toBeUndefined()
 })
 
+test('a tap on a blank row between sections lands on nothing', () => {
+  const roomy = read(boardOf(), { width: 40, height: 14 })
+
+  expect(layoutIn(roomy).rows.map(row => row.y)).toEqual([1, 2, 3, 6, 7, 8, 9, 10])
+  expect([4, 11].map(y => pressed(roomy, tap(y)).band)).toEqual([undefined, undefined])
+})
+
 test('with room, row 0 stays blank and the body stands a row lower: a tap lands on the row drawn under it, one on row 0 or a heading on none', () => {
   const short = read(boardOf({ asks: [N1, N2], working: [], snoozed: [] }))
   const tapped = (y: number) => pressed(short, tap(y)).band

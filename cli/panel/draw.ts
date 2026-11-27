@@ -26,9 +26,9 @@
  *   there is one.
  */
 import { cellsOf, cut, graphemesOf, widthOf, wrapIn, type Size, type Tagged } from './cells'
-import { expandedOf, NAME, type Tag } from './expand'
+import { expandedOf, type Tag } from './expand'
 import { isTooSmall, layoutOf, LEFT, topRowOf, type Layout, type Placed, type Section } from './layout'
-import { fittedOf, laneOf } from './line'
+import { fittedOf, NAME, type Lane } from './line'
 import { pensOf, sgr, type Ink, type Level, type Paint, type Pen, type Pens, type Style } from './paint'
 import { rowKey, type PanelRow, type PanelView } from './view'
 
@@ -220,12 +220,12 @@ type Inking = (style: Style) => Pen
 const nameStyle = (row: PanelRow): Style =>
   row.isSnoozed ? { tone: 'grey', bold: row.mark === 'ask', isMeta: true } : MARKS[row.mark].name
 
-/** A row on its one line: its words from the names' column, then its count or `+2` in grey; its project in grey, right-aligned in its section's column; and its time in the section's lane. */
-const oneLine = ({ grid, layout }: Frame, y: number, row: PanelRow, section: Section, ink: Inking) => {
-  const fitted = fittedOf(row, layout.width, laneOf(section.rows, layout.width))
+/** A row on its one line: its words from the names' column, then its count in grey; its project in grey, right-aligned in its section's column; and its time in the section's lane. */
+const oneLine = ({ grid, layout }: Frame, y: number, row: PanelRow, lane: Lane, ink: Inking) => {
+  const fitted = fittedOf(row, layout.width, lane)
   const after = put(grid, NAME, y, fitted.words, ink(nameStyle(row)))
 
-  put(grid, after, y, fitted.after, ink(STYLE.meta))
+  put(grid, after, y, fitted.count, ink(STYLE.meta))
   putRight(grid, fitted.projectEnd, y, fitted.project, ink(STYLE.meta))
   putRight(grid, layout.width - 1, y, fitted.time, ink(STYLE.meta))
 }
@@ -239,8 +239,8 @@ const words = (grid: Grid, y: number, line: readonly Tagged<Tag>[], styles: Reco
  * words whole, the time at the first line's right; where the body cuts it
  * short, its last line kept, never its first, says `…`.
  */
-const expandedLines = ({ grid, layout }: Frame, y: number, height: number, row: PanelRow, ink: Inking) => {
-  const { time, lines } = expandedOf(row, layout.width)
+const expandedLines = ({ grid, layout }: Frame, y: number, height: number, row: PanelRow, lane: Lane, ink: Inking) => {
+  const { time, lines } = expandedOf(row, layout.width, lane)
   const styles: Record<Tag, Pen> = { name: ink(nameStyle(row)), meta: ink(STYLE.meta), status: ink(STYLE.status) }
   const isCut = lines.length > height
 
@@ -307,7 +307,7 @@ const menuAt = ({ grid, layout, pens }: Frame, menu: NonNullable<PanelView['menu
  * as the layout gives it; the band or the wash over every one. With its
  * menu open the band is the menu's, on the choice picked.
  */
-const rowAt = (frame: Frame, { y, row, section, key, height, menu }: Extract<Placed, { kind: 'row' }>, view: PanelView) => {
+const rowAt = (frame: Frame, { y, row, lane, key, height, menu }: Extract<Placed, { kind: 'row' }>, view: PanelView) => {
   const { grid, layout, pens } = frame
   const isBand = key === view.band && view.menu === undefined
   const isDimmed = row.isAway && !row.isSnoozed
@@ -319,9 +319,9 @@ const rowAt = (frame: Frame, { y, row, section, key, height, menu }: Extract<Pla
   put(grid, LEFT, y, mark.glyph, mark.pen)
 
   if (key === view.expanded && height > 1) {
-    expandedLines(frame, y, height, row, ink)
+    expandedLines(frame, y, height, row, lane, ink)
   } else {
-    oneLine(frame, y, row, section, ink)
+    oneLine(frame, y, row, lane, ink)
   }
 
   for (let at = 0; ground !== undefined && at < height; at++) {

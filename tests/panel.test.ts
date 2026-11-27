@@ -747,7 +747,7 @@ const writeHere = (run: Run, ...notHere: string[]) => writeSeen(run, Object.from
 const AWAY_ROW = ' ○ Help desk redesign    Northwind   1m'
 const HERE_ROW = ' ● Help desk redesign    Northwind   1m'
 
-test("a held session SitRep's here.json names draws hollow and dimmed at the next look, the board unchanged; filled again once the file has gone stale, or is gone", async () => {
+test("a held session SitRep's here.json names draws hollow at the next look, the board unchanged; filled again once the file has gone stale, or is gone", async () => {
   const run = opened()
 
   await run.passing(0)
@@ -761,7 +761,7 @@ test("a held session SitRep's here.json names draws hollow and dimmed at the nex
 
   expect(screenOf(run.screen.writes)[2]).toBe(AWAY_ROW)
   expect(dimming().map(rowsIn)).toEqual([[3]])
-  expect(dimming()[0], 'its name bold still, never faint, without colour').toContain('\x1b[3;1H ○ \x1b[0;1mHelp desk redesign\x1b[0m')
+  expect(dimming()[0], 'without colour, its mark hollow and its name bold still, never faint').toContain('\x1b[3;1H ○ \x1b[0;1mHelp desk redesign\x1b[0m')
 
   await run.passing(HERE_STALE_MS - POLL_MS - 1)
   expect(screenOf(run.screen.writes)[2], 'dimmed still at the last look before the limit').toBe(AWAY_ROW)

@@ -312,13 +312,21 @@ const LONG_ASKS = ask(LONG_NAME, 'Northwind', 'Thread replies, or keep them flat
 
 const EXPANDING = worldOf([LONG_ASKS, ...DOCS.slice(1)])
 
-/** Every name and project the worlds hold: those a frame may cut. */
-export const NAMES: readonly string[] = [
-  ...new Set([...REST, ...BUSY, ...DOCS, NEW_ASK, LONG_ASKS].flatMap(each => {
-    const { name, projectName } = 'row' in each ? each.row : each.snoozed
+/** The world read into the panel's first state, as an 80×24 terminal opens it. */
+const readIn = (world: World) =>
+  step(opening({ width: 80, height: 24 }, NOW, world.notHere), { board: world.feed, news: [], now: NOW }).state
 
-    return [name, projectName]
-  })),
+/** The world's rows as the panel words them, Snoozed's among them. */
+const rowsOf = (world: World) =>
+  viewOf(world.feed, readIn(world), NOW, world.notHere).sections.flatMap(section => section.rows)
+
+/** Every name, project and status line the worlds' rows show: those a frame may cut. */
+export const NAMES: readonly string[] = [
+  ...new Set(
+    [AT_REST, ARRIVED, CROWDED, FOR_DOCS, EXPANDING].flatMap(world =>
+      rowsOf(world).flatMap(row => [row.name, row.project, row.status.text]),
+    ),
+  ),
 ].sort()
 
 /** The session's row in the world, named so. */
@@ -349,7 +357,7 @@ const SNOOZED: Key = { kind: 'snoozed' }
 
 /** The keys that put the band on the session named so, from none: `↓` onto the first row, the top one in view, then a `↓` a row. */
 const downTo = (world: World, name: string): Key[] => {
-  const state = step(opening({ width: 80, height: 24 }, NOW, world.notHere), { board: world.feed, news: [], now: NOW }).state
+  const state = readIn(world)
   const rows = viewOf(world.feed, state, NOW, world.notHere)
     .sections.filter(section => section.isOpen)
     .flatMap(section => section.rows)

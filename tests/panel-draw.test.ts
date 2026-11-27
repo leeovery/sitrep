@@ -130,18 +130,14 @@ test('the board from row 1, under a blank top row: each heading with its counts,
 })
 
 test("a row's words as the notch's: a row of asks its name and count, a Stopped row and a working one their status line, a Snoozed row its name and count", () => {
-  const question = row('sr-wl0001', 'turn', 'Data import', 'Litware', 'Pick the import order', '2m', {
-    status: { text: 'Pick the import order', more: 2 },
-  })
   const snoozedTurn = row('sr-wg0002', 'turn', 'Mobile app', 'Woodgrove', 'Drafted the screens', 'next week', {
     isSnoozed: true,
     count: 2,
   })
 
-  expect(frame(only('needsYou', [HELP_DESK, SHIFTS, question]), 52, 8).slice(2, 5)).toEqual([
+  expect(frame(only('needsYou', [HELP_DESK, SHIFTS]), 52, 8).slice(2, 4)).toEqual([
     ' ● Help desk redesign 2              Northwind   4m',
     ' ● Approve the rota                    Contoso  26m',
-    ' ● Pick the import order +2            Litware   2m',
   ])
   expect(frame(only('working', [MOBILE, LEDGER]), 52, 8).slice(2, 4)).toEqual([
     ' ✻ Running npm test                  Woodgrove   6m',
@@ -213,7 +209,7 @@ test('giving way as the width falls: the words cut to 12 cells, then the project
   expect(rowAt(26), 'then gone, its room the words’').toBe(' ● Help desk rede… 2   4m')
 })
 
-test("giving way, past the project: a Snoozed wake loses its clock, then the words are cut to 6, then a section's times go", () => {
+test("giving way, past the project: a Snoozed wake loses its clock where that narrows the lane, then the words are cut to 6, then a section's times go", () => {
   const untilMoves = row('sr-wg0003', 'turn', 'Mobile app', 'Woodgrove', 'Drafted the screens', 'until it moves', {
     isSnoozed: true,
   })
@@ -228,15 +224,17 @@ test("giving way, past the project: a Snoozed wake loses its clock, then the wor
     ' ● Onboarding flow    tomorrow 09:00',
     ' ● Mobile app  Wood…  until it moves',
   ])
-  expect(rowsAt(31), 'the words short of 12: the clock goes, the lane kept by the widest time').toEqual([
-    ' ● Onboarding…        tomorrow',
+  expect(rowsAt(31), 'the words short of 12, in a lane no clock narrows, as `until it moves` sets it: the clocks kept').toEqual([
+    ' ● Onboarding…  tomorrow 09:00',
     ' ● Mobile app   until it moves',
   ])
-  expect(rowsAt(26), 'the words at 6').toEqual([' ● Onboa…        tomorrow', ' ● Mobil…  until it moves'])
+  expect(rowsAt(26), 'the words at 6').toEqual([' ● Onboa…  tomorrow 09:00', ' ● Mobil…  until it moves'])
   expect(rowsAt(25), 'then the times go').toEqual([' ● Onboarding flow', ' ● Mobile app'])
-  expect(frame(only('snoozed', [ONBOARDING]), 31, 8)[2], 'the lane its widest time without its clock').toBe(
-    ' ● Onboarding flow    tomorrow',
-  )
+
+  const aloneAt = (width: number) => frame(only('snoozed', [ONBOARDING]), width, 8)[2]
+
+  expect(aloneAt(32), 'the words at 12, the clock kept').toBe(' ● Onboarding…   tomorrow 09:00')
+  expect(aloneAt(31), 'the words short of 12, in a lane the clock narrows: the clock goes').toBe(' ● Onboarding flow    tomorrow')
 })
 
 test('the times go by section: a section whose words keep their least keeps its times, though another loses them', () => {
@@ -488,6 +486,14 @@ test('an expanded row taller than the body is cut to it, its last line kept sayi
     '   …',
     ' ↑↓ move  q quit',
   ])
+})
+
+test("an expanded band row in a body of one row, an answer taking the others, falls to its one line and stays in view", () => {
+  const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010', answer: 'word '.repeat(30) })
+
+  expect(layoutOf(view, { width: 39, height: 8 }).rows).toEqual([{ key: 'sr-nw0010', y: 0, height: 1 }])
+  expect(frame(view, 39, 8)[0]).toBe(' ● Shift schedules 3      Contoso   4m')
+  expect(drawn(view, 39, 8, NONE, 0, 1)[0]?.startsWith(` ${ESC}[0;7m●`)).toBe(true)
 })
 
 /** The snooze menu open under Shift schedules, Later today picked. */
