@@ -189,7 +189,7 @@ test(
     const menu = layoutIn(open).menu ?? { y: -1, lines: 0 }
 
     expect(menu.lines).toBe(6)
-    expect([layoutIn(open).rows[0]?.y, menu.y], 'the row under its heading, under the blank top row, the menu under the row').toEqual([2, 4])
+    expect([layoutIn(open).rows[0]?.y, menu.y], 'the row under its heading, under the blank top row, the menu under the row').toEqual([2, 3])
     expect(writeOf(open, tap(menu.y))).toMatchObject({ until: at(2026, 11, 18, 15) })
     expect(writeOf(open, tap(menu.y + 1))).toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'], until: at(2026, 11, 18, 17) })
 
@@ -268,7 +268,7 @@ test('a write that fails says why in the answer, the band kept whole in sight; o
 })
 
 test(
-  'the menu and its row are kept whole in sight; short of room, the row gives way to its first line, then the menu its last choices',
+  'the menu and its row are kept whole in sight, the row on its one line; short of room, the menu gives way, its last choices first',
   inLondon(() => {
     const low = pressed(read(board(), { width: 40, height: 15 }), DOWN, DOWN, DOWN, Z)
     const short = pressed(read(board(), { width: 40, height: 8 }), DOWN, Z)
@@ -276,7 +276,7 @@ test(
     const lowLayout = layoutIn(low)
     const row = lowLayout.rows.find(each => each.key === TURN)
 
-    expect([row?.height, lowLayout.menu]).toEqual([2, { y: (row?.y ?? 0) + 2, lines: 6, first: 0 }])
+    expect([row?.height, lowLayout.menu]).toEqual([1, { y: (row?.y ?? 0) + 1, lines: 6, first: 0 }])
     expect(lowLayout.menu === undefined ? 0 : lowLayout.menu.y + lowLayout.menu.lines).toBeLessThanOrEqual(lowLayout.body.to)
     expect(layoutIn(short).rows.find(each => each.key === ASKING)?.height).toBe(1)
     expect(layoutIn(short).menu?.lines).toBe(6)

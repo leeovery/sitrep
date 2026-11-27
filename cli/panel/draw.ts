@@ -7,10 +7,9 @@
  * - A section's heading: its words in grey capitals, its counts, a rule and
  *   the chevron. Without colour an ask's count is bold and a turn's regular,
  *   as their names are, since the two share `●`.
- * - A row is a session on two lines: its mark, name and time; then its
- *   project and status line. As the width falls, the status line is cut,
- *   then dropped; the project is cut; the name is cut to its least; then a
- *   Snoozed wake loses its clock, and the time goes.
+ * - A row is a session on one line, as the notch draws it: its mark, its
+ *   words, its project in grey and its time in its section's lane; what
+ *   each part shows, and how each gives way, is line.ts's.
  * - The chosen row expanded cuts nothing: its words wrap over the lines the
  *   layout gives it (expand.ts), the band over them all.
  * - An empty board, and one not yet read, stand centred in the body's place.
@@ -27,8 +26,9 @@
  *   there is one.
  */
 import { cellsOf, cut, graphemesOf, widthOf, wrapIn, type Size, type Tagged } from './cells'
-import { countOf, expandedOf, LEAST_CUT, NAME, timeFitting, type Tag } from './expand'
+import { expandedOf, NAME, type Tag } from './expand'
 import { isTooSmall, layoutOf, LEFT, topRowOf, type Layout, type Placed, type Section } from './layout'
+import { fittedOf, laneOf } from './line'
 import { pensOf, sgr, type Ink, type Level, type Paint, type Pen, type Pens, type Style } from './paint'
 import { rowKey, type PanelRow, type PanelView } from './view'
 
@@ -216,19 +216,18 @@ const heading = (frame: Frame, y: number, section: Section) => {
 /** A row's words in a style: an away row's dimmed as one, as the notch dims it. */
 type Inking = (style: Style) => Pen
 
-/** The style of a row's name: grey in Snoozed, an ask's bold. */
+/** The style of a row's words, its name's or its status line's: grey in Snoozed, an ask's bold; else as its mark says. */
 const nameStyle = (row: PanelRow): Style =>
   row.isSnoozed ? { tone: 'grey', bold: row.mark === 'ask', isMeta: true } : MARKS[row.mark].name
 
-const firstLine = ({ grid, layout }: Frame, y: number, row: PanelRow, ink: Inking) => {
-  const count = countOf(row)
-  const room = layout.width - 1 - NAME - widthOf(count)
-  const time = timeFitting(row, room)
-  const nameRoom = room - (time === '' ? 0 : widthOf(time) + 2)
-  const after = put(grid, NAME, y, cut(row.name, nameRoom), ink(nameStyle(row)))
+/** A row on its one line: its words from the names' column, then its count or `+2` in grey; its project in grey, right-aligned in its section's column; and its time in the section's lane. */
+const oneLine = ({ grid, layout }: Frame, y: number, row: PanelRow, section: Section, ink: Inking) => {
+  const fitted = fittedOf(row, layout.width, laneOf(section.rows, layout.width))
+  const after = put(grid, NAME, y, fitted.words, ink(nameStyle(row)))
 
-  put(grid, after, y, count, ink(STYLE.meta))
-  putRight(grid, layout.width - 1, y, time, ink(STYLE.meta))
+  put(grid, after, y, fitted.after, ink(STYLE.meta))
+  putRight(grid, fitted.projectEnd, y, fitted.project, ink(STYLE.meta))
+  putRight(grid, layout.width - 1, y, fitted.time, ink(STYLE.meta))
 }
 
 /** The words of a line of an expanded row from the names' column, a space between each two, each in its tag's style. */
@@ -251,28 +250,6 @@ const expandedLines = ({ grid, layout }: Frame, y: number, height: number, row: 
     words(grid, y + at, isLast ? [{ text: '…', tag: 'meta' }] : line, styles)
   })
   putRight(grid, layout.width - 1, y, time, styles.meta)
-}
-
-/** Line two: the project and ` · `, then the status line and a question's `+2`; the project alone, cut, once the status line has no room. */
-const secondLine = ({ grid, layout }: Frame, y: number, row: PanelRow, ink: Inking) => {
-  const {
-    project,
-    status: { text: status },
-  } = row
-  const more = row.status.more === undefined ? '' : ` +${row.status.more}`
-  const lead = `${project} · `
-  const room = layout.width - 1 - NAME - widthOf(lead) - widthOf(more)
-  const hasStatus = status !== '' && (widthOf(status) <= room || room >= LEAST_CUT)
-
-  if (!hasStatus) {
-    put(grid, NAME, y, cut(project, layout.width - 1 - NAME), ink(STYLE.meta))
-    return
-  }
-
-  const after = put(grid, NAME, y, lead, ink(STYLE.meta))
-  const end = put(grid, after, y, cut(status, room), ink(STYLE.status))
-
-  put(grid, end, y, more, ink(STYLE.meta))
 }
 
 const markOf = ({ pens }: Frame, row: PanelRow, dimmed: Inking) => {
@@ -325,13 +302,12 @@ const menuAt = ({ grid, layout, pens }: Frame, menu: NonNullable<PanelView['menu
 }
 
 /**
- * A row on its lines: folded, its two, or its first alone where its menu
- * leaves no more, expanded or not, so the menu always says whose it is;
- * expanded, as many as the layout gives it; the band or the
- * wash over every one. With its menu open the band is the menu's, on the
- * choice picked.
+ * A row on its lines: its one, folded, or where its menu leaves it no more,
+ * expanded or not, so the menu always says whose it is; expanded, as many
+ * as the layout gives it; the band or the wash over every one. With its
+ * menu open the band is the menu's, on the choice picked.
  */
-const rowAt = (frame: Frame, { y, row, key, height, menu }: Extract<Placed, { kind: 'row' }>, view: PanelView) => {
+const rowAt = (frame: Frame, { y, row, section, key, height, menu }: Extract<Placed, { kind: 'row' }>, view: PanelView) => {
   const { grid, layout, pens } = frame
   const isBand = key === view.band && view.menu === undefined
   const isDimmed = row.isAway && !row.isSnoozed
@@ -345,11 +321,7 @@ const rowAt = (frame: Frame, { y, row, key, height, menu }: Extract<Placed, { ki
   if (key === view.expanded && height > 1) {
     expandedLines(frame, y, height, row, ink)
   } else {
-    firstLine(frame, y, row, ink)
-
-    if (height > 1) {
-      secondLine(frame, y + 1, row, ink)
-    }
+    oneLine(frame, y, row, section, ink)
   }
 
   for (let at = 0; ground !== undefined && at < height; at++) {

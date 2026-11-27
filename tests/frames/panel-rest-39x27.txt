@@ -1,27 +1,27 @@
 
  NEEDS YOU ●4 ●2 ─────────────────── ▿
- ● Data import                      1m
-   Litware · Allow Bash: psql -f impo…
- ● Help desk redesign               4m
-   Northwind · Thread replies, or kee…
- ● Shift schedules                 26m
-   Contoso · Approve the rota
- ○ Email templates                  2h
-   Fabrikam · Keep the plain-text ver…
- ● Release notes                   31m
-   Tailspin · Drafted the 2.4 release…
- ○ Warehouse map                    1h
-   Litware · Mapped the ground floor
+ ● Data import            Litware   1m
+ ● Help desk redesign   Northwind   4m
+ ● Shift schedules        Contoso  26m
+ ○ Email templates       Fabrikam   2h
+ ● Drafted the 2.4 rel…  Tailspin  31m
+ ○ Mapped the ground fl…  Litware   1h
 
  WORKING 3 ───────────────────────── ▿
- ✻ Mobile app                       6m
-   Woodgrove · Running npm test
- ✻ Invoice ledger                   2m
-   Northwind · Exporting the ledger a…
- ◌ Catalog sync                    15m
-   Fabrikam · Waiting on 2 agents
+ ✻ Running npm test     Woodgrove   6m
+ ✻ Exporting the ledg…  Northwind   2m
+ ◌ Waiting on 2 agents   Fabrikam  15m
 
  SNOOZED 2 ───────────────────────── ▹
+
+
+
+
+
+
+
+
+
 
 
  ↑↓ pick  s snoozed  q quit

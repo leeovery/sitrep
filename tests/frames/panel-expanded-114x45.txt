@@ -5,18 +5,18 @@
    Thread replies, or keep them flat?
    Keep the old ticket numbers once the new desk goes live?
    Which office moves first?
- ○ Data import                                                                                                 2h
-   Litware · Keep the old CSV columns?
- ● Shift schedules                                                                                            31m
-   Contoso · Drafted the new rota
+ ○ Data import                                                                                       Litware   2h
+ ● Drafted the new rota                                                                              Contoso  31m
 
  WORKING 2 ──────────────────────────────────────────────────────────────────────────────────────────────────── ▿
- ✻ Mobile app                                                                                                  6m
-   Woodgrove · Running npm test
- ◌ Invoice ledger                                                                                             15m
-   Fabrikam · Waiting on 2 agents
+ ✻ Running npm test                                                                                Woodgrove   6m
+ ◌ Waiting on 2 agents                                                                              Fabrikam  15m
 
  SNOOZED 1 ──────────────────────────────────────────────────────────────────────────────────────────────────── ▹
+
+
+
+
 
 
 

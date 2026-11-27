@@ -112,13 +112,16 @@ const boardOf = (random: Random, id: { next: number }): PanelView => {
 /** The rows the body can show, in order, by key. */
 const keysOf = (view: PanelView) => view.sections.filter(section => section.isOpen).flatMap(section => section.rows.map(rowKey))
 
-const bottomOf = (placed: Placed) => placed.y + (placed.kind === 'row' ? 2 : 1)
+/** The lines a placed part takes: a row's and its menu's, else one. */
+const linesOf = (placed: Placed) => (placed.kind === 'row' ? placed.height + placed.menu : 1)
+
+const bottomOf = (placed: Placed) => placed.y + linesOf(placed)
 
 /** Whether every block shows, with its blank rows between sections, under a blank top row: the rows shown, every heading among them, nothing scrolled. */
 const fitsUnderTop = (view: PanelView, layout: Layout, shown: readonly number[]) => {
   const { placed, body } = layout
   const headings = placed.filter(each => each.kind === 'heading').length
-  const lines = placed.reduce((sum, each) => sum + (each.kind === 'row' ? each.height + each.menu : 1), 0)
+  const lines = placed.reduce((sum, each) => sum + linesOf(each), 0)
   const isWhole = shown.length === keysOf(view).length && headings === layout.sections.length && placed.every(each => each.kind === 'row' || each.kind === 'heading')
 
   return isWhole && lines + Math.max(headings - 1, 0) < body.to
@@ -133,7 +136,7 @@ const brokenIn = (view: PanelView, size: Size, layout: Layout, lines: string[]):
   const shown = placed.flatMap(each => (each.kind === 'row' ? [keys.indexOf(each.key)] : []))
   const above = placed.find(each => each.kind === 'above')
   const below = placed.find(each => each.kind === 'below')
-  const ys = placed.flatMap(each => (each.kind === 'row' ? [each.y, each.y + 1] : [each.y]))
+  const ys = placed.flatMap(each => Array.from({ length: linesOf(each) }, (_, at) => each.y + at))
   const markYs = lines.flatMap((line, y) => (y >= body.from && y < body.to && MARKED.test(line) ? [y] : []))
 
   breaks('exactly H lines', lines.length !== size.height)
@@ -168,7 +171,7 @@ const brokenIn = (view: PanelView, size: Size, layout: Layout, lines: string[]):
       return each.kind === 'heading' && each.section.isOpen && !(next?.kind === 'row' || (next?.kind === 'above' && after?.kind === 'row'))
     }),
   )
-  breaks('a row shown where the body has room for one', keys.length > 0 && view.board !== 'looking' && body.to - body.from >= 2 && shown.length === 0)
+  breaks('a row shown where the body has room for one', keys.length > 0 && view.board !== 'looking' && body.to - body.from >= 1 && shown.length === 0)
 
   return broken
 }
@@ -181,7 +184,7 @@ const unreachedIn = (view: PanelView, size: Size, layout: Layout) =>
       const row = top === undefined ? undefined : layoutOf({ ...view, top }, size).rows.find(each => each.key === key)
       const { to } = layout.body
 
-      return row === undefined || row.y + 1 >= to ? ['every row reachable through `topFor`'] : []
+      return row === undefined || row.y + row.height > to ? ['every row reachable through `topFor`'] : []
     }),
   )
 

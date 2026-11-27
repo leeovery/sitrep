@@ -1,31 +1,31 @@
 
  NEEDS YOU ●4 ●2 ───────────────────────────────────────────────── ▿
- ● Data import                                                    1m
-   Litware · Allow Bash: psql -f import.sql
- ● Help desk redesign                                             4m
-   Northwind · Thread replies, or keep them flat?
- ● Shift schedules                                               26m
-   Contoso · Approve the rota
- ○ Email templates                                                2h
-   Fabrikam · Keep the plain-text versions?
- ● Release notes                                                 31m
-   Tailspin · Drafted the 2.4 release notes
- ○ Warehouse map                                                  1h
-   Litware · Mapped the ground floor
+ ● Data import                                          Litware   1m
+ ● Help desk redesign                                 Northwind   4m
+ ● Shift schedules                                      Contoso  26m
+ ○ Email templates                                     Fabrikam   2h
+ ● Drafted the 2.4 release notes                       Tailspin  31m
+ ○ Mapped the ground floor                              Litware   1h
 
  WORKING 3 ─────────────────────────────────────────────────────── ▿
- ✻ Mobile app                                                     6m
-   Woodgrove · Running npm test
- ✻ Invoice ledger                                                 2m
-   Northwind · Exporting the ledger as CSV
- ◌ Catalog sync                                                  15m
-   Fabrikam · Waiting on 2 agents
+ ✻ Running npm test                                   Woodgrove   6m
+ ✻ Exporting the ledger as CSV                        Northwind   2m
+ ◌ Waiting on 2 agents                                 Fabrikam  15m
 
  SNOOZED 2 ─────────────────────────────────────────────────────── ▿
- ● Onboarding flow                                    tomorrow 09:00
-   Contoso · Pick the onboarding steps
- ● Pricing page                                            next week
-   Litware · Drafted three price tiers
+ ● Onboarding flow                           Contoso  tomorrow 09:00
+ ● Pricing page                              Litware       next week
+
+
+
+
+
+
+
+
+
+
+
 
 
 

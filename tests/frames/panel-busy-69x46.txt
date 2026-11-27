@@ -1,46 +1,46 @@
+
  NEEDS YOU ●11 ●4 ──────────────────────────────────────────────── ▿
- ● Data import                                                    1m
-   Litware · Allow Bash: psql -f import.sql
- ● Help desk redesign 2                                           4m
-   Northwind · Thread replies, or keep them flat?
- ● Room bookings                                                  9m
-   Adventure Works · Can a room be booked twice?
- ● Shift schedules                                               26m
-   Contoso · Approve the rota
- ● Expense claims 3                                              40m
-   Trey Research · Which receipts need a scan?
- ● Tax rates                                                     52m
-   Wingtip · Allow Edit: src/tax/rates.ts
- ○ Email templates                                                2h
-   Fabrikam · Keep the plain-text versions?
- ○ Gift cards                                                     3h
-   Tailspin · Should a card expire?
- ● Release notes                                                 31m
-   Tailspin · Drafted the 2.4 release notes
- ● Search index                                                   1h
-   Wingtip · Rebuilt the index; 3 fields left
- ● Staff directory                                                2h
-   Contoso · Added the new starters
- ○ Warehouse map                                                  1h
-   Litware · Mapped the ground floor
+ ● Data import                                          Litware   1m
+ ● Help desk redesign 2                               Northwind   4m
+ ● Room bookings                                Adventure Works   9m
+ ● Shift schedules                                      Contoso  26m
+ ● Expense claims 3                               Trey Research  40m
+ ● Tax rates                                            Wingtip  52m
+ ○ Email templates                                     Fabrikam   2h
+ ○ Gift cards                                          Tailspin   3h
+ ● Drafted the 2.4 release notes                       Tailspin  31m
+ ● Rebuilt the index; 3 fields left                     Wingtip   1h
+ ● Added the new starters                               Contoso   2h
+ ○ Mapped the ground floor                              Litware   1h
 
  WORKING 14 ────────────────────────────────────────────────────── ▿
- ✻ Payroll export                                                22m
-   Contoso · Writing payroll.csv
- ✻ Stock levels                                                  12m
-   Wingtip · Reading src/stock/levels.ts
- ✻ Delivery slots                                                 9m
-   Northwind · Running the slot planner
- ✻ Mobile app                                                     6m
-   Woodgrove · Running npm test
- ✻ Route planner                                                  5m
-   Trey Research · Searching for route costs
- ✻ Sales dashboard                                                4m
-   Adventure Works · Editing src/charts/sales.tsx
- ✻ Loyalty points                                                 3m
-   Woodgrove · Reading the points ledger
- ✻ Invoice ledger                                                 2m
-   Northwind · Exporting the ledger as CSV
- ▼ 6 more
+ ✻ Writing payroll.csv                                  Contoso  22m
+ ✻ Reading src/stock/levels.ts                          Wingtip  12m
+ ✻ Running the slot planner                           Northwind   9m
+ ✻ Running npm test                                   Woodgrove   6m
+ ✻ Searching for route costs                      Trey Research   5m
+ ✻ Editing src/charts/sales.tsx                 Adventure Works   4m
+ ✻ Reading the points ledger                          Woodgrove   3m
+ ✻ Exporting the ledger as CSV                        Northwind   2m
+ ✻ Editing src/login/form.tsx                   Adventure Works   1m
+ ✻ Fetching the alert rules                       Trey Research   1m
+ ◌ Wakes in 12m                                        Fabrikam   1h
+ ◌ Watching the nightly export                         Tailspin  48m
+ ◌ Waiting on 2 agents                                 Fabrikam  15m
+ ◌ Running the reminder job                             Litware   8m
+
+ SNOOZED 4 ─────────────────────────────────────────────────────── ▹
+
+
+
+
+
+
+
+
+
+
+
+
 
  ↑↓ move  ⏎ expand  o open  s snoozed  q quit

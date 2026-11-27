@@ -1,21 +1,21 @@
 
  NEEDS YOU ●3 ●1 ──────────────────────────────── ▿
- ● Help desk redesign 2                          4m
-   Northwind · Thread replies, or keep them flat?
- ○ Data import                                   2h
-   Litware · Keep the old CSV columns?
- ● Shift schedules                              31m
-   Contoso · Drafted the new rota
+ ● Help desk redesign 2              Northwind   4m
+ ○ Data import                         Litware   2h
+ ● Drafted the new rota                Contoso  31m
 
  WORKING 2 ────────────────────────────────────── ▿
- ✻ Mobile app                                    6m
-   Woodgrove · Running npm test
- ◌ Invoice ledger                               15m
-   Fabrikam · Waiting on 2 agents
+ ✻ Running npm test                  Woodgrove   6m
+ ◌ Waiting on 2 agents                Fabrikam  15m
 
  SNOOZED 1 ────────────────────────────────────── ▿
- ● Onboarding flow                   tomorrow 09:00
-   Tailspin · Pick the onboarding steps
+ ● Onboarding flow         Tailspin  tomorrow 09:00
+
+
+
+
+
+
 
 
 

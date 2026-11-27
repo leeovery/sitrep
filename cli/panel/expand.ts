@@ -1,19 +1,21 @@
 /**
- * The chosen row expanded: its words whole, wrapped over as many lines as
- * they need from the names' column, where its two lines cut them. Layout
- * counts its lines; draw.ts draws them.
+ * The chosen row expanded: what the two-line rows showed until 26 November
+ * 2026, whole, wrapped over as many lines as they need from the names'
+ * column, where its one line cuts them. Layout counts its lines; draw.ts
+ * draws them.
  *
  * - The first line: the name, then its count, the time kept at the right
  *   as the row keeps it; the name wraps on under it.
  * - Then, for a row of one line, its project and ` · `, its status line and
- *   a question's `+2`, wrapped as one, as its second line reads them.
+ *   a question's `+2`, wrapped as one, as the two-line rows' second line
+ *   read them.
  * - For a row of several, its project alone, then each line's words on a
  *   line of its own, each wrapped.
  */
 import { widthOf, wordsOf, wrapTagged, type Tagged } from './cells'
 import type { PanelRow, StatusWords } from './view'
 
-/** The column of the names and of line two. */
+/** The column of a row's words, and of an expanded row's lines. */
 export const NAME = 3
 
 /** The fewest cells a name or a status line is cut to. */
@@ -25,7 +27,7 @@ export type Tag = 'name' | 'meta' | 'status'
 export type Expanded = { time: string; lines: Tagged<Tag>[][] }
 
 /** A Snoozed wake without its clock, `tomorrow` for `tomorrow 09:00`; none for a bare clock. */
-const withoutClock = (time: string) => /^(.+) \d{1,2}:\d{2}$/.exec(time)?.[1]
+export const withoutClock = (time: string) => /^(.+) \d{1,2}:\d{2}$/.exec(time)?.[1]
 
 /** The row's time as it fits beside its name: whole, a Snoozed wake without its clock, or none, whichever first leaves the name its least. */
 export const timeFitting = (row: PanelRow, room: number) => {
