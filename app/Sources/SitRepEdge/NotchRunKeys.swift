@@ -112,7 +112,12 @@ extension NotchRun {
         guard !isOut else {
             return closePanel()
         }
-        guard notch.summon(), moment.isShown, moment.setting.takesKeys else {
+        guard notch.summon() else {
+            return
+        }
+
+        hoverOpens = false
+        guard moment.isShown, moment.setting.takesKeys else {
             return
         }
 
@@ -239,19 +244,30 @@ extension NotchRun {
     /// The keys held as the pointer moves: on the open panel, a move on its black (`Frame.shape`), the flares by the
     /// screen's edge as much as the rows, or on its asks panel holds them, and one off both holds them no more, the row
     /// the keys lit going back to the pointer either way; a move is the pointer elsewhere than it was felt, or one the
-    /// Mac heard (`pointerMoved`). A panel opening under a resting pointer holds nothing, nor while a menu holds the
-    /// card, nor while a jump is under way. The shortcut's hold holds on, from its opening, wherever the pointer goes, a
-    /// move on the panel taking the lit row back. Hidden, closing or closed, or while the Mac lets the panel take no
-    /// keys, it holds nothing.
+    /// Mac heard (`pointerMoved`). A panel the pointer opened holds them as it comes open with the pointer on it, the
+    /// hover that opened it counting wherever the pointer rests. None holds while a menu holds the card, nor while a
+    /// jump is under way. The shortcut's hold holds on, from its opening, wherever the pointer goes, a move on the panel
+    /// taking the lit row back. Hidden, closing or closed, or while the Mac lets the panel take no keys, it holds
+    /// nothing.
     func holdKeys(_ moment: Moment) {
         let isHeld = notch.phase == .open || hold.isShortcut && notch.phase == .opening
 
+        if notch.phase == .closed || notch.phase == .closing {
+            hoverOpens = true
+        }
         guard moment.isShown, isHeld, moment.setting.takesKeys else {
             letGo()
             feel(moment)
             return
         }
-        guard menuAt == nil, moment.pointer != felt || movedSinceFelt else {
+
+        // kept until the keys may be held: the Card opens at once under Reduce motion, before the Mac's tap is made
+        let isHoverOpening = hoverOpens && notch.phase == .open
+
+        if isHoverOpening {
+            hoverOpens = false
+        }
+        guard menuAt == nil, moment.pointer != felt || movedSinceFelt || isHoverOpening else {
             return
         }
 

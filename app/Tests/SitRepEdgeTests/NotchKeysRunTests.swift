@@ -140,17 +140,36 @@ struct NotchKeysRunTests {
 
     // MARK: The hold
 
-    @Test func aPanelOpenedUnderARestingPointerHoldsNothingUntilItMovesOnTheList() throws {
+    /// The hover that opened the panel holds the keys as it comes open, with no further move, the pointer resting on
+    /// it: no row lit, and `↓` lights the first (Lee's decision, 27 November 2026).
+    @Test func aPanelTheHoverOpenedHoldsTheKeysAsItComesOpen() throws {
         let run = Self.opened(), setting = Self.setting()
 
         #expect(run.phase == .open)
         Self.frames(run, for: 500, Self.onTheNotch, setting)
-        #expect(!run.holdsKeys && run.keySnapshot == .none)
-        #expect(Self.press(.down, run, Self.onTheNotch) == nil)
-        #expect(Self.lit(run) != Self.rows(run).first)
+        #expect(run.holdsKeys && run.keySnapshot == .panel(hold: 1) && Self.lit(run) == nil)
+        Self.press(.down, run, Self.onTheNotch)
+        #expect(Self.lit(run) == Self.rows(run).first)
 
         run.step(Self.at(run, try Self.words(Self.helpDesk, run, setting), setting))
-        #expect(run.holdsKeys && run.keySnapshot == .panel(hold: 1))
+        #expect(run.keySnapshot == .panel(hold: 1))
+    }
+
+    /// A panel of one row the hover opened with the pointer on the notch's strip past the black's end, off the black,
+    /// holds nothing as it comes open, in either style, until the pointer moves onto it.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func aPanelComingOpenWithThePointerOffItsBlackHoldsNothing(style: NotchStyle) throws {
+        let setting = Self.setting(style), board = AsksBoard.board(alone: true)
+        let off = try PanelBlack.end(top: true, of: Self.opened(setting, board: board).frame, inset: -2)
+        let run = NotchRun(at: 1000, in: setting, folding: Folding())
+
+        _ = run.show(board, Self.at(run, nil, setting))
+        Self.frames(run, for: 3000, off, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open && !run.frame.shape.contains(off))
+        #expect(!run.holdsKeys && Self.press(.down, run, off, setting) == nil)
+
+        run.step(Self.at(run, CGPoint(x: off.x, y: off.y + 5), setting))
+        #expect(run.holdsKeys)
     }
 
     /// A move on the black by the screen's edge, at either end, holds the keys as one on the rows does, on either edge
@@ -187,10 +206,10 @@ struct NotchKeysRunTests {
         }
     }
 
-    /// A panel of one row, opened under a pointer resting on the notch where the black's end by the screen's edge comes
-    /// to lie, holds nothing until the pointer moves, in either style.
+    /// A panel of one row the hover opened under a pointer resting where the black's end by the screen's edge comes to
+    /// lie, the Meniscus's flare past the rows' clip, holds the keys as it comes open, in either style.
     @Test(arguments: [NotchStyle.meniscus, .card])
-    func aPanelOpenedUnderAPointerRestingOnTheBlacksEndHoldsNothingUntilItMoves(style: NotchStyle) throws {
+    func aPanelComingOpenUnderAPointerRestingOnTheBlacksEndHoldsTheKeys(style: NotchStyle) throws {
         let setting = Self.setting(style), board = AsksBoard.board(alone: true)
         let margin = try PanelBlack.end(top: true, of: Self.opened(setting, board: board).frame, inset: 3)
         let run = NotchRun(at: 1000, in: setting, folding: Folding())
@@ -201,14 +220,13 @@ struct NotchKeysRunTests {
         if style == .meniscus {
             try #require(run.frame.panel?.contains(margin) == false, "not past the rows' clip")
         }
-        #expect(!run.holdsKeys && Self.press(.down, run, margin, setting) == nil)
-
-        run.step(Self.at(run, CGPoint(x: margin.x, y: margin.y + 1), setting))
         #expect(run.holdsKeys)
+        Self.press(.down, run, margin, setting)
+        #expect(Self.lit(run, setting) == Self.rows(run).first)
     }
 
     /// A run over the asks' board, its panel opened by the pointer held against the screen's edge on the notch, at x =
-    /// 0 as AppKit gives it there, and at rest under it.
+    /// 0 as AppKit gives it there, and at rest under it, with no event since.
     private static func openedAgainstTheEdge(_ setting: NotchRun.Setting) -> (run: NotchRun, pinned: CGPoint) {
         let run = NotchRun(at: 1000, in: setting, folding: Folding())
         let pinned = CGPoint(x: 0, y: setting.stage.notchY)
@@ -218,41 +236,41 @@ struct NotchKeysRunTests {
         return (run, pinned)
     }
 
-    /// Lee's path, 27 November 2026: the panel opened under the pointer held against the screen's edge on the notch,
-    /// which holds nothing, then the pointer pushed on against the edge, a move the Mac hears that leaves it where it
-    /// was felt: the move holds the keys, lighting no row, and `↓` lights the first. On either edge, in either style.
-    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
-    func aMovePushingAgainstTheScreensEdgeHoldsTheKeys(style: NotchStyle, right: Bool) throws {
-        let setting = Self.setting(style, right: right), (run, pinned) = Self.openedAgainstTheEdge(setting)
+    /// Lee's path, 27 November 2026: the hover onto the notch against the screen's edge opens the panel, the pointer
+    /// resting there through the pour with no event since, and `↓` lights the first row. On either edge, in either
+    /// style, with motion or without.
+    @Test(arguments: [
+        (NotchStyle.meniscus, false, false), (.meniscus, true, false), (.meniscus, false, true), (.meniscus, true, true),
+        (.card, false, false), (.card, true, false), (.card, false, true), (.card, true, true),
+    ])
+    func theHoverAgainstTheScreensEdgeHoldsTheKeys(style: NotchStyle, right: Bool, reducesMotion: Bool) throws {
+        var setting = Self.setting(style, right: right)
+
+        setting.reducesMotion = reducesMotion
+
+        let (run, pinned) = Self.openedAgainstTheEdge(setting)
 
         try #require(run.phase == .open)
-        Self.frames(run, for: 500, pinned, setting)
-        #expect(!run.holdsKeys)
-
-        run.pointerMoved()
-        run.step(Self.at(run, pinned, setting))
         #expect(run.holdsKeys && Self.lit(run, setting) == nil)
         Self.press(.down, run, pinned, setting)
         #expect(Self.lit(run, setting) == Self.rows(run).first)
     }
 
-    /// Moves the Mac hears as the panel pours, the pointer held against the screen's edge, are no move of the open
-    /// panel's: it opens holding nothing until the pointer moves again.
+    /// A key the panel doesn't take lets the hover's hold go with the pointer resting against the screen's edge, and
+    /// the pointer pushed on against the edge, a move the Mac hears that leaves it where it was felt, holds the keys
+    /// again.
     @Test(arguments: [NotchStyle.meniscus, .card])
-    func movesAsThePanelPoursAreNoMoveOfTheOpenPanels(style: NotchStyle) throws {
-        let setting = Self.setting(style), run = NotchRun(at: 1000, in: setting, folding: Folding())
-        let pinned = CGPoint(x: 0, y: setting.stage.notchY)
+    func aPushAgainstTheScreensEdgeHoldsTheKeysAgainAfterALetGo(style: NotchStyle) throws {
+        let setting = Self.setting(style), (run, pinned) = Self.openedAgainstTheEdge(setting)
 
-        _ = run.show(AsksBoard.board(), Self.at(run, nil, setting))
-        Self.frames(run, for: 3000, pinned, setting) { run.phase == .opening }
-        try #require(run.phase == .opening)
-        while run.phase == .opening, run.frame.openness < 0.5 {
-            run.pointerMoved()
-            run.step(Self.at(run, pinned, setting))
-        }
-        try #require(run.phase == .opening)
-        Self.frames(run, for: 2000, pinned, setting)
-        #expect(run.phase == .open && !run.holdsKeys)
+        try #require(run.holdsKeys)
+        run.letGoOfKeys(in: 1, Self.at(run, pinned, setting))
+        Self.frames(run, for: 500, pinned, setting)
+        #expect(!run.holdsKeys)
+
+        run.pointerMoved()
+        run.step(Self.at(run, pinned, setting))
+        #expect(run.keySnapshot == .panel(hold: 2) && Self.lit(run, setting) == nil)
     }
 
     /// Small moves along the screen's edge, x from 0 to 4, at the notch's height and at a row's, each hold the keys,
@@ -618,7 +636,7 @@ struct NotchKeysRunTests {
         #expect(kept.holdsKeys && kept.keySnapshot == .panel(hold: 1))
     }
 
-    /// Once a jump has drained the panel, the panel opening again holds the keys again as the pointer moves on it.
+    /// Once a jump has drained the panel, the hover opening it again holds the keys again as it comes open.
     @Test func aHoldStartsAgainOnceAJumpHasDrainedAndThePanelReopens() throws {
         let (run, pointer) = try Self.holding(Self.shifts), setting = Self.setting()
 
@@ -629,8 +647,6 @@ struct NotchKeysRunTests {
 
         Self.frames(run, for: 3000, Self.onTheNotch, setting) { run.phase == .open && !run.frame.isMoving }
         try #require(run.phase == .open && run.frame.panel?.pressed == nil)
-        #expect(!run.holdsKeys)
-        run.step(Self.at(run, try Self.words(Self.helpDesk, run, setting), setting))
         #expect(run.holdsKeys && run.keySnapshot == .panel(hold: 2))
     }
 

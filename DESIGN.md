@@ -6821,9 +6821,10 @@ though."
   Settings says why (below, "In Settings"). The welcome window doesn't
   ask for it: its step 5 stays two things to allow.
 
-**The panel holds the keys once the pointer moves on it.** Once the
-pointer moves anywhere on the open panel's black or on its asks panel,
-the keys are the panel's, acting on the lit row, until:
+**The panel holds the keys once the pointer is on it.** A panel the
+pointer's hover opened holds the keys as it comes open with the pointer
+anywhere on its black or its asks panel; after that, a move onto either
+holds them. The keys are the panel's, acting on the lit row, until:
 - the pointer leaves the panel, which closes it;
 - a key the panel doesn't take is pressed: that key goes through to the
   window in front, and the panel takes none until the pointer moves
@@ -6860,13 +6861,21 @@ edge stretches after a pointer leaving it is no part of it, so the hold
 ends as the pointer leaves the black (Lee found the flares holding
 nothing, 27 November 2026).
 
-A panel that opens under a resting pointer holds nothing until the pointer
-moves. A move is any the Mac hears once the panel is open, though the
-pointer stays where it was: pushed on against the screen's edge, AppKit
-keeps it in place, and that push holds the keys too (Lee found the edge
-holding nothing, 27 November 2026). Moves heard as the panel pours are no
-move of the open panel's. With the pointer on an eyebrow, the black between rows or the black
-by the screen's edge, no row is lit: `↑` `↓` light the first or the last
+The hover that opened the panel counts, wherever the pointer rests on it:
+the panel comes open holding the keys, no row lit, so `↓` lights the
+first with no further move (Lee's decision, 27 November 2026). Until
+then, from 26 November, a panel that opened under a resting pointer held
+nothing until the pointer moved. Lee hovered onto the notch against the
+screen's edge, stopped there, and `↓` did nothing: held against the edge,
+the pointer had not moved. A panel coming open with the pointer off its
+black, on the notch's strip past its end, holds nothing until the pointer
+moves onto it. The shortcut's panel keeps its own hold.
+
+A move is any the Mac hears, though the pointer stays where it was:
+pushed on against the screen's edge, AppKit keeps it in place, and that
+push holds the keys too, after a key the panel doesn't take let them go.
+With the pointer on an eyebrow, the black between rows or the black by
+the screen's edge, no row is lit: `↑` `↓` light the first or the last
 row, `s` folds, and a key needing a row does nothing. A key of the set
 with no use at that moment, `z` on a working row, the outward arrow on a
 row with no arrow drawn, or the arrow back toward the notch on the list,

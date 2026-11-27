@@ -294,8 +294,8 @@ struct NotchKeysTests {
         return CGPoint(x: panel.frame.minX + row.minX + 60, y: panel.frame.minY + row.midY - run.scroll)
     }
 
-    /// The tap is told what the panel holds as each frame draws: nothing as it opens under a resting pointer, its hold
-    /// once the pointer moves on a row.
+    /// The tap is told what the panel holds as each frame draws: the hover's hold as the panel comes open, and nothing
+    /// once the pointer moves off it.
     @Test func eachFrameTellsTheTapWhatThePanelHolds() throws {
         let world = KeysWorld(), (notch, _, next) = try Self.opened(world)
 
@@ -303,21 +303,24 @@ struct NotchKeysTests {
 
         let tap = try #require(world.taps.first)
 
-        #expect(tap.isOn && tap.snapshot == KeySnapshot.none)
-        notch.step(at: next(), pointer: try Self.words(Self.helpDesk, notch.run))
-        #expect(tap.snapshot == .panel(hold: 1))
+        #expect(tap.isOn && tap.snapshot == .panel(hold: 1))
+        notch.step(at: next(), pointer: CGPoint(x: 1300, y: 491))
+        #expect(tap.snapshot == KeySnapshot.none)
     }
 
-    /// Lee's path, 27 November 2026: the panel opened by the pointer held against the screen's edge on the notch, at
-    /// rest under it, then the pointer pushed on against the edge, a move AppKit hears that leaves it where it was. The
-    /// move holds the keys, the tap is told, and `↓` lights the first row, on either edge, in either style; the right
-    /// edge has the pointer within a point of it.
-    @Test(arguments: [EdgeSettings.Edge.left, .right], [NotchStyle.meniscus, .card])
-    func aMovePushingAgainstTheScreensEdgeHoldsTheKeys(side: EdgeSettings.Edge, style: NotchStyle) throws {
+    /// Lee's path, 27 November 2026: the hover onto the notch, the pointer held against the screen's edge as AppKit
+    /// gives it, opens the panel, the pointer resting through the pour with no event since; the tap is told the panel
+    /// holds the keys, and `↓` lights the first row. On either edge, the right's pointer within a point of it, in either
+    /// style, with motion or without. A key the panel doesn't take then lets the hold go, and the pointer pushed on
+    /// against the edge, a move AppKit hears that leaves it where it was, holds the keys again.
+    @Test(arguments: [EdgeSettings.Edge.left, .right], [
+        (NotchStyle.meniscus, false), (.meniscus, true), (.card, false), (.card, true),
+    ])
+    func theHoverAgainstTheScreensEdgeHoldsTheKeys(side: EdgeSettings.Edge, look: (NotchStyle, Bool)) throws {
         var settings = EdgeSettings()
 
         settings.edge = side
-        settings.style = style
+        (settings.style, settings.reducesMotion) = look
 
         let world = KeysWorld(), edge = ScreenEdge(Self.display, settings)
         let notch = NotchController(settings, on: Self.display, folding: Folding(), keys: world.mac) { SnoozeSettings() }
@@ -338,10 +341,6 @@ struct NotchKeysTests {
         let tap = try #require(world.taps.first), stage = try #require(edge.stagePoint(pinned))
 
         try #require(notch.run.phase == .open && notch.run.frame.shape.contains(stage))
-        try #require(!notch.run.holdsKeys && tap.snapshot == KeySnapshot.none)
-
-        notch.heard(clickElsewhere: false)
-        notch.step(at: time + Self.frameMS)
         #expect(notch.run.holdsKeys && tap.snapshot == .panel(hold: 1))
 
         notch.heard(.down)
@@ -349,6 +348,13 @@ struct NotchKeysTests {
         let first = notch.run.list.content.entries.first(where: \.jumps)?.item.key
 
         #expect(notch.run.lit(in: .on(edge, settings)).flatMap { notch.run.list.item($0)?.key } == first)
+
+        notch.keys.onLetGo(1)
+        notch.step(at: time + 2 * Self.frameMS)
+        try #require(tap.snapshot == KeySnapshot.none)
+        notch.heard(clickElsewhere: false)
+        notch.step(at: time + 3 * Self.frameMS)
+        #expect(tap.snapshot == .panel(hold: 2))
     }
 
     /// `⏎` or `o` on a row, as the tap reads it, then `⏎` within the jump: the tap ends the hold as it takes the first,
