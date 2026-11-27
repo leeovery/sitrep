@@ -189,14 +189,49 @@ struct AsksPanelStillsTests {
         try Self.shoot(run, pointer: try Self.onTitle(run, setting), as: "14-keys-right-choice", on: edge, in: setting)
     }
 
+    // MARK: Three asks
+
+    /// Help desk redesign asking three, the panel holding the keys, its asks lying out from the notch: on the left
+    /// edge left to right, the first ask's dot wide at the dots' left; on the right right to left, wide at their
+    /// right.
+    @Test(arguments: [EdgeSettings.Edge.left, .right])
+    func threeAsksTheirDotsLyingOutFromTheNotch(_ side: EdgeSettings.Edge) throws {
+        let edge = Self.edge(side), setting = Self.setting(on: edge, takesKeys: true)
+        let run = try Self.opened(setting, thirdAsk: true)
+
+        try Self.open(Self.helpDesk, run, setting)
+        try #require(run.asksShown?.pages == 3)
+        try Self.shoot(
+            run, pointer: try Self.onTitle(run, setting), as: "15-three-asks-\(side)", on: edge, in: setting
+        )
+    }
+
+    /// The arrow pointing away from the notch pressed on the right edge, shot 100ms into its slide: the second ask
+    /// coming in from the left, the first going out toward the notch, the wide dot passing leftward.
+    @Test
+    func onTheRightEdgeTheOutwardArrowMidSlide() throws {
+        let edge = Self.edge(.right), setting = Self.setting(on: edge, takesKeys: true)
+        let run = try Self.opened(setting, thirdAsk: true)
+
+        try Self.open(Self.helpDesk, run, setting)
+
+        let title = try Self.onTitle(run, setting)
+
+        try #require(
+            run.key(.left, NotchRun.Moment(time: run.time + Self.frameMS, pointer: title, setting: setting)) == .asks
+        )
+        try Self.shoot(run, pointer: title, as: "16-three-asks-right-sliding", on: edge, in: setting)
+    }
+
     // MARK: The run
 
-    /// The run over the board, its panel poured out and settled under the pointer held at the notch's home.
-    private static func opened(_ setting: NotchRun.Setting = setting) throws -> NotchRun {
+    /// The run over the board, Help desk redesign asking a third where it has a `thirdAsk`, its panel poured out and
+    /// settled under the pointer held at the notch's home.
+    private static func opened(_ setting: NotchRun.Setting = setting, thirdAsk: Bool = false) throws -> NotchRun {
         let run = NotchRun(at: 0, in: setting, measure: AsksMeasure.drawn)
         let home = CGPoint(x: 4, y: setting.stage.notchY)
 
-        _ = run.show(board(), NotchRun.Moment(time: 0, pointer: nil, setting: setting))
+        _ = run.show(board(thirdAsk: thirdAsk), NotchRun.Moment(time: 0, pointer: nil, setting: setting))
         step(run, for: 5000, pointer: home, setting) { run.phase == .open && !run.frame.isMoving }
         try #require(run.phase == .open)
         return run
@@ -289,18 +324,22 @@ struct AsksPanelStillsTests {
 
     // MARK: The board
 
-    /// Paper's: in Needs you, Help desk redesign of Northwind asking two, a choice and a yes; Shift schedules of
-    /// Contoso asking for words; Onboarding flow of Tailspin asking a choice whose pick, first as the CLI lists it,
-    /// wraps to two lines; Invoice ledger of Fabrikam stopped at a permission prompt; and two at work.
-    private static func board() -> PanelBoard {
+    /// Paper's: in Needs you, Help desk redesign of Northwind asking two, a choice and a yes, and a third yes where it
+    /// has a `thirdAsk`; Shift schedules of Contoso asking for words; Onboarding flow of Tailspin asking a choice whose
+    /// pick, first as the CLI lists it, wraps to two lines; Invoice ledger of Fabrikam stopped at a permission prompt;
+    /// and two at work.
+    private static func board(thirdAsk: Bool = false) -> PanelBoard {
         let ago = { (minutes: Int) in Int(now) - minutes * minute }
+        let third: WatchLine.Row.Line? = thirdAsk
+            ? .init("ask:sr-nw0001:k3", .ask, ask: "k3", first: "Ship the search box", since: ago(20)) : nil
         let rows = [
             WatchLine.Row(
                 session: "sr-nw0001", name: "Help desk redesign", projectName: "Northwind",
                 lines: [
                     .init("ask:sr-nw0001:k1", .ask, ask: "k1", first: "Thread replies?", since: ago(4)),
                     .init("ask:sr-nw0001:k2", .ask, ask: "k2", first: "Review Tickets & Replies", since: ago(12)),
-                ]
+                    third,
+                ].compactMap { $0 }
             ),
             WatchLine.Row(
                 session: "sr-ct0002", name: "Shift schedules", projectName: "Contoso",
@@ -331,7 +370,8 @@ struct AsksPanelStillsTests {
                         options: ["Threaded", "Flat"], recommended: "Threaded", at: ago(4)
                     ),
                     WatchLine.Ask(id: "k2", wants: .yes, yes: "Approve", title: "Review Tickets & Replies, round 1"),
-                ]),
+                    thirdAsk ? WatchLine.Ask(id: "k3", wants: .yes, yes: "Ship", title: "Ship the search box?") : nil,
+                ].compactMap { $0 }),
             ]),
             WatchLine.Project(name: "Contoso", sessions: [
                 WatchLine.Session(id: "sr-ct0002", name: "Shift schedules", state: .needsYou, asks: [

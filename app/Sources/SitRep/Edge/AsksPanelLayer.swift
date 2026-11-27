@@ -83,8 +83,8 @@ final class AsksPanelLayer {
         for shadow in sliding.shadows {
             shadow.shadowPath = outline(bounds)
         }
-        sliding.page.frame.origin.x = -asks.slid
-        sliding.beside?.frame.origin.x = (asks.slid < 0 ? -1 : 1) * AsksLayout.width - asks.slid
+        sliding.page.frame.origin.x = asks.pageX
+        sliding.beside?.frame.origin.x = asks.besideX
         sliding.band.frame = CGRect(x: 0, y: height - band, width: bounds.width, height: band)
         sliding.foot.frame.origin.y = height - asks.layout.height
         sliding.foot.opacity = sliding.besideFoot == nil ? 1 : Float(1 - asks.share)

@@ -215,13 +215,14 @@ struct AsksPanelDrawnTests {
     private static let margin = 40.0
 
     /// The asks panel drawn over grey, so its shadow shows, a second after `sending` was held where one is, its
-    /// answers showing their keycaps where it has `keycaps`.
+    /// answers showing their keycaps where it has `keycaps`, its asks lying right to left where it `pointsLeft`.
     private static func drawn(
         _ ask: PanelAsk = choice, page: Int = 0, pages: Int = 2, sending: Sending? = nil, hover: AsksPart? = nil,
-        offersSnooze: Bool = true, keycaps: Bool = false
+        offersSnooze: Bool = true, keycaps: Bool = false, pointsLeft: Bool = false
     ) throws -> (Drawn, AsksShown) {
         let asks = shown(
-            ask, page: page, pages: pages, sending: sending, hover: hover, offersSnooze: offersSnooze, keycaps: keycaps
+            ask, page: page, pages: pages, sending: sending, hover: hover, offersSnooze: offersSnooze, keycaps: keycaps,
+            pointsLeft: pointsLeft
         )
         let layout = asks.layout
         let panel = AsksPanelLayer(), picture = CALayer()
@@ -235,14 +236,14 @@ struct AsksPanelDrawnTests {
     /// The asks panel as shown in the picture, at its margin.
     private static func shown(
         _ ask: PanelAsk = choice, page: Int = 0, pages: Int = 2, sending: Sending? = nil, hover: AsksPart? = nil,
-        offersSnooze: Bool = true, keycaps: Bool = false
+        offersSnooze: Bool = true, keycaps: Bool = false, pointsLeft: Bool = false
     ) -> AsksShown {
         let layout = AsksLayout(ask, measure: AsksMeasure.drawn, offersSnooze: offersSnooze)
 
         return AsksShown(
             row: "needs:sr-nw0001", session: helpDesk, ask: ask, page: page, pages: pages, layout: layout,
             frame: CGRect(origin: CGPoint(x: margin, y: margin), size: layout.size), sending: sending, hover: hover,
-            keycaps: keycaps
+            keycaps: keycaps, pointsLeft: pointsLeft
         )
     }
 
@@ -285,6 +286,18 @@ struct AsksPanelDrawnTests {
         let (drawn, asks) = try Self.drawn(page: 0, pages: 2), top = Self.placed(asks.layout.top)
         let current = CGPoint(x: top.maxX - 5 - 4 - 7, y: top.midY), other = CGPoint(x: top.maxX - 2.5, y: top.midY)
 
+        let name = CGRect(x: top.minX, y: top.minY, width: 60, height: top.height)
+
+        #expect(Self.brightest(Self.white, in: name, of: drawn))
+        #expect(Self.shows(0xE9643D, at: current, in: drawn))
+        #expect(Self.shows(0x3A3A40, at: other, in: drawn))
+    }
+
+    /// On the right edge the asks lie right to left, out from the notch: the first ask's dot, orange, at the dots'
+    /// right end, nearest the notch, the second's to its left; the words keep their place.
+    @Test func onTheRightEdgeTheFirstAsksDotIsAtTheRight() throws {
+        let (drawn, asks) = try Self.drawn(page: 0, pages: 2, pointsLeft: true), top = Self.placed(asks.layout.top)
+        let current = CGPoint(x: top.maxX - 7, y: top.midY), other = CGPoint(x: top.maxX - 14 - 4 - 2.5, y: top.midY)
         let name = CGRect(x: top.minX, y: top.minY, width: 60, height: top.height)
 
         #expect(Self.brightest(Self.white, in: name, of: drawn))
@@ -464,15 +477,17 @@ struct AsksPanelDrawnTests {
         id: "k2", title: "Review Tickets & Replies, round 1", wants: .yes, answers: ["Approve"], since: 0
     )
 
-    /// The choice slid halfway to the yes beside it, drawn over grey.
-    private static func slidHalfway(sending: Sending? = nil) throws -> (Drawn, AsksShown) {
+    /// The choice slid halfway to the yes beside it, drawn over grey, the asks lying right to left where it
+    /// `pointsLeft`.
+    private static func slidHalfway(sending: Sending? = nil, pointsLeft: Bool = false) throws -> (Drawn, AsksShown) {
         let layout = AsksLayout(choice, measure: AsksMeasure.drawn)
         let beside = AsksShown.Beside(
             page: 1, ask: approve, layout: AsksLayout(approve, measure: AsksMeasure.drawn), sending: nil
         )
         var asks = AsksShown(
             row: "needs:sr-nw0001", session: helpDesk, ask: choice, page: 0, pages: 2, layout: layout,
-            frame: .zero, sending: sending, hover: nil, slid: AsksLayout.width / 2, beside: beside
+            frame: .zero, sending: sending, hover: nil, slid: AsksLayout.width / 2, beside: beside,
+            pointsLeft: pointsLeft
         )
 
         asks.stand(besideRowAt: margin + AsksLayout.above, front: margin + AsksLayout.overlap, on: Stage(
@@ -510,6 +525,23 @@ struct AsksPanelDrawnTests {
         #expect(!Self.shows(0x1C1C1F, at: CGPoint(x: frame.maxX + 2, y: approve.midY), in: drawn))
         #expect(Self.brightest(Self.white, in: CGRect(x: top.minX, y: top.minY, width: 60, height: top.height), of: drawn))
         #expect(dots.map(\.width) == [9.5, 9.5])
+        #expect(dots.allSatisfy { Self.shows(0x924F3F, at: CGPoint(x: $0.midX, y: $0.midY), in: drawn) })
+    }
+
+    /// On the right edge, where the asks lie right to left, halfway to the next ask the ask's own page has slid half
+    /// the asks panel's width out to the right, toward the notch, and the next ask half in from the left; the dots
+    /// pass the wide one leftward.
+    @Test func onTheRightEdgeTheNextAskSlidesInFromTheLeft() throws {
+        let (drawn, asks) = try Self.slidHalfway(pointsLeft: true), half = AsksLayout.width / 2, frame = asks.frame
+        let beside = try #require(asks.beside)
+        let flat = Self.placed(asks.layout.answers[1]), approve = Self.placed(beside.layout.answers[0])
+        let dots = asks.dots.map(Self.placed)
+
+        #expect(Self.shows(0x1C1C1F, at: CGPoint(x: flat.minX + 20 + half, y: flat.minY + 8), in: drawn))
+        #expect(Self.shows(0x000000, at: CGPoint(x: flat.minX + 20 + half, y: flat.midY + 3), in: drawn))
+        #expect(Self.shows(0x1C1C1F, at: CGPoint(x: approve.maxX - 120 - half, y: approve.midY), in: drawn))
+        #expect(!Self.shows(0x1C1C1F, at: CGPoint(x: frame.minX - 2, y: approve.midY), in: drawn))
+        #expect(dots[0].minX > dots[1].maxX)
         #expect(dots.allSatisfy { Self.shows(0x924F3F, at: CGPoint(x: $0.midX, y: $0.midY), in: drawn) })
     }
 

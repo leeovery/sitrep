@@ -23,8 +23,8 @@ enum AsksPanelParts {
 
     static func top(_ asks: AsksShown) -> Top {
         let box = asks.layout.top, line = AsksLayout.textLine, gap = 8.0, y = box.midY - line / 2
-        let firstDot = asks.layout.dots(page: asks.page, of: asks.pages).first
-        let room = (firstDot.map { $0.minX - gap } ?? box.maxX) - box.minX
+        let dotsStart = asks.dots.map(\.minX).min()
+        let room = (dotsStart.map { $0 - gap } ?? box.maxX) - box.minX
         let whole = TextLine.width(TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink))
         let projectX = box.minX + min(whole, room) + gap
 
@@ -35,9 +35,9 @@ enum AsksPanelParts {
     }
 
     /// The page dots at the top line's right where the session has more than one ask, the current one wide, as far as
-    /// its asks have slid: their run as long throughout, so the words before them never move.
+    /// its asks have slid, lying as its asks lie: their run as long throughout, so the words before them never move.
     static func dots(_ asks: AsksShown) -> [Dot] {
-        asks.layout.dots(at: asks.progress, of: asks.pages).enumerated().map { index, box in
+        asks.dots.enumerated().map { index, box in
             Dot(box: box, current: AsksLayout.nearness(of: index, to: asks.progress))
         }
     }

@@ -266,11 +266,13 @@ struct AsksPanel {
 
     /// A scroll on it at this time (`AsksSwipe`), taken (`takes`): a trackpad's swipe across slides its asks with the
     /// fingers, and on their lift completes to the ask beside, or springs back; a wheel's steps to the next ask or the
-    /// previous one, sliding there. A drag held still (`keep`) waits for its lift.
+    /// previous one, sliding there; either way along its asks as they lie through the edge's mirror. A drag held still
+    /// (`keep`) waits for its lift.
     mutating func swiped(
-        _ scroll: Scroll, at time: Double, _ rows: some AsksRows, _ board: PanelBoard, reducesMotion: Bool
+        _ scroll: Scroll, at time: Double, _ rows: some AsksRows, _ board: PanelBoard, mirror: CGAffineTransform,
+        reducesMotion: Bool
     ) {
-        guard let move = swipe.move(scroll, at: time), let open,
+        guard let move = swipe.move(scroll, at: time, pointsLeft: mirror.a < 0), let open,
               let pages = asks(of: open.row, in: rows, board)?.count
         else {
             return
@@ -412,7 +414,8 @@ struct AsksPanel {
     /// What a point in its own frame is on, as shown, however tall it stands as its asks slide.
     static func part(of shown: AsksShown, own point: CGPoint, holding: Bool) -> AsksPart? {
         let part = shown.layout.part(
-            at: point, sending: shown.sending != nil, progress: shown.progress, of: shown.pages
+            at: point, sending: shown.sending != nil, progress: shown.progress, of: shown.pages,
+            pointsLeft: shown.pointsLeft
         )
 
         switch part {
@@ -453,7 +456,7 @@ struct AsksPanel {
         var shown = AsksShown(
             row: open.row, session: page.session, ask: ask, page: open.page, pages: page.asks.count,
             layout: layout(ask), frame: .zero, sending: held.flatMap { Sending($0, to: ask, of: session) }, hover: nil,
-            slid: slide.offset
+            slid: slide.offset, pointsLeft: ground.mirror.a < 0
         )
 
         if let beside = slide.beside, page.asks.indices.contains(beside) {

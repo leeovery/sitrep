@@ -259,13 +259,19 @@ struct NotchKeysTests {
     }
 
     /// A notch on the far-off display over the board, Snoozed unfolded, its panel opened by the pointer held on the
-    /// notch, frame by frame, until it is at rest.
-    private static func opened(_ world: KeysWorld) throws -> (NotchController, ScreenEdge, () -> Double) {
-        let folding = Folding(), edge = ScreenEdge(display, EdgeSettings())
+    /// notch, frame by frame, until it is at rest; on the left edge unless `side` says.
+    private static func opened(
+        _ world: KeysWorld, on side: EdgeSettings.Edge = .left
+    ) throws -> (NotchController, ScreenEdge, () -> Double) {
+        var settings = EdgeSettings()
+
+        settings.edge = side
+
+        let folding = Folding(), edge = ScreenEdge(display, settings)
 
         folding.set(.snoozed, folded: false)
 
-        let notch = NotchController(EdgeSettings(), on: display, folding: folding, keys: world.mac) { SnoozeSettings() }
+        let notch = NotchController(settings, on: display, folding: folding, keys: world.mac) { SnoozeSettings() }
         var time = Displays.now
 
         notch.isShown = true
@@ -300,21 +306,33 @@ struct NotchKeysTests {
         #expect(tap.snapshot == .panel(hold: 1))
     }
 
-    /// `o`, then `⏎` within the jump: the tap is told at once that the panel holds nothing, before a frame draws, so
-    /// `⏎` goes through to the window jumped to, and the pointer moving on the draining panel starts no hold.
-    @Test func returnAfterOWithinTheJumpGoesThrough() throws {
+    /// `⏎` or `o` on a row, as the tap reads it, then `⏎` within the jump: the tap ends the hold as it takes the first,
+    /// and is told at once that the panel holds nothing, before a frame draws, so the second goes through to the window
+    /// jumped to, and the pointer moving on the draining panel starts no hold.
+    @Test(arguments: [TapKey(code: KeyCode.enter), TapKey(code: 31, typed: "o")])
+    func returnWithinAJumpGoesThrough(_ jumping: TapKey) throws {
         let world = KeysWorld(), (notch, _, next) = try Self.opened(world)
         let tap = try #require(world.taps.first), enter = TapKey(code: KeyCode.enter)
+        var jumps: [String] = []
 
         defer { notch.window.close() }
+        notch.onJump = { session, _ in jumps.append(session) }
 
         var pointer = try Self.words(Self.helpDesk, notch.run)
 
         notch.step(at: next(), pointer: pointer)
         try #require(tap.snapshot == .panel(hold: 1))
-        notch.heard(.open, ending: 1, pointer: pointer)
+
+        let went = tap.read(jumping)
+
+        guard case let .take(.panel(key, ends: 1)) = went else {
+            Issue.record("the tap ended no hold with \(jumping): \(went)")
+            return
+        }
+        notch.heard(key, ending: 1, pointer: pointer)
         #expect(tap.snapshot == KeySnapshot.none)
         #expect(tap.read(enter) == .pass)
+        #expect(jumps == ["sr-nw0001"])
 
         notch.step(at: next(), pointer: pointer)
         #expect(notch.run.frame.panel?.pressed == Self.helpDesk)
@@ -400,7 +418,7 @@ struct NotchKeysTests {
         let pointer = try Self.words(Self.helpDesk, notch.run)
 
         notch.step(at: next(), pointer: pointer)
-        notch.heard(.enter, pointer: pointer)
+        notch.heard(.right, pointer: pointer)
         notch.heard(.digit(1), pointer: pointer)
         #expect(answered == [ship])
 
@@ -429,6 +447,25 @@ struct NotchKeysTests {
         #expect(tap.read(undo) == .letGo(hold: hold))
     }
 
+    /// The arrows step along the line out from the notch on whichever edge it stands: `→` opens the asks panel and `←`
+    /// closes it from its first ask on the left edge, the other way round on the right.
+    @Test(arguments: [EdgeSettings.Edge.left, .right])
+    func theArrowsStepOutFromTheNotchOnItsEdge(_ side: EdgeSettings.Edge) throws {
+        let world = KeysWorld(), (notch, _, next) = try Self.opened(world, on: side)
+        let pointer = try Self.words(Self.helpDesk, notch.run)
+        let (outward, back): (PanelKey, PanelKey) = side == .left ? (.right, .left) : (.left, .right)
+
+        defer { notch.window.close() }
+        notch.step(at: next(), pointer: pointer)
+        try #require(notch.run.holdsKeys)
+        notch.heard(back, pointer: pointer)
+        #expect(notch.run.asksShown == nil)
+        notch.heard(outward, pointer: pointer)
+        #expect(notch.run.asksShown?.row == Self.helpDesk && notch.run.asksShown?.pointsLeft == (side == .right))
+        notch.heard(back, pointer: pointer)
+        #expect(notch.run.asksShown == nil && notch.run.phase == .open)
+    }
+
     /// A menu holding the card has the keys: as the row's right-click menu opens, the asks panel is drawn without its
     /// keycaps before the menu tracks, so no number shows beside the menu's own.
     @Test func aMenuHoldingTheCardDrawsTheAsksPanelWithoutKeycaps() throws {
@@ -437,7 +474,7 @@ struct NotchKeysTests {
 
         defer { notch.window.close() }
         notch.step(at: next(), pointer: pointer)
-        notch.heard(.enter, pointer: pointer)
+        notch.heard(.right, pointer: pointer)
         notch.step(at: next(), pointer: pointer)
         try #require(notch.surface.scene?.asks?.keycaps == true)
 
@@ -547,10 +584,13 @@ struct NotchKeysTests {
         #expect(notch.run.phase == .closing && !notch.run.holdsKeys)
     }
 
-    /// `⏎`, `1` and `o` typed faster than the main thread wakes: the tap reads `o` before the answer shows, so it ends
-    /// the hold, and the panel, hearing `o` once the sending line shows, follows it, closing; it never holds what the
-    /// tap passes through.
-    @Test func oTheTapEndedTheHoldWithClosesThePanelThoughTheMainThreadWasBusy() throws {
+    /// `→`, `1` and `⏎` or `o` typed faster than the main thread wakes: the tap reads the last before the answer shows,
+    /// so it ends the hold, and the panel, hearing it once the sending line shows, follows it, closing; it never holds
+    /// what the tap passes through.
+    @Test(arguments: [(TapKey(code: KeyCode.enter), PanelKey.enter), (TapKey(code: 31, typed: "o"), .open)])
+    func returnOrOTheTapEndedTheHoldWithClosesThePanelThoughTheMainThreadWasBusy(
+        _ jumping: TapKey, _ key: PanelKey
+    ) throws {
         let world = KeysWorld(), notch = Self.closed(world)
         let ship = Answering(.words("Ship"), to: "k1", of: "sr-nw0001", wanting: .yes)
         var answered: [Answering] = []
@@ -560,13 +600,13 @@ struct NotchKeysTests {
         #expect(notch.summon())
 
         let tap = try #require(world.taps.first)
-        let enter = tap.read(TapKey(code: KeyCode.enter))
+        let outward = tap.read(TapKey(code: KeyCode.right))
 
-        tap.heard(try #require(enter.action))
+        tap.heard(try #require(outward.action))
 
-        let one = tap.read(TapKey(code: 18, typed: "1")), open = tap.read(TapKey(code: 31, typed: "o"))
+        let one = tap.read(TapKey(code: 18, typed: "1")), open = tap.read(jumping)
 
-        #expect(open == .take(.panel(.open, ends: 1)))
+        #expect(open == .take(.panel(key, ends: 1)))
         tap.heard(try #require(one.action))
         #expect(answered == [ship])
 

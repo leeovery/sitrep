@@ -4,12 +4,13 @@ import CoreGraphics
 public enum PanelKey: Equatable, Sendable {
     /// `↑` or `k`, and `↓` or `j`: the lit row, or a menu's highlight, moved.
     case up, down
-    /// `←` and `→`: the asks panel's asks paged.
+    /// `←` and `→`: a step along the line out from the notch, the asks panel beside the list and its asks beyond,
+    /// out or back by the notch's edge.
     case left, right
-    /// `⏎`, Return or keypad Enter: a closer look.
+    /// `⏎`, Return or keypad Enter: as `o`.
     case enter
     case escape
-    /// `o`: the lit row's window jumped to.
+    /// `o`: the lit row's window jumped to, or, on the asks panel, Open in Claude.
     case open
     /// `z`: a snooze, or a wake.
     case snooze
@@ -30,6 +31,9 @@ public enum PanelKey: Equatable, Sendable {
         case .enter, .escape, .open, .snooze, .fold, .ignore, .digit, .undo: false
         }
     }
+
+    /// Whether it jumps, `o` or `⏎`, so the keys typed after it are the window's it jumps to.
+    var jumps: Bool { self == .open || self == .enter }
 }
 
 /// The keys read by their codes, whatever the layout: the arrows, Return, keypad Enter and Esc.
@@ -140,7 +144,7 @@ public enum KeySnapshot: Equatable, Sendable {
 
 /// What a key the tap takes, or lets go by, does, handed to the main thread.
 public enum KeyAction: Equatable, Sendable {
-    /// A key of the set while the panel holds the keys; where it `ends` the hold of this number, as `o` does, the
+    /// A key of the set while the panel holds the keys; where it `ends` the hold of this number, as `o` and `⏎` do, the
     /// panel follows, holding none after it, as the tap does from it on.
     case panel(PanelKey, ends: Int? = nil)
     /// A key the panel doesn't take, in the hold of this number: the panel holds none until the pointer moves again,
@@ -174,9 +178,9 @@ public enum KeyVerdict: Equatable, Sendable {
 /// How the tap decides each key, on its own thread, from the snapshot the main thread last published (DESIGN, "Keys").
 /// A key taken is taken whole: its repeats and its key-up go as it went down, taken or rewritten, whatever the snapshot
 /// says by then. Only `↑` `↓`, `k` `j`, `←` and `→` act again as they repeat. A key the panel doesn't take ends its hold
-/// here at once, as `o` does, which jumps, so the keys typed after it go through though the main thread has yet to hear
-/// of it, the action handed on saying so for the panel to follow; but for `o` while `⌘Z` is the panel's, where it
-/// can't jump, which leaves the hold its `⌘Z`.
+/// here at once, as `o` and `⏎` do, which jump, so the keys typed after them go through though the main thread has yet
+/// to hear of it, the action handed on saying so for the panel to follow; but for either while `⌘Z` is the panel's,
+/// where it can't jump, which leaves the hold its `⌘Z`. `⏎` in a menu is AppKit's, which the menu's snapshot keeps.
 /// The shortcut's hold takes every key pressed alone, so only a chord ends it. The shortcut's own chord goes through,
 /// ending nothing, whatever holds the keys.
 public struct KeyReader: Sendable {
@@ -256,7 +260,7 @@ public struct KeyReader: Sendable {
                 ended = hold
                 return .letGo(hold: hold)
             }
-            guard panelKey == .open, !undoes else {
+            guard panelKey.jumps, !undoes else {
                 return .take(.panel(panelKey))
             }
 
