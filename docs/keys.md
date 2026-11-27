@@ -1,6 +1,6 @@
 # Same keys, wherever the board shows
 
-Press `z` on a session to snooze it, `o` to go to its window, and `1` to answer an ask. Each key does the same thing wherever it works: at the notch, in the terminal view, and in Claude Code. Press ⌃⌥S, and you reach every session without the mouse.
+Press `z` on a session to snooze it, `o` to go to its window, and `1` to answer an ask. These keys work the same at the notch, in the terminal view, and in Claude Code. Press ⌃⌥S, and you reach every session without the mouse.
 
 ## Try it
 
@@ -11,7 +11,7 @@ Press `z` on a session to snooze it, `o` to go to its window, and `1` to answer 
 
 ## What happens
 
-- **Pointing gives the panel the keys.** The panel takes the keys as it opens under the pointer. With the pointer on a row, that row is the chosen row. Off the rows, `↓` chooses the first row. The first key that isn't one of the panel's keys goes to the window in front. The panel then lets go until the pointer moves again.
+- **Pointing gives the panel the keys.** The panel takes the keys as your pointer opens it. With the pointer on a row, that row is the chosen row. Off the rows, `↓` chooses the first row. The first key that isn't one of the panel's keys goes to the window in front. The panel then lets go until the pointer moves again.
 - **The shortcut gives the panel every key.** Opened with ⌃⌥S, the panel holds the keys until it closes, and other plain keys do nothing. `esc` closes a menu, then the asks panel, then the panel. `⏎` or `o` closes it too, and so does ⌃⌥S again.
 - **`⏎` goes there, and the arrow keys look closer.** On the panel, `⏎` and `o` jump to the window. The arrow key pointing away from the notch opens the asks panel, then pages on. The arrow key pointing back pages back, then closes the asks panel.
 - **Numbers choose what is open.** In the asks panel, `1` to `9` answer, and each answer row shows its number in a keycap.
