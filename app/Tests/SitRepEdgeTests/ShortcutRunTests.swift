@@ -228,8 +228,8 @@ struct ShortcutRunTests {
     }
 
     /// A pointer moving, as the panel pours, to rest where the black's end by the screen's edge comes to lie is on the
-    /// panel once it is open, with motion or without: the panel stays open under it. Its first move is the first frame
-    /// after the shortcut, as the panel pours, but under the Card's reduced motion, which pours none.
+    /// panel once it is open, with motion or without: the panel stays open under it. It moves there once the pouring
+    /// black reaches it, in the Meniscus as the panel still pours; the Card's length reaches its ends only as it lands.
     @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
     func aPointerComingToRestOnTheBlacksEndAsThePanelPoursKeepsItOpen(style: NotchStyle, reducesMotion: Bool) throws {
         let setting = Self.setting(style, reducesMotion: reducesMotion)
@@ -239,6 +239,11 @@ struct ShortcutRunTests {
             let margin = try PanelBlack.end(top: top, of: poured, inset: 3), run = Self.closed(setting)
 
             run.summon(Self.at(run, Self.away, setting))
+            Self.frames(run, for: 1500, Self.away, setting) { run.frame.shape.contains(margin) }
+            try #require(run.frame.shape.contains(margin))
+            if style == .meniscus {
+                try #require(run.phase == .opening)
+            }
             Self.frames(run, for: 1500, margin, setting)
             #expect(run.phase == .open)
         }

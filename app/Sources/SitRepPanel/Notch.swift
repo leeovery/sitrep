@@ -85,8 +85,9 @@ protocol NotchModel: Notch, SimModel where TimerName: ClickTimers {
     /// The notch's hit area and the panel's content as last drawn, which the pointer is hit-tested against.
     var lastHit: CGRect? { get }
     var lastPanel: Frame.Panel? { get }
-    /// The black's own shape as last drawn (`Frame.shape`), where it reaches past the content's clip, as the
-    /// Meniscus's flares do along the screen's edge; nil where the clip is the whole black, as the Card's is.
+    /// The black's own shape as last drawn (`Frame.shape`), which reaches past the content's clip: the Meniscus's
+    /// flares along the screen's edge, and the Card's black where its length lags shrinking content or its slide
+    /// overshoots.
     var lastShape: CGPath? { get }
     /// A panel beside the open one, as the last input had it (`Input.beside`).
     var beside: CGPath? { get }

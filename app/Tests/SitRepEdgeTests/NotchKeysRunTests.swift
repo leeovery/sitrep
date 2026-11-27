@@ -8,11 +8,12 @@ import Testing
 
 /// The notch's panel's keys as its run has them (DESIGN, "Keys"): the panel holds them once the pointer moves on its
 /// open black, by the screen's edge as much as on the rows, or its asks panel, never on an open under a resting
-/// pointer, until the pointer moves off, a key it doesn't take lets go, or it closes; `↑` `↓` move a lit row over the
-/// rows, past eyebrows and folded sections, scrolled into view, the pointer moving taking it back; and each row key
-/// does what its click does: the arrow pointing away from the notch the row's arrow, the arrow back nothing, `⏎` and
-/// `o` the words, `z` the row's Snooze or Wake now, `s` Snoozed's eyebrow, `esc` a click elsewhere. With the asks panel open, `↑` `↓` move and close it, `esc` closes it, and closed
-/// by a key under the pointer, it holds the panel until the pointer moves; its other keys are `AsksPanelKeysRunTests`'.
+/// pointer, until the pointer moves off, a key it doesn't take lets go, or it closes; `↑` `↓` move a lit row over
+/// the rows, past eyebrows and folded sections, scrolled into view, the pointer moving taking it back; and each row
+/// key does what its click does: the arrow pointing away from the notch the row's arrow, the arrow back nothing, `⏎`
+/// and `o` the words, `z` the row's Snooze or Wake now, `s` Snoozed's eyebrow, `esc` a click elsewhere. With the asks
+/// panel open, `↑` `↓` move and close it, `esc` closes it, and closed by a key under the pointer, it holds the panel
+/// until the pointer moves; its other keys are `AsksPanelKeysRunTests`'.
 @Suite(.backstop)
 struct NotchKeysRunTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
