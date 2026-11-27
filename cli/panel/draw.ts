@@ -235,9 +235,10 @@ const words = (grid: Grid, y: number, line: readonly Tagged<Tag>[], styles: Reco
   line.reduce((x, word, at) => put(grid, at === 0 ? x : x + 1, y, word.text, styles[word.tag]), NAME)
 
 /**
- * The chosen row expanded, in the two lines or more the layout gives it: its
- * words whole, the time at the first line's right; where the body cuts it
- * short, its last line kept, never its first, says `…`.
+ * The chosen row expanded, in the two lines or more the layout gives it (in a
+ * body of one row it is drawn as its folded line instead): its words whole,
+ * the time at the first line's right; where the body cuts it short, its last
+ * line kept, never its first, says `…`.
  */
 const expandedLines = ({ grid, layout }: Frame, y: number, height: number, row: PanelRow, lane: Lane, ink: Inking) => {
   const { time, lines } = expandedOf(row, layout.width, lane)
