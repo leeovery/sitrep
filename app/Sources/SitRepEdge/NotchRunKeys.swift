@@ -236,11 +236,12 @@ extension NotchRun {
         }
     }
 
-    /// The keys held as the pointer moves: on the open panel, a move on its list or its asks panel holds them, and one
-    /// off both holds them no more, the row the keys lit going back to the pointer either way. A panel opening under a
-    /// resting pointer holds nothing, nor while a menu holds the card, nor while a jump is under way. The shortcut's
-    /// hold holds on, from its opening, wherever the pointer goes, a move on the panel taking the lit row back. Hidden,
-    /// closing or closed, or while the Mac lets the panel take no keys, it holds nothing.
+    /// The keys held as the pointer moves: on the open panel, a move on its black (`Frame.shape`), the flares by the
+    /// screen's edge as much as the rows, or on its asks panel holds them, and one off both holds them no more, the row
+    /// the keys lit going back to the pointer either way. A panel opening under a resting pointer holds nothing, nor
+    /// while a menu holds the card, nor while a jump is under way. The shortcut's hold holds on, from its opening,
+    /// wherever the pointer goes, a move on the panel taking the lit row back. Hidden, closing or closed, or while the
+    /// Mac lets the panel take no keys, it holds nothing.
     func holdKeys(_ moment: Moment) {
         let isHeld = notch.phase == .open || hold.isShortcut && notch.phase == .opening
 
@@ -254,7 +255,7 @@ extension NotchRun {
         }
 
         let isJumping = frame.panel?.pressed != nil
-        let onPanel = !isJumping && moment.pointer.map { frame.panel?.contains($0) == true || asking.isOn($0) } ?? false
+        let onPanel = !isJumping && moment.pointer.map { frame.shape.contains($0) || asking.isOn($0) } ?? false
 
         felt = moment.pointer
         if onPanel || !hold.isShortcut {

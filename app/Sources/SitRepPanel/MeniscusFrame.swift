@@ -6,17 +6,18 @@ extension Meniscus {
         let moved = g.bump.map { displaced(g, outlineOf(g), $0, ringAt: ringAt) }
         let hit = hitRect(g)
         let panel = renderPanel(g, dentAt: moved?.centre)
-        let outline = shapePath(g, moved?.points)
+        let outline = shapePath(g, moved?.points), shape = moved == nil ? outline : shapePath(g, nil)
         lastHit = hit
         if let panel {
             lastPanel = panel
         }
         lastOutline = outline
+        lastShape = shape
         let (alpha, fading) = fadeOutlines()
         let swaps = swapsEdge
         swapsEdge = false
         return Frame(
-            time: t, phase: phase, outline: outline, outlineAlpha: alpha, fading: fading, panel: panel,
+            time: t, phase: phase, outline: outline, shape: shape, outlineAlpha: alpha, fading: fading, panel: panel,
             light: renderLight(g), hitRect: hit, isMoving: isMoving, lift: clamp(S.lift.x, 0, 1), swapsEdge: swaps
         )
     }

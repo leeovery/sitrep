@@ -43,6 +43,7 @@ public final class Card: Notch {
     var lastOutline: CGPath?
     var lastHit: CGRect?
     var lastPanel: Frame.Panel?
+    var lastShape: CGPath?
     var beside: CGPath?
 
     let rowsAt = 0.0

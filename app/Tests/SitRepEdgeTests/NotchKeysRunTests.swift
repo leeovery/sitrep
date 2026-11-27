@@ -7,12 +7,13 @@ import SitRepTestSupport
 import Testing
 
 /// The notch's panel's keys as its run has them (DESIGN, "Keys"): the panel holds them once the pointer moves on its
-/// open list or asks panel, never on an open under a resting pointer, until the pointer moves off, a key it doesn't take
-/// lets go, or it closes; `↑` `↓` move a lit row over the rows, past eyebrows and folded sections, scrolled into view,
-/// the pointer moving taking it back; and each row key does what its click does: the arrow pointing away from the notch
-/// the row's arrow, the arrow back nothing, `⏎` and `o` the words, `z` the row's Snooze or Wake now, `s` Snoozed's
-/// eyebrow, `esc` a click elsewhere. With the asks panel open, `↑` `↓` move and close it, `esc` closes it, and closed
-/// by a key under the pointer, it holds the panel until the pointer moves; its other keys are `AsksPanelKeysRunTests`'.
+/// open black, by the screen's edge as much as on the rows, or its asks panel, never on an open under a resting
+/// pointer, until the pointer moves off, a key it doesn't take lets go, or it closes; `↑` `↓` move a lit row over
+/// the rows, past eyebrows and folded sections, scrolled into view, the pointer moving taking it back; and each row
+/// key does what its click does: the arrow pointing away from the notch the row's arrow, the arrow back nothing, `⏎`
+/// and `o` the words, `z` the row's Snooze or Wake now, `s` Snoozed's eyebrow, `esc` a click elsewhere. With the asks
+/// panel open, `↑` `↓` move and close it, `esc` closes it, and closed by a key under the pointer, it holds the panel
+/// until the pointer moves; its other keys are `AsksPanelKeysRunTests`'.
 @Suite(.backstop)
 struct NotchKeysRunTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
@@ -22,10 +23,12 @@ struct NotchKeysRunTests {
     private static let ledger = "needs:\(AsksBoard.ledger)", turn = "turn:sr-ts0004", working = "sr-wg0005"
     private static let snoozed = "snoozed:\(AsksBoard.helpDesk)"
 
-    private static func setting(right: Bool = false, takesKeys: Bool = true) -> NotchRun.Setting {
+    private static func setting(
+        _ style: NotchStyle = .meniscus, right: Bool = false, takesKeys: Bool = true
+    ) -> NotchRun.Setting {
         NotchRun.Setting(
             stage: stage, mirror: right ? CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 800, ty: 0) : .identity,
-            style: .meniscus, reducesMotion: false, takesKeys: takesKeys
+            style: style, reducesMotion: false, takesKeys: takesKeys
         )
     }
 
@@ -150,6 +153,60 @@ struct NotchKeysRunTests {
         #expect(run.holdsKeys && run.keySnapshot == .panel(hold: 1))
     }
 
+    /// A move on the black by the screen's edge, at either end, holds the keys as one on the rows does, on either edge
+    /// and in either style, the Meniscus's flares as much as the rows' clip: it lights no row, and `↓` lights the
+    /// first.
+    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
+    func aMoveOnTheBlackByTheScreensEdgeHoldsTheKeys(style: NotchStyle, right: Bool) throws {
+        let setting = Self.setting(style, right: right)
+
+        for top in [true, false] {
+            let run = Self.opened(setting), margin = try PanelBlack.end(top: top, of: run.frame, inset: 3)
+
+            if style == .meniscus {
+                try #require(run.frame.panel?.contains(margin) == false, "not past the rows' clip")
+            }
+            run.step(Self.at(run, margin, setting))
+            #expect(run.holdsKeys && Self.lit(run, setting) == nil)
+            Self.press(.down, run, margin, setting)
+            #expect(Self.lit(run, setting) == Self.rows(run).first)
+        }
+    }
+
+    /// A move just off the black's end by the screen's edge holds nothing, in either style.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func aMoveJustOffTheBlackHoldsNothing(style: NotchStyle) throws {
+        let setting = Self.setting(style)
+
+        for top in [true, false] {
+            let run = Self.opened(setting), off = try PanelBlack.end(top: top, of: run.frame, inset: -3)
+
+            run.step(Self.at(run, off, setting))
+            #expect(!run.holdsKeys && run.keySnapshot == .none)
+            #expect(Self.press(.down, run, off, setting) == nil)
+        }
+    }
+
+    /// A panel of one row, opened under a pointer resting on the notch where the black's end by the screen's edge comes
+    /// to lie, holds nothing until the pointer moves, in either style.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func aPanelOpenedUnderAPointerRestingOnTheBlacksEndHoldsNothingUntilItMoves(style: NotchStyle) throws {
+        let setting = Self.setting(style), board = AsksBoard.board(alone: true)
+        let margin = try PanelBlack.end(top: true, of: Self.opened(setting, board: board).frame, inset: 3)
+        let run = NotchRun(at: 1000, in: setting, folding: Folding())
+
+        _ = run.show(board, Self.at(run, nil, setting))
+        Self.frames(run, for: 3000, margin, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open && run.frame.shape.contains(margin))
+        if style == .meniscus {
+            try #require(run.frame.panel?.contains(margin) == false, "not past the rows' clip")
+        }
+        #expect(!run.holdsKeys && Self.press(.down, run, margin, setting) == nil)
+
+        run.step(Self.at(run, CGPoint(x: margin.x, y: margin.y + 1), setting))
+        #expect(run.holdsKeys)
+    }
+
     @Test func movingOnTheAsksPanelHoldsTheKeysToo() throws {
         let run = Self.opened(), setting = Self.setting()
 
@@ -162,19 +219,34 @@ struct NotchKeysRunTests {
         #expect(run.holdsKeys)
     }
 
-    /// The hold ends as the pointer moves off the list and the asks panel, before the panel's grace closes it, so a key
-    /// typed meanwhile goes to the window in front.
+    /// The hold ends as the pointer moves off the black and the asks panel, before the panel's grace closes it, so a
+    /// key typed meanwhile goes to the window in front: the tongue the open edge stretches after the pointer is no
+    /// part of the black.
     @Test func aMoveOffThePanelEndsTheHoldAtOnce() throws {
         var (run, pointer) = try Self.holding()
-        let setting = Self.setting(), onList = { run.frame.panel?.contains(pointer) == true }
+        let setting = Self.setting(), onBlack = { run.frame.shape.contains(pointer) }
 
-        while onList() {
+        while onBlack() {
             pointer.x += 2
             run.step(Self.at(run, pointer, setting))
-            #expect(run.holdsKeys == onList())
+            #expect(run.holdsKeys == onBlack())
         }
+        #expect(run.frame.outline.contains(pointer), "no tongue under the pointer")
         #expect(run.phase == .open)
         #expect(run.keySnapshot == .none)
+    }
+
+    /// Leaving back over a flare into the bezel starts the grace, and coming back into the flare before it ends is
+    /// coming back onto the panel: it stays open, and the keys are held again.
+    @Test func comingBackIntoAFlareBeforeTheGraceEndsKeepsThePanelOpen() throws {
+        let run = Self.opened(), setting = Self.setting()
+        let margin = try PanelBlack.end(top: true, of: run.frame, inset: 3)
+        let off = try PanelBlack.end(top: true, of: run.frame, inset: -3)
+
+        run.step(Self.at(run, margin, setting))
+        Self.frames(run, for: 50, off, setting)
+        Self.frames(run, for: 2000, margin, setting)
+        #expect(run.phase == .open && run.holdsKeys)
     }
 
     /// It lets the row the keys lit go too, the pointer's row lit again.

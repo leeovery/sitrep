@@ -11,6 +11,7 @@ extension Card {
             lastPanel = panel
         }
         lastOutline = outline
+        lastShape = outline
         let (alpha, fading) = fadeOutlines()
         let swaps = swapsEdge
         swapsEdge = false

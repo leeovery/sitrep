@@ -65,6 +65,7 @@ public final class Meniscus: Notch {
     /// Under reduced motion, the outline cross-fading out, and since when.
     var fade: (outline: CGPath, t0: Double)?
     var lastOutline: CGPath?
+    var lastShape: CGPath?
 
     /// At Lee's feel, from its first frame's input.
     public convenience init(_ input: Input) {
