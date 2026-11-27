@@ -230,16 +230,14 @@ const rowsIn = (write: string | undefined) => [...(write ?? '').matchAll(/\x1b\[
 const FIRST_FRAME =
   '\x1b[?2026h\x1b[2J' +
   '\x1b[2;1H NEEDS YOU ●\x1b[0;1m1\x1b[0m \x1b[0;2m───────────────────────\x1b[0m \x1b[0;2m▿\x1b[0m\x1b[K' +
-  '\x1b[3;1H ● \x1b[0;1mHelp desk redesign\x1b[0m                \x1b[0;2m1m\x1b[0m\x1b[K' +
-  '\x1b[4;1H   \x1b[0;2mNorthwind · \x1b[0mReview round 1\x1b[K' +
+  '\x1b[3;1H ● \x1b[0;1mHelp desk redesign\x1b[0m    \x1b[0;2mNorthwind\x1b[0m   \x1b[0;2m1m\x1b[0m\x1b[K' +
   '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m pick\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
   '\x1b[?2026l'
 
-/** `j`'s frame: only the rows it changed, the band's two in reverse video and the key line. */
+/** `j`'s frame: only the rows it changed, the band's in reverse video and the key line. */
 const BANDED =
   '\x1b[?2026h' +
-  '\x1b[3;1H \x1b[0;7m● \x1b[0;1;7mHelp desk redesign\x1b[0;7m                \x1b[0;2;7m1m\x1b[0m\x1b[K' +
-  '\x1b[4;1H \x1b[0;7m  \x1b[0;2;7mNorthwind · \x1b[0;7mReview round 1          \x1b[0m\x1b[K' +
+  '\x1b[3;1H \x1b[0;7m● \x1b[0;1;7mHelp desk redesign\x1b[0;7m    \x1b[0;2;7mNorthwind\x1b[0;7m   \x1b[0;2;7m1m\x1b[0m\x1b[K' +
   '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m move\x1b[0m  \x1b[0;1m⏎\x1b[0;2m expand\x1b[0m  \x1b[0;1mo\x1b[0;2m open\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
   '\x1b[?2026l'
 
@@ -328,7 +326,7 @@ test('a resize while the colour query waits, heard by nothing yet, is drawn at o
   await run.passing(0)
 
   expect(screenOf(run.screen.writes, 20)[19]).toBe(' ↑↓ pick  q quit')
-  expect(screenOf(run.screen.writes, 20)[2]).toBe(' ● Help desk redesign                                             1m')
+  expect(screenOf(run.screen.writes, 20)[2]).toBe(' ● Help desk redesign                                 Northwind   1m')
   await run.type('q')
 })
 
@@ -410,7 +408,7 @@ test('Ctrl-Z gives the terminal back before it stops, and takes it back as the s
 
   expect(stopped()[2]).toBe(ENTER)
   expect(stopped()[3]?.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
-  expect(screenOf(stopped())[2]).toBe(' ● Help desk redesign                1m')
+  expect(screenOf(stopped())[2]).toBe(' ● Help desk redesign    Northwind   1m')
   expect(stopped()[3]).toContain('\x1b[0;7m')
   expect(run.screen.isReading()).toBe(true)
 
@@ -490,7 +488,7 @@ test('Ctrl-Z takes the terminal back at the size it has after the stop, a resize
   await run.passing(0)
 
   expect(screenOf(run.screen.writes, 20)[19]).toBe(' ↑↓ pick  q quit')
-  expect(screenOf(run.screen.writes, 20)[2]).toBe(' ● Help desk redesign                                             1m')
+  expect(screenOf(run.screen.writes, 20)[2]).toBe(' ● Help desk redesign                                 Northwind   1m')
   await run.type('q')
 })
 
@@ -545,7 +543,7 @@ test('a resize draws afresh at the new size; one to the size it had draws nothin
 
   expect(grown()[0]?.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
   expect(screenOf(grown(), 20)[19]).toBe(' ↑↓ pick  q quit')
-  expect(screenOf(grown(), 20)[2]).toBe(' ● Help desk redesign                                             1m')
+  expect(screenOf(grown(), 20)[2]).toBe(' ● Help desk redesign                                 Northwind   1m')
 
   const unsized = run.writesFrom()
 
@@ -614,7 +612,7 @@ test("the first draw waits up to 300 ms for the first look, then says it's looki
   first.open()
   await run.passing(0)
 
-  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign                1m')
+  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign    Northwind   1m')
   await run.type('q')
 })
 
@@ -690,7 +688,7 @@ test('a look that fails after a board keeps the board, as of when it was read, u
   expect(stale.at(-1)?.startsWith(' ↑↓ pick  q quit ')).toBe(true)
   expect(stale.at(-1)?.endsWith(` as of ${clockOf(new Date(NOW))}`), "at the key line's right end").toBe(true)
   expect(stale.at(-1)?.length, 'ending at column W−2').toBe(SIZE.width - 1)
-  expect(stale[2]).toBe(' ● Help desk redesign                1m')
+  expect(stale[2]).toBe(' ● Help desk redesign    Northwind   1m')
   expect(screenOf(run.screen.writes).at(-1)).toBe(' ↑↓ pick  q quit')
   await run.type('q')
 })
@@ -734,7 +732,7 @@ test('the times turn over with the minute, the board standing still, and nothing
   await run.passing(1)
 
   expect(ticking().map(rowsIn)).toEqual([[3]])
-  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign                2m')
+  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign    Northwind   2m')
   await run.type('q')
 })
 
@@ -746,10 +744,10 @@ const writeSeen = (run: Run, sessions: Record<string, string[]>, ttys: Record<st
 const writeHere = (run: Run, ...notHere: string[]) => writeSeen(run, Object.fromEntries(notHere.map(id => [id, []])))
 
 /** The held row's first line as drawn, away and here, its pens aside. */
-const AWAY_ROW = ' ○ Help desk redesign                1m'
-const HERE_ROW = ' ● Help desk redesign                1m'
+const AWAY_ROW = ' ○ Help desk redesign    Northwind   1m'
+const HERE_ROW = ' ● Help desk redesign    Northwind   1m'
 
-test("a held session SitRep's here.json names draws hollow and dimmed at the next look, the board unchanged; filled again once the file has gone stale, or is gone", async () => {
+test("a held session SitRep's here.json names draws hollow at the next look, the board unchanged; filled again once the file has gone stale, or is gone", async () => {
   const run = opened()
 
   await run.passing(0)
@@ -762,8 +760,8 @@ test("a held session SitRep's here.json names draws hollow and dimmed at the nex
   await run.passing(POLL_MS)
 
   expect(screenOf(run.screen.writes)[2]).toBe(AWAY_ROW)
-  expect(dimming().map(rowsIn)).toEqual([[3, 4]])
-  expect(dimming()[0], 'its second line faint as one, without colour').toContain('\x1b[4;1H   \x1b[0;2mNorthwind · Review round 1\x1b[0m')
+  expect(dimming().map(rowsIn)).toEqual([[3]])
+  expect(dimming()[0], 'without colour, its mark hollow and its name bold still, never faint').toContain('\x1b[3;1H ○ \x1b[0;1mHelp desk redesign\x1b[0m')
 
   await run.passing(HERE_STALE_MS - POLL_MS - 1)
   expect(screenOf(run.screen.writes)[2], 'dimmed still at the last look before the limit').toBe(AWAY_ROW)
@@ -860,10 +858,10 @@ test("a new ask's row is marked new and washed for two seconds from the frame th
 
   await run.passing(1)
 
-  expect(screenOf([arrived])[2]).toBe(' ◉ Help desk redesign 2             now')
+  expect(screenOf([arrived])[2]).toBe(' ◉ Help desk redesign 2  Northwind  now')
   expect(arrived).toContain('48;2;83;67;69')
   expect(run.screen.writes.length).toBe(before + 1)
-  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign 2             now')
+  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign 2  Northwind  now')
   expect(run.screen.writes.at(-1)).not.toContain('48;2;83;67;69')
   looks.open()
   await run.type('q')
@@ -956,7 +954,7 @@ test('as the program ends, the terminal is taken back, raw mode set afresh, draw
   expect([left, handed, entered, writes().length]).toEqual([LEAVE, HANDED, ENTER, 4])
   expect(frame.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
   expect(frame).toContain('\x1b[0;7m')
-  expect(rows[2]).toBe(' ● Help desk redesign                                             1m')
+  expect(rows[2]).toBe(' ● Help desk redesign                                 Northwind   1m')
   expect(rows.some(row => row.startsWith(' !'))).toBe(false)
   expect(rows[19]).toBe(' ↑↓ move  ⏎ expand  o open  z snooze  q quit')
   expect([run.screen.isReading(), run.screen.listens()]).toEqual([true, listens + 1])
@@ -1115,7 +1113,7 @@ test('the board is looked at while a program has the terminal, drawing nothing, 
   run.screen.end(0)
   await run.passing(0)
 
-  expect(screenOf(writes(), 20)[2]).toBe(' ◉ Help desk redesign 2                                              now')
+  expect(screenOf(writes(), 20)[2]).toBe(' ◉ Help desk redesign 2                                   Northwind  now')
   await run.type('q')
 })
 
@@ -1193,7 +1191,7 @@ test('--no-notify opens the panel and posts nothing, the new ask drawn all the s
   await run.passing(1_000)
 
   expect(noticesIn(run.screen.writes)).toEqual([])
-  expect(screenOf(run.screen.writes)[2]).toBe(' ◉ Help desk redesign 2             now')
+  expect(screenOf(run.screen.writes)[2]).toBe(' ◉ Help desk redesign 2  Northwind  now')
   await run.type('q')
 
   expect(await run.ended()).toEqual({ exit: EXIT.done, err: '' })
@@ -1262,7 +1260,7 @@ test('a first good look after looks that failed is the first board, and posts no
   isFailing = false
   await run.passing(1_000)
 
-  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign 2             now')
+  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign 2  Northwind  now')
   expect(noticesIn(run.screen.writes)).toEqual([])
   await run.type('q')
 })

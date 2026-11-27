@@ -219,7 +219,7 @@ A row on one line cuts its words short, and says either the session's name or wh
   - **a row of several lines,** as several asks: its project alone, then each line's words on a line of its own, each wrapped, in the row's order.
 - **The words keep their looks:** the name as the row's name, the project, count and `+2` grey, the status lines soft. A word wider than a line goes in pieces, as a pick's answer does.
 - **The band** lies over every line of the expanded row, and the view keeps the whole row in sight, as it does any band.
-- **Taller than the body,** the row is cut to the body's rows, never below two, and its last line kept reads `…`. Scrolling, the pinned heading, `▲` and `▼` follow the layout's rules for a row of that height. Below 24 columns or 8 rows the panel still draws `Too small`.
+- **Taller than the body,** the row is cut to the body's rows, and its last line kept reads `…`; in a body of one row it draws as its folded line. Scrolling, the pinned heading, `▲` and `▼` follow the layout's rules for a row of that height. Below 24 columns or 8 rows the panel still draws `Too small`.
 - **The fold isn't saved,** as Snoozed's isn't.
 
 ## Snoozing a row
@@ -543,7 +543,7 @@ A light background draws in reverse video, as at 16.
 | Part | Natural | Least, and below it |
 |---|---|---|
 | A row's words: the name with its count, or the status line | its own width | 12 cells while the project gives way, then 6, the `…` among them; the count is never cut |
-| The time | its own width | a Snoozed wake drops its clock (`tomorrow`) where the name would get under 6, then goes |
+| The time | its own width | a Snoozed wake drops its clock (`tomorrow`) where the words would get under 12 and dropping it narrows the section's lane; then the times go |
 | The project | its own width | cut with `…` once the words are down to 12 cells, to 4 cells; below that it goes |
 | An ask's title, an answer | wraps at W−2 | an answer to two lines, the second cut with `…` |
 | The heading's rule | out to W−4 | 3 cells; below that it goes, the counts and the chevron kept |

@@ -1,15 +1,15 @@
- WORKING 14 ────────────────────────────────────────────────────────── ▿
- ▲ 15 more
- ✻ Mobile app                                                         6m
-   Woodgrove · Running npm test
- ✻ Route planner                                                      5m
-   Trey Research · Searching for route costs
- ✻ Sales dashboard                                                    4m
-   Adventure Works · Editing src/charts/sales.tsx
- ✻ Loyalty points                                                     3m
-   Woodgrove · Reading the points ledger
- ✻ Invoice ledger                                                     2m
-   Northwind · Exporting the ledger as CSV
- ▼ 6 more
+ NEEDS YOU ●11 ●4 ──────────────────────────────────────────────────── ▿
+ ▲ 11 more
+ ○ Mapped the ground floor                                  Litware   1h
 
+ WORKING 14 ────────────────────────────────────────────────────────── ▿
+ ✻ Writing payroll.csv                                      Contoso  22m
+ ✻ Reading src/stock/levels.ts                              Wingtip  12m
+ ✻ Running the slot planner                               Northwind   9m
+ ✻ Running npm test                                       Woodgrove   6m
+ ✻ Searching for route costs                          Trey Research   5m
+ ✻ Editing src/charts/sales.tsx                     Adventure Works   4m
+ ✻ Reading the points ledger                              Woodgrove   3m
+ ✻ Exporting the ledger as CSV                            Northwind   2m
+ ▼ 6 more
  ↑↓ move  ⏎ expand  o open  s snoozed  q quit

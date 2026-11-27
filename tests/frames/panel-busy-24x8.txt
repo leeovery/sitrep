@@ -1,8 +1,8 @@
  WORKING 14 ───────── ▿
- ▲ 18 more
- ✻ Loyalty points    3m
-   Woodgrove · Reading…
- ✻ Invoice ledger    2m
-   Northwind · Exporti…
+ ▲ 16 more
+ ✻ Searching for…    5m
+ ✻ Editing src/ch…   4m
+ ✻ Reading the po…   3m
+ ✻ Exporting the…    2m
  ▼ 6 more
  ↑↓ move  q quit

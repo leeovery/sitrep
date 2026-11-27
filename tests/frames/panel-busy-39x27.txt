@@ -1,27 +1,27 @@
  NEEDS YOU ●11 ●4 ────────────────── ▿
- ▲ 10 more
- ● Staff directory                  2h
-   Contoso · Added the new starters
- ○ Warehouse map                    1h
-   Litware · Mapped the ground floor
+ ● Data import            Litware   1m
+ ● Help desk redesi… 2  Northwind   4m
+ ● Room bookings  Adventure Works   9m
+ ● Shift schedules        Contoso  26m
+ ● Expense clai… 3  Trey Research  40m
+ ● Tax rates              Wingtip  52m
+ ○ Email templates       Fabrikam   2h
+ ○ Gift cards            Tailspin   3h
+ ● Drafted the 2.4 rel…  Tailspin  31m
+ ● Rebuilt the index; 3…  Wingtip   1h
+ ● Added the new starte…  Contoso   2h
+ ○ Mapped the ground fl…  Litware   1h
 
  WORKING 14 ──────────────────────── ▿
- ✻ Payroll export                  22m
-   Contoso · Writing payroll.csv
- ✻ Stock levels                    12m
-   Wingtip · Reading src/stock/levels…
- ✻ Delivery slots                   9m
-   Northwind · Running the slot plann…
- ✻ Mobile app                       6m
-   Woodgrove · Running npm test
- ✻ Route planner                    5m
-   Trey Research · Searching for rout…
- ✻ Sales dashboard                  4m
-   Adventure Works · Editing src/char…
- ✻ Loyalty points                   3m
-   Woodgrove · Reading the points led…
- ✻ Invoice ledger                   2m
-   Northwind · Exporting the ledger a…
- ▼ 6 more
-
+ ✻ Writing payroll.csv    Contoso  22m
+ ✻ Reading src/stock/le…  Wingtip  12m
+ ✻ Running the slot p…  Northwind   9m
+ ✻ Running npm test     Woodgrove   6m
+ ✻ Searching for…   Trey Research   5m
+ ✻ Editing src/…  Adventure Works   4m
+ ✻ Reading the points…  Woodgrove   3m
+ ✻ Exporting the ledg…  Northwind   2m
+ ✻ Editing src/…  Adventure Works   1m
+ ✻ Fetching the a…  Trey Research   1m
+ ▼ 4 more
  ↑↓ move  ⏎ expand  o open  q quit

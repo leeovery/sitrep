@@ -391,7 +391,7 @@ class OneLine:
         cw = min(w, r1.MOST)
         msg = r1.message_lines(scene, cw - 4)
         foot = h - 1 - (len(msg) + 1 if msg else 0)
-        body_end = foot - 1                          # a blank row stands above the key line
+        body_end = foot
         if not scene.sessions:
             r1.quiet(c, MARK, cw - 1, 1, h - 1)
         else:
