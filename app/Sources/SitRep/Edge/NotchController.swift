@@ -86,7 +86,7 @@ final class NotchController: NSObject, CalloutShape, ShortcutNotch {
         caption.over = edge.visible
         link = startLink(#selector(tick))
         lightLink = startLink(#selector(tickLight), rate: Self.lightRate)
-        self.keys.onKey = { [unowned self] in heard($0, ending: $1) }
+        self.keys.onKey = { [unowned self] in heard($0, ending: $1, again: $2) }
         self.keys.onLetGo = { [unowned self] in letGoOfKeys(in: $0) }
         self.keys.onAway = { [unowned self] in letGoOfKeys() }
         listen()
@@ -353,10 +353,11 @@ final class NotchController: NSObject, CalloutShape, ShortcutNotch {
         keys.hotKey = chord
     }
 
-    /// A key of the set while the panel holds the keys, and the hold the tap ended with it, if any: what it does, by
-    /// the paths a click takes (`NotchRun.key`). Internal only for the tests, which give the pointer on the stage.
-    func heard(_ key: PanelKey, ending hold: Int? = nil, pointer: CGPoint? = nil) {
-        act(on: run.key(key, ending: hold, moment(pointer: pointer)))
+    /// A key of the set while the panel holds the keys, the hold the tap ended with it, if any, and whether it is a
+    /// held key's repeat: what it does, by the paths a click takes (`NotchRun.key`). Internal only for the tests,
+    /// which give the pointer on the stage.
+    func heard(_ key: PanelKey, ending hold: Int? = nil, again: Bool = false, pointer: CGPoint? = nil) {
+        act(on: run.key(key, ending: hold, again: again, moment(pointer: pointer)))
         took()
     }
 

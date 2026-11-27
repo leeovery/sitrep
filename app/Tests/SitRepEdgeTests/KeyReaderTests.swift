@@ -141,8 +141,8 @@ struct KeyReaderTests {
 
         #expect(reader.read(key, in: Self.holding) == .take(.panel(panelKey)))
         held.stroke = .again
-        #expect(reader.read(held, in: Self.holding) == .take(.panel(panelKey)))
-        #expect(reader.read(held, in: Self.holding) == .take(.panel(panelKey)))
+        #expect(reader.read(held, in: Self.holding) == .take(.panel(panelKey, again: true)))
+        #expect(reader.read(held, in: Self.holding) == .take(.panel(panelKey, again: true)))
     }
 
     @Test(arguments: [Self.typing("z"), Self.typing("1"), Self.typing("o"), Self.code(KeyCode.enter)])

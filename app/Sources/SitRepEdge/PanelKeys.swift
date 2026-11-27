@@ -145,8 +145,8 @@ public enum KeySnapshot: Equatable, Sendable {
 /// What a key the tap takes, or lets go by, does, handed to the main thread.
 public enum KeyAction: Equatable, Sendable {
     /// A key of the set while the panel holds the keys; where it `ends` the hold of this number, as `o` and `⏎` do, the
-    /// panel follows, holding none after it, as the tap does from it on.
-    case panel(PanelKey, ends: Int? = nil)
+    /// panel follows, holding none after it, as the tap does from it on. `again` as a held key repeats.
+    case panel(PanelKey, ends: Int? = nil, again: Bool = false)
     /// A key the panel doesn't take, in the hold of this number: the panel holds none until the pointer moves again,
     /// or, the shortcut's hold, closes.
     case letGo(hold: Int)
@@ -231,7 +231,7 @@ public struct KeyReader: Sendable {
         case let .rewritten(code)?:
             .rewrite(to: code)
         case .taken?:
-            .take(key.panelKey.flatMap { $0.repeats && holds(snapshot) ? .panel($0) : nil })
+            .take(key.panelKey.flatMap { $0.repeats && holds(snapshot) ? .panel($0, again: true) : nil })
         }
     }
 

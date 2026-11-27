@@ -271,3 +271,22 @@ struct AsksLayoutTests {
         #expect(layout.frame(besideRowAt: 300, front: 300, within: 37 ... 982).minX == 292)
     }
 }
+
+/// The asks panel as the left edge has it, its asks lying left to right.
+private extension AsksLayout {
+    func part(at point: CGPoint, sending: Bool, page: Int, of pages: Int) -> AsksPart? {
+        part(at: point, sending: sending, page: page, of: pages, pointsLeft: false)
+    }
+
+    func dots(page: Int, of pages: Int) -> [CGRect] {
+        dots(page: page, of: pages, pointsLeft: false)
+    }
+
+    func dots(at progress: Double, of pages: Int) -> [CGRect] {
+        dots(at: progress, of: pages, pointsLeft: false)
+    }
+
+    func box(of part: AsksPart, progress: Double, of pages: Int) -> CGRect? {
+        box(of: part, progress: progress, of: pages, pointsLeft: false)
+    }
+}

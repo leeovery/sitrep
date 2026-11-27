@@ -1514,8 +1514,8 @@ struct AsksPanelRunTests {
         #expect(run.press(Self.at(run, try Self.part(.page(2), run), setting)) == .asks)
         run.step(Self.at(run, try Self.onAsks(run, down: 70), setting))
 
-        let asks = try #require(run.asksShown), drawn = asks.layout.dots(at: asks.progress, of: 3)[1]
-        let rest = asks.layout.dots(page: 2, of: 3)
+        let asks = try #require(run.asksShown), drawn = asks.dots[1]
+        let rest = asks.layout.dots(page: 2, of: 3, pointsLeft: false)
 
         #expect(asks.progress < 0.5 && rest[2].minX < drawn.midX)
         #expect(run.press(Self.at(run, try Self.part(.page(1), run), setting)) == .asks)

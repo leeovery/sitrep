@@ -62,7 +62,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **Accessibility**: The macOS setting that lets SitRep read keys while the panel is open. You allow it from Settings › Edge, and System Settings keeps it under Privacy & Security › Accessibility.
 
-**asks panel**: What the arrow on a row opens, beside the panel: one session's asks, one at a time. A click answers a yes or a choice, with two seconds to undo. A words ask shows there too, with **Open in Claude ↗** to answer it in Claude.
+**asks panel**: What the arrow on a row opens, beside the panel, as does the arrow key pointing away from the notch: one session's asks, one at a time. A click answers a yes or a choice, with two seconds to undo. A words ask shows there too, with **Open in Claude ↗** to answer it in Claude.
 
 **banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. A click on one takes you to the session. Both are off until you turn them on in Settings › Notifications. **Turn On…** in the welcome window also turns on the banner for a new ask. A failure banner, such as "SitRep could not jump", "Not snoozed" or "Not answered", shows even with both switches off.
 

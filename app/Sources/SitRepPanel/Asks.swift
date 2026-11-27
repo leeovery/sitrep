@@ -216,7 +216,7 @@ public struct AsksLayout: Equatable, Sendable {
     /// left where it `pointsLeft` (`dots(at:of:pointsLeft:)`): a page dot, which pages whatever is held; while an
     /// answer of its ask is held, Undo alone.
     public func part(
-        at point: CGPoint, sending: Bool, page: Int, of pages: Int, pointsLeft: Bool = false
+        at point: CGPoint, sending: Bool, page: Int, of pages: Int, pointsLeft: Bool
     ) -> AsksPart? {
         part(at: point, sending: sending, progress: Double(page), of: pages, pointsLeft: pointsLeft)
     }
@@ -224,7 +224,7 @@ public struct AsksLayout: Equatable, Sendable {
     /// What a click lands on (above), its page dots standing as a slide between two asks has come to `progress`
     /// (`dots(at:of:pointsLeft:)`): a click on a dot lands on the dot drawn there.
     public func part(
-        at point: CGPoint, sending: Bool, progress: Double, of pages: Int, pointsLeft: Bool = false
+        at point: CGPoint, sending: Bool, progress: Double, of pages: Int, pointsLeft: Bool
     ) -> AsksPart? {
         if let dot = dot(at: point, progress: progress, of: pages, pointsLeft: pointsLeft) {
             return .page(dot)
@@ -246,7 +246,7 @@ public struct AsksLayout: Equatable, Sendable {
 
     /// The page dots at the top line's right, showing the ask at `page` of `pages`, the current one wide, by their
     /// asks' places; none for one ask.
-    public func dots(page: Int, of pages: Int, pointsLeft: Bool = false) -> [CGRect] {
+    public func dots(page: Int, of pages: Int, pointsLeft: Bool) -> [CGRect] {
         dots(at: Double(page), of: pages, pointsLeft: pointsLeft)
     }
 
@@ -254,7 +254,7 @@ public struct AsksLayout: Equatable, Sendable {
     /// (DESIGN, "Paging"), by their asks' places: each as wide as it is near it, the wide one passing from dot to dot,
     /// their run as long throughout. They lie as the asks do, out from the notch, the first nearest it: left to right,
     /// or right to left where the asks panel `pointsLeft`, on the right edge.
-    public func dots(at progress: Double, of pages: Int, pointsLeft: Bool = false) -> [CGRect] {
+    public func dots(at progress: Double, of pages: Int, pointsLeft: Bool) -> [CGRect] {
         guard pointsLeft else {
             return dots(leftToRight: progress, of: pages)
         }
@@ -377,7 +377,7 @@ public struct AsksLayout: Equatable, Sendable {
     /// Where a part stands in its own frame, its page dots as a slide between two asks has come to `progress`, lying
     /// right to left where it `pointsLeft`: where a key presses it, as a click there does; none where it has no such
     /// part.
-    public func box(of part: AsksPart, progress: Double, of pages: Int, pointsLeft: Bool = false) -> CGRect? {
+    public func box(of part: AsksPart, progress: Double, of pages: Int, pointsLeft: Bool) -> CGRect? {
         switch part {
         case let .answer(row):
             return answers.indices.contains(row) ? answers[row] : nil

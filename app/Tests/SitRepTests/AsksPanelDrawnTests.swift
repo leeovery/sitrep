@@ -510,7 +510,7 @@ struct AsksPanelDrawnTests {
         let (drawn, asks) = try Self.slidHalfway(), half = AsksLayout.width / 2, frame = asks.frame
         let beside = try #require(asks.beside), risen = frame.height - asks.layout.height
         let flat = Self.placed(asks.layout.answers[1]), approve = Self.placed(beside.layout.answers[0])
-        let top = Self.placed(asks.layout.top), dots = asks.layout.dots(at: 0.5, of: 2).map(Self.placed)
+        let top = Self.placed(asks.layout.top), dots = asks.dots.map(Self.placed)
         let open = Self.placed(asks.layout.open).offsetBy(dx: 0, dy: risen)
 
         #expect(abs(frame.height - (asks.layout.height + beside.layout.height) / 2) < 1e-9)

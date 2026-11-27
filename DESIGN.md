@@ -6879,7 +6879,8 @@ meant for the panel never reaches the window behind it.
 
 **On the asks panel.** While it is open and the panel holds the keys,
 every key of the set but `↑` `↓`, `k` `j` is its, wherever the pointer is
-on the panel, acting on the ask it shows; `s` does nothing there:
+on the panel, acting on the ask it shows, but for `⏎` and `o`, which go to
+the lit row (below); `s` does nothing there:
 - `1`–`9` answer with that answer row, as a click on it, the sending line
   and its two seconds with it; `1` is the first row, Claude's pick where
   Claude has one.
@@ -6893,15 +6894,24 @@ on the panel, acting on the ask it shows; `s` does nothing there:
   `→` or `←` away from the line leaves `⌘Z` a chord at once, beat or
   none, as does the asks panel closing, its last ask's answer gone or by
   a key: opened again, it takes no `⌘Z`.
-- `x` is Ignore, `z` opens Snooze ▾'s menu, and `⏎` and `o` are Open in
-  Claude ↗.
+- `x` is Ignore, and `z` opens Snooze ▾'s menu.
+- `⏎` and `o` go to the lit row: with the asks panel's own row lit, the
+  pointer on it, on the asks panel or neither, they are Open in Claude ↗,
+  with every rule it has here; with the pointer lighting another row,
+  they jump to that row's window, as a click on its words does, so they
+  never move the screen to a session the pointer isn't on (the review,
+  27 November 2026).
 - The arrow pointing away from the notch shows the next ask, and the
   arrow pointing back the one before, as the dots lie, one ask a step,
   sliding as a dot's click does; from the first ask the arrow pointing
   back closes the asks panel, the row staying lit, as a menu's `←` closes
   its submenu. From the last, the outward arrow does nothing. On the left
   edge that is `→` on and `←` back, as before 27 November 2026; on the
-  right edge, where the asks lie right to left, `←` on and `→` back.
+  right edge, where the asks lie right to left, `←` on and `→` back. A
+  held arrow's repeats only page: they never open the asks panel from the
+  list nor close it from the first ask; and the arrow back closes it only
+  once a key would act there, within the beat (below) doing nothing, as a
+  key on the ask does (the review, 27 November 2026).
 - `esc` closes it; `↑` `↓`, `k` `j` move the lit row and close it, as a
   menu's arrows close its submenu.
 - A digit past its answers, or `z` with no Snooze ▾, does nothing. Nor do

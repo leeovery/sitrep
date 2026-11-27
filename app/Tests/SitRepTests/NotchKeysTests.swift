@@ -203,21 +203,23 @@ struct NotchKeysTests {
         #expect(untils.count == (actions.first == .closeMenu ? 0 : 1))
     }
 
-    /// The panel's keys go to the notch with the hold the tap ended with each, if any, and a let-go with its hold.
+    /// The panel's keys go to the notch with the hold the tap ended with each, if any, and whether it is a held key's
+    /// repeat; a let-go with its hold.
     @Test func thePanelsKeysAndALetGoGoToTheNotch() throws {
         let world = KeysWorld(), keys = NotchKeys(world.mac)
         var heard: [String] = []
 
-        keys.onKey = { heard.append("\($0) ending \($1.map(String.init) ?? "none")") }
+        keys.onKey = { heard.append("\($0) ending \($1.map(String.init) ?? "none")\($2 ? " again" : "")") }
         keys.onLetGo = { heard.append("let go of \($0)") }
         keys.follow(isOut: true, holding: .panel(hold: 1))
 
         let tap = try #require(world.taps.first)
 
         tap.heard(.panel(.down))
+        tap.heard(.panel(.right, again: true))
         tap.heard(.panel(.open, ends: 1))
         tap.heard(.letGo(hold: 1))
-        #expect(heard == ["down ending none", "open ending 1", "let go of 1"])
+        #expect(heard == ["down ending none", "right ending none again", "open ending 1", "let go of 1"])
     }
 
     // MARK: The notch
@@ -325,7 +327,7 @@ struct NotchKeysTests {
 
         let went = tap.read(jumping)
 
-        guard case let .take(.panel(key, ends: 1)) = went else {
+        guard case let .take(.panel(key, ends: 1, again: false)) = went else {
             Issue.record("the tap ended no hold with \(jumping): \(went)")
             return
         }
