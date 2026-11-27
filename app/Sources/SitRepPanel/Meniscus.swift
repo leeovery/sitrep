@@ -47,7 +47,6 @@ public final class Meniscus: Notch {
     var jumping: String?
     var awaitsPointer = false
     var ownPointer: Vec?
-    var isStill = false
     /// A drag has the notch, ...
     var isCarried = false
     /// ... or let it go across the screen's middle, and it is draining into this edge to grow out of the other ...
@@ -186,7 +185,6 @@ public final class Meniscus: Notch {
 
         notchY = home
         S.y.snap(notchY)
-        isStill = true
     }
 
     /// Two homes this close are one: a drag's place, saved as a share of the screen, comes back a hair off.
@@ -201,8 +199,6 @@ public final class Meniscus: Notch {
         guard phase == .closed else {
             return
         }
-
-        isStill = true
         guard feel.swells > 0 else {
             let needs = NotchShape.needs
             return setShape(w: needs.w, h: needs.h, r: needs.r, f: needs.f, 450)
@@ -247,7 +243,6 @@ public final class Meniscus: Notch {
         if phase == .closed {
             let needs = NotchShape.needs
             setShape(w: needs.w, h: needs.h, r: needs.r, f: needs.f, 450)
-            isStill = true
         }
     }
 
@@ -351,8 +346,6 @@ public final class Meniscus: Notch {
     /// Swell, falls back a little past 15, and settles: one quiver. Under reduced motion it cross-fades to 15.
     func swellNotch() {
         let needs = NotchShape.needs
-
-        isStill = true
         guard !reducesMotion else {
             return setShape(w: needs.w, h: needs.h, r: needs.r, f: needs.f)
         }

@@ -2,8 +2,8 @@ import CoreGraphics
 import SitRepPanel
 
 /// Whether the panel holds the keys (DESIGN, "Keys"), and whose hold it is: the pointer's, which the hover's panel
-/// coming open under it or the pointer moving on the panel starts and moving off it ends, or the shortcut's, which holds every key until the panel closes, the
-/// pointer's moves aside. Each hold numbered, so the tap tells the hold a key it let go of ended from the next.
+/// coming open under the pointer or the pointer moving on the panel starts, and moving off it ends; or the shortcut's,
+/// which holds every key until the panel closes, the pointer's moves aside. Each hold numbered, so the tap tells the hold a key it let go of ended from the next.
 struct KeyHold {
     enum Kind {
         case pointer, shortcut
@@ -41,7 +41,8 @@ struct KeyHold {
 }
 
 /// The panel's keys in the notch's run (DESIGN, "Keys"): the hold the hover's panel coming open under the pointer or
-/// the pointer moving on the panel starts, the lit row the keys move, and what each key does there, by the paths a click takes.
+/// the pointer moving on the panel starts, the lit row the keys move, and what each key does there, by the paths a
+/// click takes.
 extension NotchRun {
     /// What the tap decides each key by: the panel's hold while it holds the keys, `⌘Z` its while the asks panel takes
     /// it (`AsksPanel.takesUndo`), every key its in the shortcut's; else nothing.
@@ -116,7 +117,7 @@ extension NotchRun {
             return
         }
 
-        hoverOpens = false
+        lastMoveIn = nil
         guard moment.isShown, moment.setting.takesKeys else {
             return
         }
@@ -244,19 +245,17 @@ extension NotchRun {
     /// The keys held as the pointer moves: on the open panel, a move on its black (`Frame.shape`), the flares by the
     /// screen's edge as much as the rows, or on its asks panel holds them, and one off both holds them no more, the row
     /// the keys lit going back to the pointer either way; a move is the pointer elsewhere than it was felt, or one the
-    /// Mac heard (`pointerMoved`). A panel the pointer opened holds them as it comes open with the pointer on it, the
-    /// hover that opened it counting wherever the pointer rests. None holds while a menu holds the card, nor while a
-    /// jump is under way. The shortcut's hold holds on, from its opening, wherever the pointer goes, a move on the panel
-    /// taking the lit row back. Hidden, closing or closed, or while the Mac lets the panel take no keys, it holds
-    /// nothing.
+    /// Mac heard (`pointerMoved`). A panel coming open within `hoverWindow` of the pointer's last move holds them as it
+    /// comes open with the pointer on it, the hover that opened it counting wherever the pointer rests. None holds
+    /// while a menu holds the card, nor while a jump is under way. The shortcut's hold holds on, from its opening,
+    /// wherever the pointer goes, a move on the panel taking the lit row back. Hidden, closing or closed, or while the
+    /// Mac lets the panel take no keys, it holds nothing.
     func holdKeys(_ moment: Moment) {
         let isHeld = notch.phase == .open || hold.isShortcut && notch.phase == .opening
         let isFeltMove = moment.pointer != felt || movedSinceFelt
 
-        switch notch.phase {
-        case .closing: hoverOpens = isFeltMove
-        case .closed, .opening: hoverOpens = hoverOpens || isFeltMove && !hold.isShortcut
-        case .open: break
+        if notch.phase != .open, isFeltMove, !hold.isShortcut {
+            lastMoveIn = time
         }
         guard moment.isShown, isHeld, moment.setting.takesKeys else {
             letGo()
@@ -264,11 +263,12 @@ extension NotchRun {
             return
         }
 
-        // kept until the keys may be held: the Card opens at once under Reduce motion, before the Mac's tap is made
-        let isHoverOpening = hoverOpens && notch.phase == .open
+        // read at the first open frame the keys may be held in: the Card opens at once under Reduce motion, before
+        // the Mac's tap is made
+        let isHoverOpening = notch.phase == .open && lastMoveIn.map { time - $0 <= Self.hoverWindow } ?? false
 
-        if isHoverOpening {
-            hoverOpens = false
+        if notch.phase == .open {
+            lastMoveIn = nil
         }
         guard menuAt == nil, isFeltMove || isHoverOpening else {
             return

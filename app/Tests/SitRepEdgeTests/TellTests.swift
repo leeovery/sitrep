@@ -102,5 +102,4 @@ final class Told: Notch {
     func drop(across: Bool) { told.append("drop") }
     var mayCarry: Bool { true }
     func restingOutline(at y: Double) -> CGPath { CGMutablePath() }
-    func stillUnder(_ pointer: CGPoint?) {}
 }

@@ -327,17 +327,12 @@ struct NotchKeysTests {
         let pinned = CGPoint(
             x: side == .left ? edge.frame.minX : edge.frame.maxX - 1, y: edge.frame.maxY - edge.stage.notchY
         )
-        var time = Displays.now, mouse = CGPoint(x: edge.frame.midX, y: edge.frame.midY)
+        var time = Displays.now
 
         defer { notch.window.close() }
-        notch.mouseLocation = { mouse }
+        notch.mouseLocation = { pinned }
         notch.isShown = true
         notch.show(Self.board())
-        for _ in 0 ..< 10 {
-            time += Self.frameMS
-            notch.step(at: time)
-        }
-        mouse = pinned
         while time < Displays.now + 3000, notch.run.phase != .open || notch.run.frame.isMoving {
             time += Self.frameMS
             notch.step(at: time)

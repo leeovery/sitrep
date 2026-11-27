@@ -256,6 +256,54 @@ struct NotchKeysRunTests {
         #expect(Self.lit(run, setting) == Self.rows(run).first)
     }
 
+    /// The pointer leaves, and comes back onto the notch against the screen's edge as the panel goes in, stopping
+    /// there: the hover reopening it holds the keys as it comes open, in either style, with motion or without.
+    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
+    func aHoverReopeningThePanelAsItGoesInHoldsTheKeys(style: NotchStyle, reducesMotion: Bool) throws {
+        var setting = Self.setting(style)
+
+        setting.reducesMotion = reducesMotion
+
+        let (run, pinned) = Self.openedAgainstTheEdge(setting)
+
+        Self.frames(run, for: 3000, Self.away, setting) { run.phase == .closing }
+        Self.frames(run, for: 50, Self.away, setting)
+        try #require(run.phase == .closing)
+        Self.frames(run, for: 3000, pinned, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open)
+        #expect(run.holdsKeys)
+        Self.press(.down, run, pinned, setting)
+        #expect(Self.lit(run, setting) == Self.rows(run).first)
+    }
+
+    /// A new ask's swell growing the notch over a pointer parked beside it for longer than `NotchRun.hoverWindow`
+    /// opens the panel, as the notch does, but no hover opened it: it holds nothing until the pointer moves, and a move
+    /// then holds. The Card, with motion or without, and the Meniscus without, whose tongue would reach the pointer
+    /// first.
+    @Test(arguments: [(NotchStyle.card, false), (.card, true), (.meniscus, true)])
+    func aSwellOpeningThePanelUnderAParkedPointerHoldsNothingUntilItMoves(look: (NotchStyle, Bool)) throws {
+        var setting = Self.setting(look.0)
+
+        setting.reducesMotion = look.1
+
+        let parked = CGPoint(x: 3, y: setting.stage.notchY + 55), run = NotchRun(at: 1000, in: setting)
+        var last = LastBoard()
+
+        _ = last.hear(.line(allClearLine), at: Date())
+        _ = run.show(PanelBoard(last), Self.at(run, Self.away, setting))
+        Self.frames(run, for: 500, Self.away, setting)
+        Self.frames(run, for: 2000, parked, setting)
+        try #require(run.phase == .closed)
+
+        _ = run.show(AsksBoard.board(), Self.at(run, parked, setting))
+        Self.frames(run, for: 3000, parked, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open && run.frame.shape.contains(parked), "the swell opened the panel")
+        #expect(!run.holdsKeys)
+
+        run.step(Self.at(run, CGPoint(x: parked.x, y: parked.y + 1), setting))
+        #expect(run.holdsKeys)
+    }
+
     /// A key the panel doesn't take lets the hover's hold go with the pointer resting against the screen's edge, and
     /// the pointer pushed on against the edge, a move the Mac hears that leaves it where it was felt, holds the keys
     /// again.

@@ -120,31 +120,25 @@ struct ShortcutRunTests {
         #expect(Self.rows(run).first == Self.helpDesk)
     }
 
-    /// Its lit row stays the first in Needs you under a pointer resting on another row, Shift schedules, or on the black
-    /// by the screen's edge, though the pointer moved while the panel was in: no hover opened it. The Meniscus runs the
-    /// black's case under reduced motion, where no tongue reaches the pointer there.
-    @Test(arguments: [
-        (NotchStyle.meniscus, false, true), (.card, false, true), (.meniscus, true, false), (.card, false, false),
-    ])
-    func itsLitRowStaysTheFirstInNeedsYouUnderARestingPointer(
-        style: NotchStyle, reducesMotion: Bool, onRow: Bool
-    ) throws {
-        let setting = Self.setting(style, reducesMotion: reducesMotion), run = Self.closed(setting)
+    /// Its lit row stays the first in Needs you though the pointer moved just before the shortcut and as the panel
+    /// pours, coming to rest where Shift schedules' row comes to lie before the black reaches it: no hover opened it.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func itsLitRowStaysTheFirstInNeedsYouUnderAPointerMovingAsItPours(style: NotchStyle) throws {
+        let setting = Self.setting(style)
+        let shifts = try Self.words("needs:\(AsksBoard.shifts)", Self.summoned(setting))
+        let run = Self.closed(setting)
+        var pointer = CGPoint(x: 340, y: shifts.y - 3)
 
-        Self.frames(run, for: 3000, Self.onTheNotch, setting) { run.phase == .open && !run.frame.isMoving }
-        try #require(run.phase == .open)
-
-        let shifts = try Self.words("needs:\(AsksBoard.shifts)", run)
-        let near = onRow ? shifts : try PanelBlack.end(top: true, of: run.frame, inset: 3)
-        let resting = CGPoint(x: near.x, y: near.y + 1)
-
-        run.step(Self.at(run, near, setting))
-        Self.press(.escape, run, near, setting)
-        try #require(Self.closes(run, at: near, setting))
-        run.step(Self.at(run, resting, setting))
-        run.summon(Self.at(run, resting, setting))
-        Self.frames(run, for: 3000, resting, setting) { run.phase == .open && !run.frame.isMoving }
-        try #require(run.phase == .open && run.frame.shape.contains(resting))
+        run.step(Self.at(run, pointer, setting))
+        run.summon(Self.at(run, pointer, setting))
+        while pointer.y < shifts.y {
+            pointer.y += 1
+            run.step(Self.at(run, pointer, setting))
+            try #require(run.phase == .opening && !run.frame.shape.contains(pointer), "a move off the pouring black")
+        }
+        Self.frames(run, for: 3000, pointer, setting) { run.phase == .open && !run.frame.isMoving }
+        try #require(run.phase == .open && run.frame.shape.contains(pointer))
+        try #require(run.row(at: pointer, in: setting)?.key == "needs:\(AsksBoard.shifts)")
         #expect(Self.lit(run, setting) == Self.helpDesk)
     }
 
