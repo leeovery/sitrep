@@ -65,8 +65,6 @@ public final class Meniscus: Notch {
     /// Under reduced motion, the outline cross-fading out, and since when.
     var fade: (outline: CGPath, t0: Double)?
     var lastOutline: CGPath?
-    /// The black's own shape as last drawn (`Frame.shape`): a pointer moving onto it comes onto a panel the shortcut
-    /// opened, as onto its content.
     var lastShape: CGPath?
 
     /// At Lee's feel, from its first frame's input.

@@ -212,10 +212,11 @@ struct ShortcutRunTests {
     }
 
     /// A move on the black by the screen's edge, the Meniscus's flare past the rows' clip, is the pointer coming onto
-    /// it: it takes the lit row back, lighting none, `↓` lights the first row, and leaving the panel closes it.
-    @Test(arguments: [NotchStyle.meniscus, .card])
-    func aMoveOnTheBlackByTheScreensEdgeIsThePointerComingOntoIt(style: NotchStyle) throws {
-        let setting = Self.setting(style), run = try Self.summoned(setting)
+    /// it, with motion or without: it takes the lit row back, lighting none, `↓` lights the first row, and leaving the
+    /// panel closes it.
+    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
+    func aMoveOnTheBlackByTheScreensEdgeIsThePointerComingOntoIt(style: NotchStyle, reducesMotion: Bool) throws {
+        let setting = Self.setting(style, reducesMotion: reducesMotion), run = try Self.summoned(setting)
         let margin = try PanelBlack.end(top: true, of: run.frame, inset: 3)
 
         run.step(Self.at(run, margin, setting))
@@ -224,6 +225,23 @@ struct ShortcutRunTests {
         Self.press(.down, run, margin, setting)
         #expect(Self.lit(run, setting) == Self.rows(run).first)
         #expect(Self.closes(run, at: Self.away, setting))
+    }
+
+    /// A pointer moving, as the panel pours, to rest where the black's end by the screen's edge comes to lie is on the
+    /// panel once it is open, with motion or without: the panel stays open under it. Its first move is the first frame
+    /// after the shortcut, as the panel pours, but under the Card's reduced motion, which pours none.
+    @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
+    func aPointerComingToRestOnTheBlacksEndAsThePanelPoursKeepsItOpen(style: NotchStyle, reducesMotion: Bool) throws {
+        let setting = Self.setting(style, reducesMotion: reducesMotion)
+        let poured = try Self.summoned(setting).frame
+
+        for top in [true, false] {
+            let margin = try PanelBlack.end(top: top, of: poured, inset: 3), run = Self.closed(setting)
+
+            run.summon(Self.at(run, Self.away, setting))
+            Self.frames(run, for: 1500, margin, setting)
+            #expect(run.phase == .open)
+        }
     }
 
     /// A menu's held place is no move of the pointer's: `z` opens the row's snooze menu, which holds the panel at the

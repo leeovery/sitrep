@@ -8,10 +8,10 @@ import Testing
 
 /// The notch's panel's keys as its run has them (DESIGN, "Keys"): the panel holds them once the pointer moves on its
 /// open black, by the screen's edge as much as on the rows, or its asks panel, never on an open under a resting
-/// pointer, until the pointer moves off, a key it doesn't take lets go, or it closes; `↑` `↓` move a lit row over the rows, past eyebrows and folded sections, scrolled into view,
-/// the pointer moving taking it back; and each row key does what its click does: the arrow pointing away from the notch
-/// the row's arrow, the arrow back nothing, `⏎` and `o` the words, `z` the row's Snooze or Wake now, `s` Snoozed's
-/// eyebrow, `esc` a click elsewhere. With the asks panel open, `↑` `↓` move and close it, `esc` closes it, and closed
+/// pointer, until the pointer moves off, a key it doesn't take lets go, or it closes; `↑` `↓` move a lit row over the
+/// rows, past eyebrows and folded sections, scrolled into view, the pointer moving taking it back; and each row key
+/// does what its click does: the arrow pointing away from the notch the row's arrow, the arrow back nothing, `⏎` and
+/// `o` the words, `z` the row's Snooze or Wake now, `s` Snoozed's eyebrow, `esc` a click elsewhere. With the asks panel open, `↑` `↓` move and close it, `esc` closes it, and closed
 /// by a key under the pointer, it holds the panel until the pointer moves; its other keys are `AsksPanelKeysRunTests`'.
 @Suite(.backstop)
 struct NotchKeysRunTests {
@@ -230,8 +230,22 @@ struct NotchKeysRunTests {
             run.step(Self.at(run, pointer, setting))
             #expect(run.holdsKeys == onBlack())
         }
+        #expect(run.frame.outline.contains(pointer), "no tongue under the pointer")
         #expect(run.phase == .open)
         #expect(run.keySnapshot == .none)
+    }
+
+    /// Leaving back over a flare into the bezel starts the grace, and coming back into the flare before it ends is
+    /// coming back onto the panel: it stays open, and the keys are held again.
+    @Test func comingBackIntoAFlareBeforeTheGraceEndsKeepsThePanelOpen() throws {
+        let run = Self.opened(), setting = Self.setting()
+        let margin = try PanelBlack.end(top: true, of: run.frame, inset: 3)
+        let off = try PanelBlack.end(top: true, of: run.frame, inset: -3)
+
+        run.step(Self.at(run, margin, setting))
+        Self.frames(run, for: 50, off, setting)
+        Self.frames(run, for: 2000, margin, setting)
+        #expect(run.phase == .open && run.holdsKeys)
     }
 
     /// It lets the row the keys lit go too, the pointer's row lit again.

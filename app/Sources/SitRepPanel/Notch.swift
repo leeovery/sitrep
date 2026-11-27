@@ -85,6 +85,9 @@ protocol NotchModel: Notch, SimModel where TimerName: ClickTimers {
     /// The notch's hit area and the panel's content as last drawn, which the pointer is hit-tested against.
     var lastHit: CGRect? { get }
     var lastPanel: Frame.Panel? { get }
+    /// The black's own shape as last drawn (`Frame.shape`), where it reaches past the content's clip, as the
+    /// Meniscus's flares do along the screen's edge; nil where the clip is the whole black, as the Card's is.
+    var lastShape: CGPath? { get }
     /// A panel beside the open one, as the last input had it (`Input.beside`).
     var beside: CGPath? { get }
     var reveal: Reveal { get }
@@ -210,8 +213,8 @@ extension NotchModel {
     /// The pointer's speed toward the edge (below 0: away from it).
     func approachSpeed() -> Double { -trailVelocity().x }
 
-    /// The notch's hit area lies over the panel's content, which counts only while the panel is live, as a panel
-    /// beside it does.
+    /// The notch's hit area lies over the panel, its black, its content's clip and all, which counts only while the
+    /// panel is live, as a panel beside it does.
     func hoverOf(_ p: Vec?) -> Hover? {
         guard let p else {
             return nil
@@ -220,7 +223,10 @@ extension NotchModel {
         if let lastHit, inRect(p, lastHit) {
             return .notch
         }
-        if isLive, lastPanel?.contains(CGPoint(p)) == true || isBeside(p) {
+
+        let point = CGPoint(p)
+
+        if isLive, lastPanel?.contains(point) == true || lastShape?.contains(point) == true || isBeside(p) {
             return .panel
         }
         return nil
