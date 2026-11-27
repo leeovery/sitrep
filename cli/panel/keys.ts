@@ -3,7 +3,8 @@
  * pieces they come.
  *
  * - `CSI` and `SS3` arrows both read as arrows (`ESC [ A`, `ESC O A`), so
- *   application cursor mode doesn't matter, and Home and End the same. PgUp
+ *   application cursor mode doesn't matter, `←` and `→` as `↑` and `↓`, and
+ *   Home and End the same. PgUp
  *   and PgDn come as `ESC [ 5 ~` and `ESC [ 6 ~`.
  * - `j` and `k` move as `↓` and `↑`; `q` and Ctrl-C both leave.
  * - `1` to `9` each carry their number; `0` is nothing.
@@ -30,7 +31,7 @@
  */
 
 /** A key that says nothing but itself: `open` is `o`, `snooze` is `z`, `snoozed` is `s`, `quit` is `q` or Ctrl-C, `suspend` is Ctrl-Z. */
-export type Press = 'up' | 'down' | 'pageUp' | 'pageDown' | 'home' | 'end' | 'enter' | 'open' | 'snooze' | 'snoozed' | 'esc' | 'quit' | 'suspend'
+export type Press = 'up' | 'down' | 'left' | 'right' | 'pageUp' | 'pageDown' | 'home' | 'end' | 'enter' | 'open' | 'snooze' | 'snoozed' | 'esc' | 'quit' | 'suspend'
 
 export type Key =
   | { [K in Press]: { kind: K } }[Press]
@@ -71,7 +72,7 @@ const PLAIN: Readonly<Record<string, Press>> = {
 }
 
 /** A `CSI` or `SS3` sequence's last byte. */
-const FINAL: Readonly<Record<string, Press>> = { A: 'up', B: 'down', H: 'home', F: 'end' }
+const FINAL: Readonly<Record<string, Press>> = { A: 'up', B: 'down', C: 'right', D: 'left', H: 'home', F: 'end' }
 
 /** `CSI <n> ~`, by its number, rxvt's Home and End among them. */
 const TILDE: Readonly<Record<string, Press>> = {
@@ -105,6 +106,9 @@ const X10 = { button: 32, cell: 33 }
 
 /** `1` to `9`; `0` chooses nothing. */
 const DIGIT = /^[1-9]$/
+
+/** How many a digit can choose among, `1` to `9`: the snooze menu's choices and an ask's answers number only so many. */
+export const DIGITS = 9
 
 const pressOf = (kind: Press | undefined): Key | undefined => (kind === undefined ? undefined : { kind })
 

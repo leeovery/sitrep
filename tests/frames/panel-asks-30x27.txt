@@ -1,0 +1,27 @@
+
+ NEEDS YOU ●5 ●2 ────────── ▿
+ ● Data import   Litware   1m
+ ● Help desk redesign 2     ▿
+   Northwind
+   Thread replies, or keep
+   them flat?
+   Asked 4m ago          ━━ ━
+   1 Threaded · Recommended
+   2 Flat
+   3 Flat, with a quote of
+     the one it answers
+   x Ignore  z Snooze  o Open
+ ● Shift sched…  Contoso  26m
+ ○ Email templ…  Fabrik…   2h
+ ● Drafted the…  Tailsp…  31m
+ ○ Mapped the…   Litware   1h
+
+ WORKING 3 ──────────────── ▿
+ ✻ Running npm…  Woodgr…   6m
+ ✻ Exporting t…  Northw…   2m
+ ◌ Waiting on…   Fabrik…  15m
+
+ SNOOZED 2 ──────────────── ▹
+
+
+ 1–3 answer  esc close

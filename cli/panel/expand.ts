@@ -48,14 +48,20 @@ const detailsOf = (row: PanelRow, cells: number): Tagged<Tag>[][] => {
   return wrapped([...projectWords(row.project, hasStatus), ...(hasStatus ? statusWords(row.status) : [])])
 }
 
-/** The row expanded at a layout's width, in its section's lane: its time, and its lines, the first beside the time. */
-export const expandedOf = (row: PanelRow, width: number, lane: Lane): Expanded => {
-  const cells = width - 1 - NAME
+/** The row's name and count, wrapped from the names' column, the first line `first` cells wide at most and each after it `cells`. */
+export const nameLines = (row: PanelRow, first: number, cells: number): Tagged<Tag>[][] => {
   const count = countOf(row)
-  const time = lane.timeOf(row)
-  const first = cells - (time === '' ? 0 : widthOf(time) + 2)
   const counted: Tagged<Tag>[] = count === '' ? [] : [{ text: count.trim(), tag: 'meta' }]
   const name = wrapTagged([...wordsOf(row.name, 'name' as const), ...counted], first, cells)
 
-  return { time, lines: [...(name.length === 0 ? [[]] : name), ...detailsOf(row, cells)] }
+  return name.length === 0 ? [[]] : name
+}
+
+/** The row expanded at a layout's width, in its section's lane: its time, and its lines, the first beside the time. */
+export const expandedOf = (row: PanelRow, width: number, lane: Lane): Expanded => {
+  const cells = width - 1 - NAME
+  const time = lane.timeOf(row)
+  const first = cells - (time === '' ? 0 : widthOf(time) + 2)
+
+  return { time, lines: [...nameLines(row, first, cells), ...detailsOf(row, cells)] }
 }

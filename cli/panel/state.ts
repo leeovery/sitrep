@@ -17,13 +17,23 @@
  * - `esc` drops the band, and any key a pick's answer, the loop's own among
  *   them. A pick done sets its answer, or none, the band kept whole in
  *   sight above it.
- * - ⏎ expands the band's row, and folds it again: one row at most, the
+ * - ⏎ looks closer at the band's row: on a row with asks the view answers,
+ *   it opens them under it, at the first, and closes them again; on any
+ *   other, it expands the row, and folds it again: one row at most, the
  *   band's, folded as the band moves to another row, kept whole in sight.
  *   `o` opens the band's session; nothing else does.
  * - A tap puts the band on the row under it as drawn, a pick's answer
- *   still showing, and expands or folds the band's own row, as ⏎ does; the
+ *   still showing, and looks closer at the band's own row, as ⏎ does; the
  *   wheel scrolls a row a notch, the band staying on its session, in sight
  *   or not.
+ * - With a row's asks open, `←` `→` show the ask before or after, at once,
+ *   nothing wrapping, and a tap on a page dot shows its ask; ⏎ and `esc`
+ *   close them; the band's moves close them, then move it; a tap anywhere
+ *   but on the ask, on the row's head or off it, only closes them; `o`, the
+ *   wheel and the loop's own keys work as ever; any other key does
+ *   nothing. The asks are the band's row's: they close as the band moves
+ *   to another row, or as the row has none left; an ask that leaves passes
+ *   them to the next still on the board, else to the one before.
  * - `z` on a row that needs Lee opens the snooze menu under it, its
  *   choices worked out at that moment (menu.ts), row and menu kept whole in
  *   sight; on a Snoozed row it asks to wake its session; on any other row
@@ -49,7 +59,8 @@
 import { SNOOZE_DEFAULTS, type Feed, type SnoozeSettings } from '../../core'
 import type { Size } from './cells'
 import type { Key } from './keys'
-import { layoutOf, topFor } from './layout'
+import { asksLinesOf, dotAt, isHeadLine, openedIn } from './asks'
+import { layoutOf, topFor, type Placed } from './layout'
 import { snoozeOptions, type Menu } from './menu'
 import { NEW_MS, rowKey, viewOf, type PanelRow, type ViewState } from './view'
 
@@ -127,7 +138,7 @@ const openRows = (state: PanelState): PanelRow[] =>
 const keysIn = (state: PanelState) => openRows(state).map(rowKey)
 
 /** The state with `field` set, or without it, given none. */
-const withField = <K extends 'band' | 'expanded' | 'menu' | 'answer' | 'reason' | 'waking'>(state: PanelState, field: K, value: PanelState[K]): PanelState => {
+const withField = <K extends 'band' | 'expanded' | 'menu' | 'opened' | 'answer' | 'reason' | 'waking'>(state: PanelState, field: K, value: PanelState[K]): PanelState => {
   const next = { ...state }
 
   delete next[field]
@@ -135,12 +146,13 @@ const withField = <K extends 'band' | 'expanded' | 'menu' | 'answer' | 'reason' 
   return value === undefined ? next : { ...next, [field]: value }
 }
 
-/** The band on the row `key`, or on none; where it moves to another, its row folded and its menu closed. */
+/** The band on the row `key`, or on none; where it moves to another, its row folded, and its menu and its asks closed. */
 const withBand = (state: PanelState, key: string | undefined): PanelState => {
   const next = withField(state, 'band', key)
   const folded = next.expanded === key ? next : withField(next, 'expanded', undefined)
+  const unmenued = folded.menu?.row === key ? folded : withField(folded, 'menu', undefined)
 
-  return folded.menu?.row === key ? folded : withField(folded, 'menu', undefined)
+  return unmenued.opened?.row === key ? unmenued : withField(unmenued, 'opened', undefined)
 }
 
 /** The state with `top` as the layout clamps it. */
@@ -196,9 +208,38 @@ const stillSnoozable = (state: PanelState): PanelState => {
   return state.menu === undefined || (row?.asks !== undefined && !row.isSnoozed) ? state : withField(state, 'menu', undefined)
 }
 
+/** The ids of the asks the view answers on the row `key`. */
+const askIdsOn = (state: PanelState, key: string) =>
+  openRows(state)
+    .find(row => rowKey(row) === key)
+    ?.answerable?.map(ask => ask.id) ?? []
+
+/**
+ * The asks open on `after`'s row, as the board changed from `before`: the
+ * ask shown where it is still on the board, else the next of those it had
+ * after it still there, else the nearest before it, else the row's first;
+ * closed with none left.
+ */
+const stillAsking = (before: PanelState, after: PanelState): PanelState => {
+  const { opened } = after
+
+  if (opened === undefined) {
+    return after
+  }
+
+  const now = askIdsOn(after, opened.row)
+  const was = askIdsOn(before, opened.row)
+  const at = Math.max(was.indexOf(opened.ask), 0)
+  const ask = now.includes(opened.ask)
+    ? opened.ask
+    : ([...was.slice(at + 1), ...was.slice(0, at).reverse()].find(id => now.includes(id)) ?? now[0])
+
+  return ask === undefined ? withField(after, 'opened', undefined) : { ...after, opened: { ...opened, ask } }
+}
+
 /** `next`, its rows moved from where they stood in `state`: the band following its row, and kept in sight where it was. */
 const reflowed = (state: PanelState, next: PanelState) =>
-  settled(keepingSight(state, stillSnoozable(withBand(next, followed(state, next)))))
+  settled(keepingSight(state, stillAsking(state, stillSnoozable(withBand(next, followed(state, next))))))
 
 /** Each line new on the board stamped `now`, and those first shown NEW_MS ago or more dropped. */
 const arrived = (arrivals: ViewState['arrivals'], news: readonly string[], now: number) =>
@@ -273,10 +314,21 @@ const expanded = (state: PanelState): PanelState => {
   return settled(kept(withField(state, 'expanded', state.expanded === state.band ? undefined : state.band)))
 }
 
+/** ⏎ on the band's row: its asks opened under it at the first, where the view answers one, the row folded, the two kept whole in sight; else the row expanded or folded. */
+const lookedCloser = (state: PanelState): PanelState => {
+  const first = openRows(state).find(row => rowKey(row) === state.band)?.answerable?.[0]
+
+  if (state.band === undefined || first === undefined) {
+    return expanded(state)
+  }
+
+  return settled(kept(withField(withField(state, 'expanded', undefined), 'opened', { row: state.band, ask: first.id })))
+}
+
 /**
  * A tap on any line of a row, found where the rows stood as `drawn`, with a
  * pick's answer under them: the band put on it, or, on the band's own row,
- * expanded or folded.
+ * looked closer at.
  */
 const tapped = (state: PanelState, { x, y }: Tap, drawn: PanelState): PanelState => {
   const layout = layoutIn(drawn)
@@ -286,7 +338,7 @@ const tapped = (state: PanelState, { x, y }: Tap, drawn: PanelState): PanelState
     return state
   }
 
-  return row.key === state.band ? expanded(state) : placed(state, row.key)
+  return row.key === state.band ? lookedCloser(state) : placed(state, row.key)
 }
 
 const only = (state: PanelState): Stepped => ({ state })
@@ -393,12 +445,78 @@ const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind
   end: state => only(placed(state, keysIn(state).at(-1))),
   snoozed: state => only(toggled(state)),
   esc: state => only(settled(withBand(state, undefined))),
-  enter: state => only(expanded(state)),
+  enter: state => only(lookedCloser(state)),
   open: opened,
   snooze: snoozing,
   tap: (state, key, drawn) => only(tapped(state, key, drawn)),
   wheel: (state, { by }) => only(settled({ ...state, top: layoutIn(state).top + by })),
+  left: only,
+  right: only,
   digit: only,
+  quit: only,
+  suspend: only,
+}
+
+type Asking = NonNullable<PanelState['opened']>
+
+/** The asks closed. */
+const closedAsks = (state: PanelState) => settled(withField(state, 'opened', undefined))
+
+/** The ask at `index` among the row's shown, within its first and its last, the asks kept whole in sight. */
+const shownAt = (state: PanelState, opened: Asking, index: number): PanelState => {
+  const asks = askIdsOn(state, opened.row)
+  const ask = asks[Math.min(Math.max(index, 0), asks.length - 1)]
+
+  return ask === undefined ? state : settled(kept({ ...state, opened: { ...opened, ask } }))
+}
+
+/** The ask before or after the one shown, `by` -1 or 1. */
+const pagedBy = (state: PanelState, opened: Asking, by: number) =>
+  shownAt(state, opened, askIdsOn(state, opened.row).indexOf(opened.ask) + by)
+
+/** The line of the opened row a tap at terminal row `y` lands on, as `drawn` lays it out; none off it. */
+const openedLineAt = (drawn: PanelState, placed: Extract<Placed, { kind: 'row' }>, y: number) => {
+  const opened = openedIn(viewIn(drawn), placed.row)
+
+  return opened === undefined ? undefined : asksLinesOf(opened, layoutIn(drawn).width, placed.lane, placed.height)[y - placed.y]
+}
+
+/** A tap with a row's asks open, found where they stood as `drawn`: on a page dot, its ask shown; on the ask, nothing yet; anywhere else, the asks closed and nothing more. */
+const tappedAsks = (state: PanelState, opened: Asking, { x, y }: Tap, drawn: PanelState): PanelState => {
+  const layout = layoutIn(drawn)
+  const placed = layout.placed.find(each => each.kind === 'row' && each.key === opened.row)
+  const line = placed?.kind === 'row' && x < layout.width ? openedLineAt(drawn, placed, y) : undefined
+
+  if (line === undefined || isHeadLine(line)) {
+    return closedAsks(state)
+  }
+
+  const dot = line.part === 'asked' ? dotAt(line.dots, x) : undefined
+
+  return dot === undefined ? state : shownAt(state, opened, dot)
+}
+
+/** The band moved as `onKey` moves it, the asks closed first. */
+const closing =
+  <K extends Key['kind']>(onKey: (state: PanelState, key: Extract<Key, { kind: K }>, drawn: PanelState) => Stepped) =>
+  (state: PanelState, _: Asking, key: Extract<Key, { kind: K }>, drawn: PanelState) =>
+    onKey(closedAsks(state), key, drawn)
+
+/** What each key does with a row's asks open, its answer already dropped; any other does nothing, the loop's own aside. */
+const ASKS_KEY: { [K in Key['kind']]?: (state: PanelState, opened: Asking, key: Extract<Key, { kind: K }>, drawn: PanelState) => Stepped } = {
+  up: closing(ON_KEY.up),
+  down: closing(ON_KEY.down),
+  pageUp: closing(ON_KEY.pageUp),
+  pageDown: closing(ON_KEY.pageDown),
+  home: closing(ON_KEY.home),
+  end: closing(ON_KEY.end),
+  enter: state => only(closedAsks(state)),
+  esc: state => only(closedAsks(state)),
+  left: (state, opened) => only(pagedBy(state, opened, -1)),
+  right: (state, opened) => only(pagedBy(state, opened, 1)),
+  tap: (state, opened, key, drawn) => only(tappedAsks(state, opened, key, drawn)),
+  open: state => opened(state),
+  wheel: (state, _, key, drawn) => ON_KEY.wheel(state, key, drawn),
   quit: only,
   suspend: only,
 }
@@ -411,6 +529,12 @@ const pressed = (drawn: PanelState, key: Key): Stepped => {
     const onMenu = MENU_KEY[key.kind] as ((state: PanelState, menu: Menu, key: Key, drawn: PanelState) => Stepped) | undefined
 
     return onMenu === undefined ? only(state) : onMenu(state, drawn.menu, key, drawn)
+  }
+
+  if (drawn.opened !== undefined) {
+    const onAsks = ASKS_KEY[key.kind] as ((state: PanelState, opened: Asking, key: Key, drawn: PanelState) => Stepped) | undefined
+
+    return onAsks === undefined ? only(state) : onAsks(state, drawn.opened, key, drawn)
   }
 
   const onKey = ON_KEY[key.kind] as (state: PanelState, key: Key, drawn: PanelState) => Stepped

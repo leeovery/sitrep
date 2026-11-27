@@ -1,16 +1,35 @@
 import { expect, test } from './kit'
 import { countdown, NEW_MS, rowKey, viewOf, type PanelRow, type ViewState } from '../cli/panel/view'
-import type { Feed, Row, RowKind, RowLine, SnoozedKind, SnoozedRow } from '../core'
+import {
+  feedOf as boardOf,
+  foldSession,
+  metaText,
+  SNOOZE_DEFAULTS,
+  snoozeSettingsOf,
+  type Feed,
+  type Project,
+  type Row,
+  type RowKind,
+  type RowLine,
+  type Session,
+  type SessionFiles,
+  type SnoozedKind,
+  type SnoozedRow,
+} from '../core'
 import {
   boardRow,
+  CLI,
   DAY,
   feedOfRows as feedOf,
   HOUR,
+  META,
   MIN,
   snoozedRow,
   T0,
+  W1,
   type RowMade,
 } from './data'
+import { beat, choiceAsk, file, reply, snooze, wordsAsk, yesAsk, type Line } from './lines'
 import { inZone, LONDON, wallClock } from './zoned'
 
 const NOW = T0 + DAY
@@ -300,4 +319,113 @@ test('a stale board says when it was last read, in local 24-hour time; a current
     inZone(LONDON, () => viewOf(feedOf([row('ask')]), { ...STATE, board, readAt }, readAt + HOUR, NONE).asOf)
 
   expect([asOf('stale'), asOf('read')]).toEqual(['12:04', undefined])
+})
+
+// ---------------------------------------------------------------- the asks the view answers
+
+/** When the sessions below are folded and viewed. */
+const ASKED_NOW = T0 + HOUR
+
+const NORTHWIND: Project = { key: 'northwind', name: 'Northwind' }
+
+/** Help desk redesign, folded at ASKED_NOW from the lines its window wrote, the letters in its inbox, and its heartbeats. */
+const helpDesk = (lines: Line[], { inbox = {}, presence = {} }: Partial<Pick<SessionFiles, 'inbox' | 'presence'>> = {}): Session => {
+  const session = foldSession({ meta: metaText(META), logs: { [W1]: file(...lines) }, inbox, presence }, ASKED_NOW)
+
+  if (session === undefined) {
+    throw new Error('the session did not fold')
+  }
+
+  return session
+}
+
+const boardWith = (session: Session) => boardOf([{ project: NORTHWIND, sessions: [session] }], ASKED_NOW)
+
+/** The asks the view answers on the session's row, as the board folds it. */
+const answerableOf = (session: Session) => rowsOf(boardWith(session), { now: ASKED_NOW })[0]?.answerable
+
+/** A window held on the session, stopped on a permission prompt since `since`. */
+const prompting = (since: number) => ({
+  [W1]: beat(W1, { attachedAt: T0, seenAt: ASKED_NOW, version: '0.2.0', state: { is: 'permission', since, tool: { name: 'Bash', subject: 'ls' } } }),
+})
+
+test("a row's asks the view answers are its board asks waiting on you, a yes, a choice or a words ask, in the row's order, newest first, each aged as its line", () => {
+  const session = helpDesk([
+    [T0, wordsAsk('k1', 'Which office moves first?')],
+    [ASKED_NOW - 12 * MIN, yesAsk('k2', 'Approve the rota', 'Approve')],
+    [ASKED_NOW - 4 * MIN, choiceAsk('k3', 'Thread replies, or keep them flat?', ['Flat', 'Threaded', 'Flat, with a quote'], 'Threaded')],
+  ])
+
+  expect(answerableOf(session)).toEqual([
+    { id: 'k3', title: 'Thread replies, or keep them flat?', wants: 'choice', answers: ['Threaded', 'Flat', 'Flat, with a quote'], pick: 'Threaded', age: '4m' },
+    { id: 'k2', title: 'Approve the rota', wants: 'yes', answers: ['Approve'], age: '12m' },
+    { id: 'k1', title: 'Which office moves first?', wants: 'words', answers: [], age: '1h' },
+  ])
+})
+
+test('an ask snoozed, and one whose answer is on its way, are not among them; with none left the row has none', () => {
+  const asks: Line[] = [
+    [T0, yesAsk('k1', 'Ship it')],
+    [T0, yesAsk('k2', 'Tag it')],
+    [T0, yesAsk('k3', 'Review it')],
+    [T0 + MIN, snooze('k2', ASKED_NOW + HOUR)],
+  ]
+  const answered = { inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k3', 'yes')]) } }
+  const alone = { inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) } }
+
+  expect(answerableOf(helpDesk(asks, answered))?.map(ask => ask.id)).toEqual(['k1'])
+  expect(answerableOf(helpDesk([[T0, yesAsk('k1', 'Ship it')], [T0, yesAsk('k2', 'Tag it')]], alone))?.map(ask => ask.id)).toEqual(['k2'])
+  expect(answerableOf(helpDesk(asks.slice(0, 1), alone))).toBeUndefined()
+})
+
+test("Claude Code's own permission prompts are never among them: a row of a prompt alone has none, and a row of both only its board asks", () => {
+  const alone = helpDesk([], { presence: prompting(ASKED_NOW - MIN) })
+  const both = helpDesk([[T0, yesAsk('k1', 'Ship it')]], { presence: prompting(ASKED_NOW - MIN) })
+
+  expect(rowsOf(boardWith(alone), { now: ASKED_NOW })[0]).toMatchObject({ mark: 'ask', status: { text: 'Allow Bash: ls' } })
+  expect(answerableOf(alone)).toBeUndefined()
+  expect(answerableOf(both)?.map(ask => ask.id)).toEqual(['k1'])
+})
+
+test('a Stopped or Snoozed row has none, whatever the board holds of its session', () => {
+  const stopped = { ...row('yourTurn'), session: META.id }
+  const asleep = { ...snoozed(['ask']), session: META.id }
+  const feed: Feed = { ...feedOf([stopped], [asleep]), projects: boardWith(helpDesk([[T0, yesAsk('k1', 'Ship it')]])).projects }
+
+  expect(rowsOf(feed, { state: { ...STATE, isSnoozedOpen: true } }).map(each => [each.mark, each.answerable])).toEqual([
+    ['turn', undefined],
+    ['ask', undefined],
+  ])
+})
+
+test("a yes with no words of its own answers `yes`; a choice with no options has none; a pick none of its options is no pick", () => {
+  const session = helpDesk([
+    [T0, { type: 'ask', id: 'k1', wants: 'yes', title: 'Ship it' }],
+    [T0 + MIN, choiceAsk('k2', 'Which layout?', [])],
+    [T0 + 2 * MIN, choiceAsk('k3', 'Which colour?', ['Red', 'Blue'], 'Green')],
+  ])
+
+  expect(answerableOf(session)?.map(({ id, answers, pick }) => ({ id, answers, pick }))).toEqual([
+    { id: 'k3', answers: ['Red', 'Blue'], pick: undefined },
+    { id: 'k2', answers: [], pick: undefined },
+    { id: 'k1', answers: ['yes'], pick: undefined },
+  ])
+})
+
+test("an ask's title and answers are cleaned of control characters, as the board's words are", () => {
+  const session = helpDesk([[T0, choiceAsk('k1', 'Ship\x1b[31m it?', ['Now\x07', 'Later'], 'Now\x07')]])
+
+  expect(answerableOf(session)?.[0]).toMatchObject({ title: 'Ship[31m it?', answers: ['Now', 'Later'], pick: 'Now' })
+})
+
+test("the view says the band's asks open, by the ask shown's place, and whether Snooze offers a time; none where the ask is not the row's", () => {
+  const feed = boardWith(helpDesk([[T0, yesAsk('k1', 'Ship it')], [T0 + MIN, yesAsk('k2', 'Tag it')]]))
+  const allOff = snoozeSettingsOf('{"v":1,"hour":{"on":false},"later":{"on":false},"tonight":{"on":false},"tomorrow":{"on":false},"weekend":{"on":false},"week":{"on":false}}')
+  const opened = (ask: string, snoozeSettings = SNOOZE_DEFAULTS) =>
+    viewOf(feed, { ...STATE, band: META.id, opened: { row: META.id, ask }, snoozeSettings }, ASKED_NOW, NONE).opened
+
+  expect(opened('k1')).toEqual({ row: META.id, at: 1, offersSnooze: true })
+  expect(opened('k2')).toEqual({ row: META.id, at: 0, offersSnooze: true })
+  expect(opened('k2', allOff)).toEqual({ row: META.id, at: 0, offersSnooze: false })
+  expect(opened('k9')).toBeUndefined()
 })

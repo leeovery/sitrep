@@ -21,9 +21,10 @@ const readInPieces = (pieces: readonly (string | typeof QUIET)[]) =>
     { keys: [], rest: '' },
   )
 
-test('CSI and SS3 arrows both read as arrows, so application cursor mode does not matter; a modifier held changes nothing', () => {
+test('CSI and SS3 arrows both read as arrows, ← and → as ↑ and ↓, so application cursor mode does not matter; a modifier held changes nothing', () => {
   expect(kinds('\x1b[A\x1b[B\x1bOA\x1bOB')).toEqual(['up', 'down', 'up', 'down'])
-  expect(kinds('\x1b[1;5A\x1b[1;2B')).toEqual(['up', 'down'])
+  expect(kinds('\x1b[D\x1b[C\x1bOD\x1bOC')).toEqual(['left', 'right', 'left', 'right'])
+  expect(kinds('\x1b[1;5A\x1b[1;2B\x1b[1;5D')).toEqual(['up', 'down', 'left'])
 })
 
 test('j and k move as ↓ and ↑; o opens; z snoozes; s is Snoozed; q and Ctrl-C leave; Ctrl-Z suspends; ⏎ comes as CR, LF or the keypad Enter', () => {
@@ -47,7 +48,7 @@ test('PgUp, PgDn, Home and End, in each form terminals send them', () => {
 
 test('any other byte or sequence does nothing: capitals, other letters, other keys, and a letter with Alt', () => {
   expect(kinds('JKSQxé \t')).toEqual([])
-  expect(kinds('\x1b[C\x1b[D\x1b[2~\x1b[3~\x1bOP')).toEqual([])
+  expect(kinds('\x1b[2~\x1b[3~\x1bOP')).toEqual([])
   expect(kinds('\x1bj\x1bq')).toEqual([])
 })
 

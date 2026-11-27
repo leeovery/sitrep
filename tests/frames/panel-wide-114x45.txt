@@ -1,7 +1,7 @@
 
- NEEDS YOU ●4 ●2 ────────────────────────────────────────────────────────────────────────────────────────────── ▿
+ NEEDS YOU ●5 ●2 ────────────────────────────────────────────────────────────────────────────────────────────── ▿
  ● Data import                                                                                       Litware   1m
- ● Help desk redesign                                                                              Northwind   4m
+ ● Help desk redesign 2                                                                            Northwind    ▹
  ● Shift schedules                                                                                   Contoso  26m
  ○ Email templates                                                                                  Fabrikam   2h
  ● Drafted the 2.4 release notes                                                                    Tailspin  31m
@@ -42,4 +42,4 @@
 
 
 
- ↑↓ move  ⏎ expand  o open  z snooze  s snoozed  q quit
+ ↑↓ move  ⏎ asks  o open  z snooze  s snoozed  q quit

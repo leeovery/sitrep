@@ -28,6 +28,8 @@ const STYLES: Record<string, Style> = {
   heading: { tone: 'grey' },
   meta: { tone: 'grey', isMeta: true },
   rule: { tone: 'rule', isMeta: true },
+  pick: { tone: 'pick' },
+  pickTag: { tone: 'pickTag', isMeta: true },
 }
 
 /** Each style's escape at the level, the band's last. */
@@ -90,8 +92,8 @@ test("a light background by COLORFGBG draws in the terminal's 16; a dark one kee
   expect(levelOf({ NO_COLOR: '1', COLORFGBG: '0;15' })).toBe('none')
 })
 
-test("the palette at 256 colours is the nearest of xterm's to each ink", () => {
-  expect(Object.values(PALETTE).map(nearest256)).toEqual([173, 111, 146, 103, 60])
+test("the palette at 256 colours is the nearest of xterm's to each ink, Claude's pick 147 and its tag 111", () => {
+  expect(Object.values(PALETTE).map(nearest256)).toEqual([173, 111, 146, 103, 60, 147, 111])
 })
 
 /** WCAG's contrast between two colours, to measure the band's step by. */
@@ -186,6 +188,8 @@ test("each pen's escape at 24-bit: the palette's own inks, the terminal's ink fo
     `${ESC}[0;38;2;122;130;171m`,
     `${ESC}[0;38;2;122;130;171m`,
     `${ESC}[0;38;2;86;95;137m`,
+    `${ESC}[0;38;2;177;185;249m`,
+    `${ESC}[0;38;2;154;162;238m`,
     `${ESC}[0;48;2;40;43;48m`,
   ])
 })
@@ -199,11 +203,13 @@ test("each pen's escape at 256 colours: the nearest of each", () => {
     `${ESC}[0;38;5;103m`,
     `${ESC}[0;38;5;103m`,
     `${ESC}[0;38;5;60m`,
+    `${ESC}[0;38;5;147m`,
+    `${ESC}[0;38;5;111m`,
     `${ESC}[0;48;5;236m`,
   ])
 })
 
-test("each pen's escape at 16 colours: the terminal's own, the rule faint, the band reverse video", () => {
+test("each pen's escape at 16 colours: the terminal's own, the rule and the pick's tag faint, the band reverse video", () => {
   expect(escapes({ level: '16' })).toEqual([
     `${ESC}[0;1m`,
     `${ESC}[0;33m`,
@@ -212,6 +218,8 @@ test("each pen's escape at 16 colours: the terminal's own, the rule faint, the b
     `${ESC}[0;90m`,
     `${ESC}[0;90m`,
     `${ESC}[0;2;90m`,
+    `${ESC}[0;94m`,
+    `${ESC}[0;2;34m`,
     `${ESC}[0;7m`,
   ])
 })
@@ -224,6 +232,8 @@ test('with NO_COLOR, no colour at all: metadata faint, never a bold word, the ba
     `${ESC}[0m`,
     `${ESC}[0m`,
     `${ESC}[0;2m`,
+    `${ESC}[0;2m`,
+    `${ESC}[0m`,
     `${ESC}[0;2m`,
     `${ESC}[0;7m`,
   ])

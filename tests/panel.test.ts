@@ -234,11 +234,11 @@ const FIRST_FRAME =
   '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m pick\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
   '\x1b[?2026l'
 
-/** `j`'s frame: only the rows it changed, the band's in reverse video and the key line. */
+/** `j`'s frame: only the rows it changed, the band's in reverse video, its arrow in its time's place, and the key line. */
 const BANDED =
   '\x1b[?2026h' +
-  '\x1b[3;1H \x1b[0;7m● \x1b[0;1;7mHelp desk redesign\x1b[0;7m    \x1b[0;2;7mNorthwind\x1b[0;7m   \x1b[0;2;7m1m\x1b[0m\x1b[K' +
-  '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m move\x1b[0m  \x1b[0;1m⏎\x1b[0;2m expand\x1b[0m  \x1b[0;1mo\x1b[0;2m open\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
+  '\x1b[3;1H \x1b[0;7m● \x1b[0;1;7mHelp desk redesign\x1b[0;7m    \x1b[0;2;7mNorthwind\x1b[0;7m    \x1b[0;1;7m▹\x1b[0m\x1b[K' +
+  '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m move\x1b[0m  \x1b[0;1m⏎\x1b[0;2m asks\x1b[0m  \x1b[0;1mo\x1b[0;2m open\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
   '\x1b[?2026l'
 
 test('the panel asks the colours, takes the screen, draws the board whole, a key rewrites only the rows it changed, and q gives it all back', async () => {
@@ -408,7 +408,7 @@ test('Ctrl-Z gives the terminal back before it stops, and takes it back as the s
 
   expect(stopped()[2]).toBe(ENTER)
   expect(stopped()[3]?.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
-  expect(screenOf(stopped())[2]).toBe(' ● Help desk redesign    Northwind   1m')
+  expect(screenOf(stopped())[2]).toBe(' ● Help desk redesign    Northwind    ▹')
   expect(stopped()[3]).toContain('\x1b[0;7m')
   expect(run.screen.isReading()).toBe(true)
 
@@ -475,7 +475,7 @@ test('a sequence cut short by a stop from outside is never read with the first k
   await run.passing(0)
   await run.type('j')
 
-  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
+  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ asks  o open  q quit')
   await run.type('q')
 })
 
@@ -570,7 +570,7 @@ test('a sequence split across reads is read whole, and a lone ESC is esc once 50
 
   await run.passing(1)
 
-  expect(banded).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
+  expect(banded).toBe(' ↑↓ move  ⏎ asks  o open  q quit')
   expect(run.screen.writes.length).toBe(before + 1)
   expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ pick  q quit')
   await run.type('q')
@@ -593,7 +593,7 @@ test('a paste is never keys, however long its pieces take to come', async () => 
 
   await run.type('j')
 
-  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
+  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ asks  o open  q quit')
   await run.type('q')
 })
 
@@ -954,9 +954,9 @@ test('as the program ends, the terminal is taken back, raw mode set afresh, draw
   expect([left, handed, entered, writes().length]).toEqual([LEAVE, HANDED, ENTER, 4])
   expect(frame.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
   expect(frame).toContain('\x1b[0;7m')
-  expect(rows[2]).toBe(' ● Help desk redesign                                 Northwind   1m')
+  expect(rows[2]).toBe(' ● Help desk redesign                                 Northwind    ▹')
   expect(rows.some(row => row.startsWith(' !'))).toBe(false)
-  expect(rows[19]).toBe(' ↑↓ move  ⏎ expand  o open  z snooze  q quit')
+  expect(rows[19]).toBe(' ↑↓ move  ⏎ asks  o open  z snooze  q quit')
   expect([run.screen.isReading(), run.screen.listens()]).toEqual([true, listens + 1])
   await run.type('q')
 
@@ -976,7 +976,7 @@ test('a command that ends non-zero within 2 seconds leaves its answer above the 
   slow.run.screen.end(1)
   await slow.run.passing(0)
 
-  expect(rowsOf(quick.writes()).slice(17)).toEqual(['', ' ! The resume command ended with 1 for Help desk redesign.', ' ↑↓ move  ⏎ expand  o open  z snooze  q quit'])
+  expect(rowsOf(quick.writes()).slice(17)).toEqual(['', ' ! The resume command ended with 1 for Help desk redesign.', ' ↑↓ move  ⏎ asks  o open  z snooze  q quit'])
   expect(rowsOf(slow.writes()).some(row => row.startsWith(' !'))).toBe(false)
   await quick.run.type('q')
   await slow.run.type('q')
@@ -1113,7 +1113,7 @@ test('the board is looked at while a program has the terminal, drawing nothing, 
   run.screen.end(0)
   await run.passing(0)
 
-  expect(screenOf(writes(), 20)[2]).toBe(' ◉ Help desk redesign 2                                   Northwind  now')
+  expect(screenOf(writes(), 20)[2]).toBe(' ◉ Help desk redesign 2                                   Northwind    ▹')
   await run.type('q')
 })
 
@@ -1378,7 +1378,7 @@ test('a snooze the command refuses says why above the key line and writes nothin
     ' ! An ask waits on you that the snooze',
     '   did not name: look at it, then',
     '   snooze again.',
-    ' ↑↓ move  ⏎ expand  o open  q quit',
+    ' ↑↓ move  ⏎ asks  o open  q quit',
   ])
   await run.type('q')
 })

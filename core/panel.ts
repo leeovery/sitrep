@@ -16,9 +16,15 @@
  * Needs you counts its asks, the lines of its ask rows, and its Stopped,
  * its rows, apart, each only above zero. Working counts its rows; Snoozed
  * its lines, the asks asleep and the turns put off.
+ *
+ * The asks the panel answers are a Needs you row's board asks, as the
+ * app's `PanelBoard.answerable` takes them: each of its lines that is an
+ * ask, as the feed's projects list it, while it waits on Lee.
  */
 import type { Feed } from './feed'
-import type { Row, SnoozedRow } from './rows'
+import { waitsOnLee } from './replies'
+import { needsYou, type Row, type SnoozedRow } from './rows'
+import type { Ask } from './types'
 
 export type PanelSection = {
   kind: 'needsYou' | 'working' | 'snoozed'
@@ -70,4 +76,32 @@ export const panelSections = (feed: Feed, notHere: ReadonlySet<string>): PanelSe
   ]
 
   return sections.filter(section => section.rows.length > 0)
+}
+
+/** An ask the panel answers, and when its line on the row began, which its age counts from. */
+export type RowAsk = { ask: Ask; since: number }
+
+/**
+ * The asks the panel answers, a yes, a choice or a words ask, by their
+ * Needs you rows' sessions: each row's board asks waiting on Lee, in its
+ * lines' order, newest first, each timed as its line is. None for a row of
+ * Claude Code's own permission prompts and questions alone, nor for a
+ * Stopped, working or Snoozed row.
+ */
+export const answerableAsks = (feed: Feed): ReadonlyMap<string, RowAsk[]> => {
+  const open = new Map(feed.projects.flatMap(project => project.sessions).map(session => [session.id, session.asks]))
+  const askedIn = (row: Row): RowAsk[] =>
+    row.lines.flatMap(line => {
+      const ask = line.ask === undefined ? undefined : open.get(row.session)?.find(each => each.id === line.ask)
+
+      return ask !== undefined && waitsOnLee(ask) ? [{ ask, since: line.since }] : []
+    })
+
+  return new Map(
+    feed.rows.filter(needsYou).flatMap(row => {
+      const asks = askedIn(row)
+
+      return asks.length === 0 ? [] : [[row.session, asks] as const]
+    }),
+  )
 }

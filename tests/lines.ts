@@ -60,13 +60,14 @@ export const yesAsk = (id: string, title: string, yes = 'Approve'): Body => ({
   title,
 })
 
-/** An ask wanting one of `options`. */
-export const choiceAsk = (id: string, title: string, options: string[]): Body => ({
+/** An ask wanting one of `options`, Claude recommending `recommended` where given. */
+export const choiceAsk = (id: string, title: string, options: string[], recommended?: string): Body => ({
   type: 'ask',
   id,
   wants: 'choice',
   title,
   options,
+  ...(recommended === undefined ? {} : { recommended }),
 })
 
 /** An ask wanting words, which `needs` says what they are. */

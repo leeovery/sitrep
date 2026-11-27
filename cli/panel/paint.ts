@@ -42,13 +42,15 @@ export const rgbOf = (hex: string): Rgb => [
   Number.parseInt(hex.slice(5, 7), 16),
 ]
 
-/** The inks round 4 was drawn and picked in. */
+/** The inks round 4 was drawn and picked in, and round 5's for Claude's pick: Claude Code's suggestion lilac, and its tag's. */
 export const PALETTE = {
   orange: rgbOf('#D77757'),
   blue: rgbOf('#7AA2F7'),
   soft: rgbOf('#A9B1D6'),
   grey: rgbOf('#7A82AB'),
   rule: rgbOf('#565F89'),
+  pick: rgbOf('#B1B9F9'),
+  pickTag: rgbOf('#9AA2EE'),
 }
 
 /** The cool grey the band's ground leans toward from the background. */
@@ -82,7 +84,12 @@ const SIXTEEN: Record<Tone, number | undefined> = {
   soft: undefined,
   grey: 8,
   rule: 8,
+  pick: 12,
+  pickTag: 4,
 }
+
+/** The tones drawn faint at 16 colours, where their own 16 is too loud: the rule, and the pick's tag. */
+const FAINT_AT_16: ReadonlySet<Tone> = new Set(['rule', 'pickTag'])
 
 /** `a` moved `t` of the way to `b`. */
 export const mix = (a: Rgb, b: Rgb, t: number): Rgb => [
@@ -250,7 +257,7 @@ const inkAt = (tone: Tone, level: Level): Ink | undefined => {
 }
 
 const isFaintAt = (style: Style, level: Level) =>
-  (level === 'none' && style.isMeta === true && style.bold !== true) || (level === '16' && style.tone === 'rule')
+  (level === 'none' && style.isMeta === true && style.bold !== true) || (level === '16' && FAINT_AT_16.has(style.tone))
 
 /** A pen with only what it sets, so two pens alike compare alike. */
 const penOf = (fg: Ink | undefined, bold: boolean, faint: boolean): Pen => ({

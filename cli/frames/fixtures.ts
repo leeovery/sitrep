@@ -13,6 +13,9 @@
  *   answered from the board alone, as `reachOf` answers it: a fixture runs
  *   no command.
  * - A session given a place has a live window there.
+ * - Each row of asks holds them on the board, in its project, so the view
+ *   answers them: round 5's asks (design/paper/round5) where it drew them,
+ *   else words asks of its lines' titles.
  * - The clock is London's: `check.ts` runs in its zone, so a Snoozed wake
  *   reads the same on any machine.
  */
@@ -20,7 +23,10 @@ import {
   headOf,
   inPanelOrder,
   inSnoozedOrder,
+  type Ask,
   type Feed,
+  type FeedProject,
+  type FeedSession,
   type FeedWindow,
   type Row,
   type RowKind,
@@ -97,8 +103,8 @@ const idFor = (project: string) => `sr-${CODES[project] ?? 'xx'}${String(++issue
 /** Where a session is away from: its Claude ended, or no terminal on this Mac shows it. */
 type Away = 'ended' | 'elsewhere'
 
-/** A session as a world holds it: its row in a section or in Snoozed, whether this Mac shows it, and where its live window is, if it says. */
-type Seat = { row: Row; away?: Away; where?: Where } | { snoozed: SnoozedRow }
+/** A session as a world holds it: its row in a section or in Snoozed, whether this Mac shows it, where its live window is, if it says, and the asks its row's lines are. */
+type Seat = { row: Row; away?: Away; where?: Where; asks?: readonly Ask[] } | { snoozed: SnoozedRow }
 
 const named = (name: string, project: string, isAway: boolean) => ({
   session: idFor(project),
@@ -158,8 +164,59 @@ const seat = (is: RowKind, name: string, project: string, first: RowLine, minute
   return { row, ...(away === undefined ? {} : { away }), ...(where === undefined ? {} : { where }) }
 }
 
-const ask = (name: string, project: string, status: string, minutes: number, made?: Made) =>
-  seat('ask', name, project, { lead: status }, minutes, made)
+/** A board ask a row of asks holds: its title, how many minutes ago it was asked, and what it wants. */
+type Asking = { title: string; minutes: number } & (
+  | { wants: 'yes'; yes: string }
+  | { wants: 'choice'; options: readonly string[]; recommended?: string }
+  | { wants: 'words' }
+)
+
+/** When an asking was asked. */
+const askedAt = ({ minutes }: Asking) => NOW - minutes * MINUTE_MS
+
+/** What an asking wants back, as the board's ask holds it: a yes's words, or a choice's options and Claude's pick. */
+const wantedOf = (asking: Asking): Pick<Ask, 'yes' | 'options' | 'recommended'> => {
+  switch (asking.wants) {
+    case 'yes':
+      return { yes: asking.yes }
+    case 'choice':
+      return { options: [...asking.options], ...(asking.recommended === undefined ? {} : { recommended: asking.recommended }) }
+    case 'words':
+      return {}
+  }
+}
+
+/** The board's ask of an asking, `k1` the first, waiting on Lee since its line came. */
+const boardAsk = (asking: Asking, at: number): Ask => ({
+  type: 'ask',
+  id: `k${at + 1}`,
+  by: WRITER,
+  at: askedAt(asking),
+  openedAt: askedAt(asking),
+  wants: asking.wants,
+  title: asking.title,
+  ...wantedOf(asking),
+  state: 'waiting',
+  replies: [],
+})
+
+/** A row of these asks, the newest first, each line its ask's title, aged as its ask. */
+const asking = (name: string, project: string, asks: readonly Asking[], { away, where }: Made = {}): Seat => {
+  const base = named(name, project, away === 'ended')
+  const lines = asks.map((each, at) => lineOf('ask', base.session, at, { lead: each.title }, askedAt(each)))
+  const row: Row = { ...base, section: 'needsYou', lines, since: lines[0]?.since ?? NOW }
+
+  return { row, asks: asks.map(boardAsk), ...(away === undefined ? {} : { away }), ...(where === undefined ? {} : { where }) }
+}
+
+/** A row of `count` words asks titled `status`, or each its own of `more`, the newest `minutes` old, each older a minute before it. */
+const ask = (name: string, project: string, status: string, minutes: number, { count = 1, more = [], ...made }: Made = {}) =>
+  asking(
+    name,
+    project,
+    Array.from({ length: count }, (_, at): Asking => ({ title: more[at - 1] ?? status, minutes: minutes + at, wants: 'words' })),
+    made,
+  )
 
 const permission = (name: string, project: string, tool: string, what: string, minutes: number) =>
   seat('permission', name, project, { lead: `Allow ${tool}`, mono: what }, minutes)
@@ -202,6 +259,41 @@ const snoozed = (is: SnoozedKind, name: string, project: string, status: string,
   }
 }
 
+/** A row's session as its project lists it on the board, with the asks its lines are. */
+const feedSessionOf = ({ session, name, projectName, since }: Row, asks: readonly Ask[]): FeedSession => ({
+  id: session,
+  name,
+  summary: '',
+  project: projectName,
+  now: [],
+  isOpen: true,
+  isFinished: false,
+  waiting: asks.length,
+  snoozed: 0,
+  asked: asks.length,
+  parked: 0,
+  created: since,
+  updatedAt: since,
+  state: 'needsYou',
+  since,
+  doing: { is: 'away', line: { lead: name }, since },
+  asks: [...asks],
+  parkedItems: [],
+})
+
+/** The project of a row of asks, holding its session alone. */
+const projectOf = (row: Row, asks: readonly Ask[]): FeedProject => ({
+  key: row.project,
+  name: row.projectName,
+  sessions: [feedSessionOf(row, asks)],
+  open: 1,
+  waiting: asks.length,
+  snoozed: 0,
+  asked: asks.length,
+  parked: 0,
+  updatedAt: row.since,
+})
+
 /** The live window of a session given a place, the first a jump tries, attached as its row's line came. */
 const windowOf = (row: Row, where: Where): FeedWindow => ({
   writer: WRITER,
@@ -223,7 +315,7 @@ const worldOf = (seats: readonly Seat[]): World => {
       head: headOf(rows),
       rows,
       snoozed: inSnoozedOrder(seats.flatMap(each => ('snoozed' in each ? [each.snoozed] : []))),
-      projects: [],
+      projects: seats.flatMap(each => ('asks' in each && each.asks !== undefined ? [projectOf(each.row, each.asks)] : [])),
       windows: seats.flatMap(each => ('where' in each && each.where !== undefined ? [windowOf(each.row, each.where)] : [])),
     },
     notHere: new Set(seats.flatMap(each => ('row' in each && each.away === 'elsewhere' ? [each.row.session] : []))),
@@ -233,11 +325,31 @@ const worldOf = (seats: readonly Seat[]): World => {
 /** A Ghostty window in no multiplexer, whose Claude a pick can't reach. */
 const IN_GHOSTTY: Where = { device: '/dev/ttys004', terminal: 'ghostty' }
 
+/** Round 5's asks: Help desk redesign's choice and words ask, Shift schedules' yes, and Email templates' choice. */
+const THREAD: Asking = {
+  title: 'Thread replies, or keep them flat?',
+  minutes: 4,
+  wants: 'choice',
+  options: ['Flat', 'Threaded', 'Flat, with a quote of the one it answers'],
+  recommended: 'Threaded',
+}
+
+const OFFICE: Asking = { title: 'Which office moves to the new desk first?', minutes: 12, wants: 'words' }
+
+const ROTA: Asking = { title: 'Approve the rota for the first week of December', minutes: 26, wants: 'yes', yes: 'Approve' }
+
+const PLAIN_TEXT: Asking = {
+  title: 'Keep the plain-text versions?',
+  minutes: 2 * HOUR_MINUTES,
+  wants: 'choice',
+  options: ['Keep them', 'Drop them'],
+}
+
 const REST: readonly Seat[] = [
   permission('Data import', 'Litware', 'Bash', 'psql -f import.sql', 1),
-  ask('Help desk redesign', 'Northwind', 'Thread replies, or keep them flat?', 4),
-  ask('Shift schedules', 'Contoso', 'Approve the rota', 26),
-  ask('Email templates', 'Fabrikam', 'Keep the plain-text versions?', 2 * HOUR_MINUTES, { away: 'ended' }),
+  asking('Help desk redesign', 'Northwind', [THREAD, OFFICE]),
+  asking('Shift schedules', 'Contoso', [ROTA]),
+  asking('Email templates', 'Fabrikam', [PLAIN_TEXT], { away: 'ended' }),
   turn('Release notes', 'Tailspin', 'Drafted the 2.4 release notes', 31, { where: IN_GHOSTTY }),
   turn('Warehouse map', 'Litware', 'Mapped the ground floor', HOUR_MINUTES, { away: 'elsewhere' }),
   working('Mobile app', 'Woodgrove', 'Running npm test', 6),
@@ -249,7 +361,7 @@ const REST: readonly Seat[] = [
 
 /** The docs page's still: only the placeholder names the docs may use, and a row of each kind the page names. */
 const DOCS: readonly Seat[] = [
-  ask('Help desk redesign', 'Northwind', 'Thread replies, or keep them flat?', 4, { count: 2 }),
+  asking('Help desk redesign', 'Northwind', [THREAD, OFFICE]),
   ask('Data import', 'Litware', 'Keep the old CSV columns?', 2 * HOUR_MINUTES, { away: 'ended' }),
   turn('Shift schedules', 'Contoso', 'Drafted the new rota', 31),
   working('Mobile app', 'Woodgrove', 'Running npm test', 6),
@@ -261,12 +373,12 @@ const NEW_ASK = ask('Room bookings', 'Woodgrove', 'Can a room be booked twice?',
 
 const BUSY: readonly Seat[] = [
   permission('Data import', 'Litware', 'Bash', 'psql -f import.sql', 1),
-  ask('Help desk redesign', 'Northwind', 'Thread replies, or keep them flat?', 4, { count: 2 }),
+  asking('Help desk redesign', 'Northwind', [THREAD, OFFICE]),
   ask('Room bookings', 'Adventure Works', 'Can a room be booked twice?', 9),
-  ask('Shift schedules', 'Contoso', 'Approve the rota', 26),
+  asking('Shift schedules', 'Contoso', [ROTA]),
   ask('Expense claims', 'Trey Research', 'Which receipts need a scan?', 40, { count: 3 }),
   permission('Tax rates', 'Wingtip', 'Edit', 'src/tax/rates.ts', 52),
-  ask('Email templates', 'Fabrikam', 'Keep the plain-text versions?', 2 * HOUR_MINUTES, { away: 'ended' }),
+  asking('Email templates', 'Fabrikam', [PLAIN_TEXT], { away: 'ended' }),
   ask('Gift cards', 'Tailspin', 'Should a card expire?', 3 * HOUR_MINUTES, { away: 'ended' }),
   turn('Release notes', 'Tailspin', 'Drafted the 2.4 release notes', 31),
   turn('Search index', 'Wingtip', 'Rebuilt the index; 3 fields left', HOUR_MINUTES),
@@ -302,15 +414,15 @@ const QUIET = worldOf([])
 
 const FOR_DOCS = worldOf(DOCS)
 
-/** The docs world with a row the narrow width cuts short, of a long name and three asks. */
+/** The docs world with a row the narrow width cuts short, of a long name and three of Claude Code's questions, which ⏎ expands: a row of asks the view answers opens them. */
 const LONG_NAME = 'Help desk redesign for the support team in every regional office'
 
-const LONG_ASKS = ask(LONG_NAME, 'Northwind', 'Thread replies, or keep them flat?', 4, {
+const LONG_QUESTIONS = seat('question', LONG_NAME, 'Northwind', { lead: 'Thread replies, or keep them flat?' }, 4, {
   count: 3,
   more: ['Keep the old ticket numbers once the new desk goes live?', 'Which office moves first?'],
 })
 
-const EXPANDING = worldOf([LONG_ASKS, ...DOCS.slice(1)])
+const EXPANDING = worldOf([LONG_QUESTIONS, ...DOCS.slice(1)])
 
 /** The world read into the panel's first state, as an 80×24 terminal opens it. */
 const readIn = (world: World) =>
@@ -354,6 +466,8 @@ const SNOOZE: Key = { kind: 'snooze' }
 const END: Key = { kind: 'end' }
 
 const SNOOZED: Key = { kind: 'snoozed' }
+
+const RIGHT: Key = { kind: 'right' }
 
 /** The keys that put the band on the session named so, from none: `↓` onto the first row, the top one in view, then a `↓` a row. */
 const downTo = (world: World, name: string): Key[] => {
@@ -405,6 +519,15 @@ const SCREENS: Record<string, Screen> = {
   expanded: { world: EXPANDING, keys: [...downTo(EXPANDING, LONG_NAME), ENTER], sizes: [[52, 27], [114, 45]] },
   snoozing: { world: FOR_DOCS, keys: [...downTo(FOR_DOCS, 'Help desk redesign'), SNOOZE], sizes: [[52, 27], [114, 45]] },
   waking: { world: FOR_DOCS, keys: [SNOOZED, END], sizes: [[52, 27]] },
+  asks: {
+    world: AT_REST,
+    keys: [...downTo(AT_REST, 'Help desk redesign'), ENTER],
+    sizes: [[39, 27], [69, 46], [73, 36], [114, 45], [173, 53], [30, 27]],
+  },
+  words: { world: AT_REST, keys: [...downTo(AT_REST, 'Help desk redesign'), ENTER, RIGHT], sizes: [[39, 27], [69, 46]] },
+  yes: { world: AT_REST, keys: [...downTo(AT_REST, 'Shift schedules'), ENTER], sizes: [[39, 27], [69, 46]] },
+  prompt: { world: AT_REST, keys: downTo(AT_REST, 'Data import'), sizes: [[39, 27]] },
+  busyasks: { world: CROWDED, keys: [...downTo(CROWDED, 'Help desk redesign'), ENTER], sizes: [[39, 27], [73, 15]] },
 }
 
 export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], sizes }]) =>
