@@ -217,16 +217,18 @@ struct WelcomeFocusTests {
         return stops
     }
 
-    /// Tab, or Shift-Tab, as the window sends it to what has focus.
+    /// Tab, or Shift-Tab, as AppKit takes it in the key window: the action it makes of the key, `selectNextKeyView(_:)`
+    /// or `selectPreviousKeyView(_:)`, up the responders from what has focus. Not sent as a key: AppKit (macOS 27.2.1,
+    /// traced 28 November 2026) sends that action to the app's key window, which a window never keyed for real isn't.
     private static func tab(_ made: Made, back: Bool = false) {
-        key(48, with: back ? .shift : [], typing: back ? "\u{19}" : "\t", in: made).map(made.recorded.sendEvent)
+        let action = back ? #selector(NSWindow.selectPreviousKeyView(_:)) : #selector(NSWindow.selectNextKeyView(_:))
+
+        made.recorded.firstResponder?.tryToPerform(action, with: made.recorded)
     }
 
-    private static func key(
-        _ code: UInt16, with modifiers: NSEvent.ModifierFlags = [], typing characters: String, in made: Made
-    ) -> NSEvent? {
+    private static func key(_ code: UInt16, typing characters: String, in made: Made) -> NSEvent? {
         NSEvent.keyEvent(
-            with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
+            with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
             windowNumber: made.recorded.windowNumber, context: nil, characters: characters,
             charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code
         )
