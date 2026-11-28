@@ -11111,7 +11111,12 @@ look", the pick on its page "FINAL · one line, asks under the row · signed off
     delivers it as "From the board:".
   - Drawn as round 5 in Paper, which Lee signed off the same day, the
     page "FINAL · one line, asks under the row · signed off 26 Nov 2026". The full spec is `design/terminal-ui.md`, "Answering a row's
-    asks". It is built once the keys across SitRep have landed.
+    asks". Built on 27 and 28 November 2026 (#226, #227, #228), once the
+    keys across SitRep had landed.
+  - **Proven live on 28 November 2026,** by Lee, from a build of
+    `16d699e1`, in the terminal view over SSH from his phone: a choice ask
+    answered by `1` reached its window as "From the board:", and the
+    answer held by `2` and taken back by `u` never arrived.
 - **Picking a row, by `o`, runs SitRep's resume command in place**, in
   the panel's own terminal, on the Mac as over SSH, so it behaves the same on
   every screen: the command a click runs for a session this Mac doesn't
