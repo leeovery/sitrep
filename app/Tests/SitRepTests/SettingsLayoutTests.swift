@@ -54,14 +54,22 @@ struct SettingsLayoutTests {
         }
     }
 
+    /// Edge's segmented controls and its pop-up each at the system's own width for what it holds, none stretched to the
+    /// row.
     @Test func theControlsKeepTheirOwnWidths() async throws {
         let hosted = await Hosted.pane(.edge, width: 744)
-        let segmented = hosted.all(NSSegmentedControl.self).map(hosted.frame(of:))
+        let segmented = hosted.all(NSSegmentedControl.self)
         let button = try #require(hosted.all(NSPopUpButton.self).first)
         let popUp = hosted.frame(of: button)
+        let pixel = 1 / hosted.scale
 
-        // Edge, Style: Left · Right, Meniscus · Card
-        #expect(segmented.map { ($0.width * 2).rounded() / 2 } == [106, 155])
+        // Edge, Style
+        #expect(segmented.map(\.labels) == [["Left", "Right"], ["Meniscus", "Card"]])
+        for control in segmented {
+            let own = NSSegmentedControl.stock(labels: control.labels).intrinsicContentSize.width
+
+            #expect(abs(hosted.frame(of: control).width - own) < pixel)
+        }
         // to the window's half points, where the stock one, in none, rounds to whole ones
         #expect(abs(popUp.width - NSPopUpButton.stock(holding: button.itemArray).intrinsicContentSize.width) <= 0.5)
     }

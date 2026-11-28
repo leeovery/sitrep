@@ -13,3 +13,19 @@ extension NSPopUpButton {
         return stock
     }
 }
+
+extension NSSegmentedControl {
+    /// A stock segmented control of these labels, its segments equal, as AppKit sizes one: what SitRep's are measured
+    /// against.
+    static func stock(labels: [String]) -> NSSegmentedControl {
+        let stock = NSSegmentedControl(labels: labels, trackingMode: .selectOne, target: nil, action: nil)
+
+        stock.segmentDistribution = .fillEqually
+        return stock
+    }
+
+    /// Its segments' labels, left to right.
+    var labels: [String] {
+        (0 ..< segmentCount).map { label(forSegment: $0) ?? "" }
+    }
+}

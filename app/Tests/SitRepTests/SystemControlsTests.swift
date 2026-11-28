@@ -8,10 +8,12 @@ import Testing
 @MainActor
 @Suite(.backstop)
 struct SystemControlsTests {
+    /// The view laid out at 2×, as a Retina screen's window lays it out, so the system's half points stand: no window
+    /// holds it to give it a scale, and at 1× its frame rounds to whole points.
     private static func hosted<Control: NSView>(
         _ view: some View, _ kind: Control.Type, sourceLocation: SourceLocation = #_sourceLocation
     ) throws -> Control {
-        let hosting = NSHostingView(rootView: view)
+        let hosting = NSHostingView(rootView: view.environment(\.displayScale, 2))
 
         hosting.frame = CGRect(x: 0, y: 0, width: 300, height: 60)
         hosting.layoutSubtreeIfNeeded()
