@@ -15,7 +15,7 @@ When Claude needs something only you can do or decide, it posts an ask. SitRep c
 ## What happens
 
 - **An ask takes one of three shapes.** A yes has one button in Claude's words, such as `✓ Go`. A choice has a button for each option, and the option Claude recommends ends in `· recommended`. A words ask has `✎ Answer`, for words you write back.
-- **Every ask has more buttons.** Each has `✕ ignore` and `snooze`, and a yes or a choice also has `✎ comment`. [Answering from the board](answering.md) covers each one. You can answer a yes or a choice from the terminal view too: see [The board in any terminal](terminal.md).
+- **Every ask has more buttons.** Each has `✕ ignore` and `snooze`, and a yes or a choice also has `✎ comment`. [Answering from the board](answering.md) covers each one.
 - **A new ask announces itself.** In the Claude Code window running that session, the ● on the band pulses, and a toast says `● New ask:` and the ask title. SitRep plays a sound and pulses the notch, wherever the session is.
 - **The band counts asks, and nothing else that waits on you.** First come the asks of this session, then the asks in every other session, such as `2 elsewhere`. A click on a count opens the pane.
 - **The pane lists them.** A session lists its asks under ASKS, with a count such as `2 waiting`. Each tab of the pane counts the asks under it.
@@ -47,4 +47,4 @@ The settings for the sound, the banner and the pulse are in [Sounds, banners and
 
 - [Answering from the board](answering.md)
 - [The edge of your screen](notch.md)
-- [The board's words](glossary.md)
+- [The board in any terminal](terminal.md)

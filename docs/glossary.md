@@ -28,7 +28,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **session id**: The id the board gives a session, such as `sr-nw0001`. Claude uses it to join a session. The pane and the Mac app never show it, but the `sitrep` command does. It is not Claude Code's own session id, which names one conversation and changes on `/clear`.
 
-**Snooze menu**: The list of snooze choices, each with the time it wakes, then Until it moves. On the notch and in the terminal view, `z` opens it for the chosen row, with a number for each choice. A right-click on a row opens it under **Snooze**, with no numbers. **Snooze ▾** in the asks panel offers the times only, for one ask, numbered too. So does `z` on the open asks of the terminal view.
+**Snooze menu**: The list of snooze choices, each with the time it wakes, then Until it moves. On the notch and in the terminal view, `z` opens it for the chosen row, with a number for each choice. A right-click on a row opens it under **Snooze**, with no numbers. **Snooze ▾** in the asks panel offers the times only, for one ask, numbered too. In the terminal view, `z` on a row's asks offers the same times, for the ask shown.
 
 **snoozed**: Put off by you until a time you pick: a whole session, or one ask. In a snoozed session, the asks and your turn there stop counting until it wakes, and a new ask wakes it at once. A session can also snooze until it moves. A snoozed ask stops counting by itself, and nothing new wakes it. Only you can snooze: Claude has no way to.
 
@@ -84,7 +84,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the pulse**: The notch swelling and flashing its light. By default it comes for a new ask, and when a window starts waiting at a permission prompt. For Claude stopping, you turn it on in Settings › Notifications.
 
-**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes one line until you expand it. A row of asks or a Snoozed row shows the name, with a count if more than one thing waits. A Stopped or Working row shows what Claude did or is doing. The project and the time stand at the right.
+**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes one line until you expand it, with the project and the time at the right.
 
 **row's arrow**: The button on a row in Needs you that opens the asks panel. It sits at the end of the row nearer the middle of the screen. At the left edge it takes the place of the time, and at the right edge the place of the dot. It shows only if the session has an ask: a yes, a choice or a words ask. It shows while the pointer is on the row, and stays lit while the asks panel for that row is open.
 
@@ -96,11 +96,11 @@ Each word below means one thing on every page of these docs. The words are group
 
 ## In a terminal
 
-**asks mark**: The `▹` at the right end of the chosen row in the terminal view, in place of the time. It shows only if the terminal view can answer an ask of that session: a yes, a choice or a words ask. It turns to `▿` while the asks are open.
+**asks mark**: The `▹` at the right end of the chosen row in the terminal view, in place of the time. It shows only if the session has an ask: a yes, a choice or a words ask. It turns to `▿` while the row's asks are open.
 
-**expand**: To show a row of the terminal view whole: press `⏎`, or tap the chosen row. Its name and words wrap over as many lines as they need, and several asks take a line each. Press `⏎` again to fold it. A row with the asks mark opens its asks instead.
+**expand**: To show a row of the terminal view whole, with `⏎` or a tap on the chosen row; `⏎` again folds it. Its name and words wrap over as many lines as they need, and several lines waiting take a line each. A row with the asks mark opens its asks instead.
 
-**open asks**: The asks of a session, shown under its row in the terminal view after `⏎` on the asks mark. They show one at a time: the title, its age, and numbered answers. The foot reads `x Ignore  z Snooze  o Open`. A number key holds its answer for two seconds, and `u` takes it back.
+**a row's asks**: The asks of a session, shown under its row in the terminal view after `⏎` on the asks mark. They show one at a time: the ask title, how long ago it was asked, and numbered answers. A number key holds its answer for two seconds, and `u` takes it back.
 
 **terminal notification**: A notification that the terminal itself shows, such as Ghostty showing a macOS notification. The terminal view sends one for each new ask, unless you open it with `sitrep --no-notify`.
 
