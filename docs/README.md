@@ -19,7 +19,7 @@ Find the page for what you want to do. Each line says what the page answers.
 - [A click takes you there](jump.md): how a click finds the window, in Ghostty, tmux or zmx, and the resume command.
 - [The edge of your screen: the notch and the menu bar](notch.md): what lights up, how to move it, and its settings.
 - [Same keys, wherever the board shows](keys.md): the keys at the notch, in the asks panel and in the pane, and the shortcut.
-- [The board in any terminal](terminal.md): typing `sitrep` in any terminal, the keys, and opening a session.
+- [The board in any terminal](terminal.md): typing `sitrep` in any terminal, the keys, answering a row's asks, and opening a session.
 - [Notifications: sounds, banners and the pulse](notifications.md): what a new ask and Claude stopping do, and how to choose.
 
 ## Look things up

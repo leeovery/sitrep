@@ -1,0 +1,22 @@
+
+ NEEDS YOU ●3 ●1 ───────────────────────────────────────────────────── ▿
+ ● Help desk redesign 2                                                ▿
+   Northwind
+   Thread replies, or keep them flat?
+   Asked 4m ago                                                     ━━ ━
+   1 Threaded · Recommended
+   2 Flat
+   3 Flat, with a quote of the one it answers
+   x Ignore  z Snooze  o Open
+ ○ Data import                                              Litware   2h
+ ● Drafted the new rota                                     Contoso  31m
+
+ WORKING 2 ─────────────────────────────────────────────────────────── ▿
+ ✻ Running npm test                                       Woodgrove   6m
+ ◌ Waiting on 2 agents                                     Fabrikam  15m
+
+ SNOOZED 1 ─────────────────────────────────────────────────────────── ▹
+
+
+
+ 1–3 answer  ←→ ask  esc close

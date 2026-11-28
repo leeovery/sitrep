@@ -1,6 +1,6 @@
 # Same keys, wherever the board shows
 
-Press `z` on a session to snooze it, `o` to go to its window, and `1` to answer an ask. These keys work the same at the notch, in the terminal view, and in Claude Code. Press ⌃⌥S, and you reach every session without the mouse.
+Press `z` on a session to snooze it, `o` to go to its window, and `1` to answer an ask. These keys work the same at the notch, in the terminal view, and in Claude Code. With ⌃⌥S, you reach every session without the mouse.
 
 ## Try it
 
@@ -11,9 +11,9 @@ Press `z` on a session to snooze it, `o` to go to its window, and `1` to answer 
 
 ## What happens
 
-- **Pointing gives the panel the keys.** The panel takes the keys as your pointer opens it. With the pointer on a row, that row is the chosen row. Off the rows, `↓` chooses the first row. The first key that isn't one of the panel's keys goes to the window in front. The panel then lets go until the pointer moves again.
-- **The shortcut gives the panel every key.** Opened with ⌃⌥S, the panel holds the keys until it closes, and other plain keys do nothing. `esc` closes a menu, then the asks panel, then the panel. `⏎` or `o` closes it too, and so does ⌃⌥S again.
-- **`⏎` goes there, and the arrow keys look closer.** On the panel, `⏎` and `o` jump to the window. The arrow key pointing away from the notch opens the asks panel, then pages on. The arrow key pointing back pages back, then closes the asks panel.
+- **Pointing gives the panel the keys.** The panel takes the keys as your pointer opens it, and the pointer chooses the row under it. Off the rows, `↓` chooses the first row. The first key the panel doesn't use goes to the window in front, and the panel lets go until the pointer moves.
+- **The shortcut gives the panel every key.** Opened with ⌃⌥S, the panel holds every key until it closes. `esc` closes a menu, then the asks panel, then the panel. `⏎`, `o` and ⌃⌥S close the panel too.
+- **`⏎` goes there, and the arrow keys look closer.** `⏎` and `o` jump to the window. The arrow key pointing away from the notch opens the asks panel, then pages on. The other arrow key pages back, then closes the asks panel.
 - **Numbers choose what is open.** In the asks panel, `1` to `9` answer, and each answer row shows its number in a keycap.
 - **The pane presses buttons by key.** In Claude Code, `1` to `9` press the answers of an opened ask in order. `x` presses `✕ ignore` or `✕ drop`, and `z` presses `snooze` for that ask only.
 
@@ -28,7 +28,7 @@ Press `z` on a session to snooze it, `o` to go to its window, and `1` to answer 
 
 With the notch on the right, `←` and `→` swap.
 
-On the panel, with a session chosen:
+On the panel:
 
 | Key | What it does |
 |---|---|
@@ -37,9 +37,8 @@ On the panel, with a session chosen:
 | `→` | Open the asks panel |
 | `z` | Open the Snooze menu, or wake a snoozed row |
 | `s` | Unfold or fold Snoozed |
-| `esc` | Close the panel |
 
-In the asks panel, for the ask it shows:
+In the asks panel:
 
 | Key | What it does |
 |---|---|
@@ -49,14 +48,17 @@ In the asks panel, for the ask it shows:
 | `⏎`, `o` | **Open in Claude ↗** |
 | `→` | Show the next ask |
 | `←` | Show the ask before, or close |
-| `esc` | Close the asks panel |
 | `⌘Z` | Undo, while an answer sends |
 
-In the Snooze menu that `z` opens, and the **Snooze ▾** menu, `1` to `9` choose and `z` closes. There, `k` `j` move like `↑` `↓`.
+In the Snooze menu and the **Snooze ▾** menu, `1` to `9` choose and `z` closes. There, `k` `j` move like `↑` `↓`.
 
-The terminal view keeps its own list: see [The board in any terminal](terminal.md).
+The terminal view keeps its own list, in [The board in any terminal](terminal.md). On a row's asks, three keys differ:
 
-If Show is set to Nothing, or a full-screen app hides the notch, ⌃⌥S opens the menu of the menu bar item.
+- `⏎` opens and closes them.
+- `←` `→` only page; `esc` closes.
+- `u` undoes an answer, because a terminal passes no ⌘ keys on to the view.
+
+If Show is Nothing, or a full-screen app hides the notch, ⌃⌥S opens the menu bar item's menu.
 
 To change or clear the shortcut, see [Settings, pane by pane](settings.md).
 

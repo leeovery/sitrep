@@ -47,4 +47,4 @@ The settings for the sound, the banner and the pulse are in [Sounds, banners and
 
 - [Answering from the board](answering.md)
 - [The edge of your screen](notch.md)
-- [The board's words](glossary.md)
+- [The board in any terminal](terminal.md)

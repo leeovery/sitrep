@@ -11176,9 +11176,10 @@ look", the pick on its page "FINAL · one line, asks under the row · signed off
   `Contents/Resources/Plugin/bin/sitrep`, a compiled binary needing no
   Bun, into Homebrew's `bin`, in a PR on the tap. `docs/terminal.md` is its
   page, calling it the terminal view, since the docs' "panel" is the
-  notch's; its still, `art/screens/terminal.webp`, is the golden frame
-  `panel-docs-73x18`, a world of the docs' placeholder names alone, drawn
-  by termgrid.
+  notch's; its still, `art/screens/terminal.webp`, is a golden frame of a
+  world of the docs' placeholder names alone, drawn by termgrid: until 28
+  November 2026 `panel-docs-73x18`, since then `panel-docsasks-73x22`,
+  Help desk redesign's asks open under its row.
 - **Proven live on 20 November 2026,** by Lee, from a build of `f5e442c`, on
   his iPad and iPhone in rootshell over tssh:
   - **The dims by device:** from a plain tab on the iPad, the sessions
