@@ -1619,3 +1619,52 @@ test("an answer refused while Claude has the terminal, `o` having opened its ses
   expect(rowsOf(run.screen.writes).filter(row => row.startsWith(' !'))).toEqual([' ! k1 now wants words, not a yes: look at it again.'])
   await run.type('q')
 })
+
+/** A tap on the screen's row holding `words`, at column 5, as a terminal sends it, the screen `height` rows. */
+const tapping = (run: Run, words: string, height = SIZE.height) => `\x1b[<0;6;${screenOf(run.screen.writes, height).findIndex(row => row.includes(words)) + 1}M`
+
+test('taken back after a stop, the asks wait a beat on what the first frame shows: a tap or a digit at once holds nothing, a beat on they hold', async () => {
+  const run = opened({ version: PLUGIN_VERSION })
+
+  await run.passing(0)
+  await run.type('j\r')
+  await run.passing(2_000)
+  await run.type('\x1a')
+  await run.passing(0)
+
+  const onApprove = tapping(run, '1 Approve')
+
+  await run.type(onApprove)
+  await run.type('1')
+
+  expect(rowWith(run, 'Sending')).toBeUndefined()
+  await run.passing(BEAT_MS)
+  await run.type(onApprove)
+
+  expect(rowWith(run, 'Sending')?.trimEnd()).toBe('   Sending Approve  ◔  u undo')
+  await run.type('u')
+  await run.type('q')
+})
+
+test("taken back after a pick's program, the asks wait a beat on what the first frame shows: a digit or a tap at once holds nothing, a beat on they hold", async () => {
+  const run = opened({ size: WIDE, where: IN_ZMX, directory: REPO, command: OWN, version: PLUGIN_VERSION })
+  const sending = () => rowsOf(run.screen.writes).find(row => row.includes('Sending'))
+
+  await run.passing(0)
+  await run.type('j\r')
+  await run.passing(2_000)
+  await run.type('o')
+  await run.passing(3_000)
+  run.screen.end(0)
+  await run.passing(0)
+  await run.type('1')
+  await run.type(tapping(run, '1 Approve', WIDE.height))
+
+  expect(sending()).toBeUndefined()
+  await run.passing(BEAT_MS)
+  await run.type('1')
+
+  expect(sending()).toBe('   Sending Approve  ◔  u undo')
+  await run.type('u')
+  await run.type('q')
+})

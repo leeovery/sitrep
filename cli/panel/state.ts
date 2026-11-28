@@ -47,14 +47,19 @@
  * - A digit or `x` lands only once the ask shown has stood BEAT_MS since
  *   the board last changed it, by an ask leaving, an edit, or a send
  *   stepping on; the keys' own paging starts no beat.
- * - A tap on the ask lands only on a part that has stood BEAT_MS under it,
- *   as the frames drew it: the same answer of the same ask, as it reads,
- *   the same hint of it, or the dot of the same ask, drawn in that cell
- *   since. A row arriving or leaving above, a line rewrapping, the ask
- *   giving way, the ask changing, the sending line going: each starts the
- *   part's beat afresh where it moves what is under the tap. Paging leaves
- *   a dot standing, which shows the same ask whatever ask shows; a tap on
- *   `undo` never waits.
+ * - A tap on the opened asks, the ask's snooze menu or the row's lands
+ *   only on a part that has stood BEAT_MS under it, as the frames drew it,
+ *   one gate ahead of every table: the same answer of the same ask, as it
+ *   reads, the same hint of it, the dot of the same ask, or the same choice
+ *   of the same menu, drawn on that cell since. A row arriving or leaving
+ *   above, a line rewrapping, the ask giving way, the ask changing, a menu
+ *   opening in the foot's place, the sending line going: each starts the
+ *   beat afresh where it changes what is under the tap. Paging leaves a dot
+ *   standing, which shows the same ask whatever ask shows; a tap on `undo`
+ *   never waits, nor does one on the board alone.
+ * - The first frame on a terminal taken back is drawn afresh: nothing drawn
+ *   before it stands, and the keys' beat starts from it, so taps and
+ *   digits wait a beat on what it first shows.
  * - `z` on the asks, or a tap on Snooze, opens the ask shown's snooze menu
  *   in the foot's place, while Snooze offers a time, a line of the ask is
  *   drawn, and the ask isn't the one sending: its times, and no Until it
@@ -91,7 +96,7 @@
 import { answerableAsks, SNOOZE_DEFAULTS, type Feed, type SnoozeSettings, type Wants } from '../../core'
 import type { Size } from './cells'
 import type { Key, Press } from './keys'
-import { askingIn, asksLinesOf, isAnswerDrawn, isHeadLine, tapOn, type Asking, type AsksLine, type AsksTap } from './asks'
+import { askingIn, asksLinesOf, isAnswerDrawn, isHeadLine, tapOn, tapsOn, type Asking, type AsksLine, type AsksTap } from './asks'
 import { layoutOf, topFor } from './layout'
 import { snoozeOptions, snoozeTimes, type Menu } from './menu'
 import { askKey, NEW_MS, rowKey, SEND_MS, viewOf, type HeldAnswer, type PanelAsk, type PanelRow, type ViewState } from './view'
@@ -110,18 +115,24 @@ export type PanelState = ViewState & {
   waking?: string
   /** When the board last changed the ask shown, the asks open: a digit or `x` lands only BEAT_MS on. */
   changedAt?: number
-  /** What a tap lands on in each cell of the opened row's lines as the frames drew them, and since when. */
+  /** What a tap lands on in the opened asks' lines, or a menu's, as the frames drew them, and since when. */
   stood?: Standing
 }
 
-/** How long the ask shown stands, once the board changes it, before a digit or `x` lands on it; and a part of it, once drawn where a tap finds it, before the tap lands. */
+/** How long the ask shown stands, once the board changes it, before a digit or `x` lands on it; and a part of the asks or a menu, once drawn where a tap finds it, before the tap lands. */
 export const BEAT_MS = 300
 
-/** What a tap on a cell of the opened row's lines lands on, as one string, `''` for nothing; and since when the frames have drawn it there. */
-type Stood = { part: string; since: number }
+/** A stretch of a drawn line a tap lands on, from its first column up to `to`, and what it lands on there, as one string. */
+type Part = { from: number; to: number; part: string }
 
-/** Each cell of the opened row's lines as last drawn, by terminal row, then column. */
+/** A part as the frames drew it on a stretch of its line, and since when they have. */
+type Stood = Part & { since: number }
+
+/** The opened asks' lines, or a menu's, as last drawn, by terminal row: each stretch a tap lands on. */
 type Standing = ReadonlyMap<number, readonly Stood[]>
+
+/** A frame drawn, and when; afresh where the terminal was just taken back. */
+type Drawn = { drawn: number; isAfresh?: boolean }
 
 /**
  * A look's board: the lines new to Needs you on it, when it was read, when
@@ -141,8 +152,8 @@ export type PanelEvent =
   | { size: Size }
   /** The clock, moved on: the answer held goes once its time has come. */
   | { tick: number }
-  /** A frame drawn, and when: the clock moved to then, and what a tap lands on in each cell of it standing from then where it is new there. */
-  | { drawn: number }
+  /** A frame drawn, and when: the clock moved to then, and each part a tap lands on standing from then where it is new there; drawn afresh, every part, and the keys' beat with them. */
+  | Drawn
   /** A pick done: what it leaves to say, if anything. */
   | { opened: string | undefined }
   /** A write done: why it failed, if it did, and what it was. */
@@ -682,8 +693,11 @@ const shownAt = (state: PanelState, shown: AskShown, index: number): PanelState 
 const pagedBy = (state: PanelState, shown: AskShown, by: number) =>
   shownAt(state, shown, askIdsOn(state, shown.row).indexOf(shown.ask) + by)
 
-/** The opened row as `drawn` lays it out: its asks, its lines, the terminal row of its first, and the layout's width; none where it isn't in view. */
-const drawnAsks = (drawn: PanelState, row: string): { asking: Asking; y: number; lines: AsksLine[]; width: number } | undefined => {
+/** The opened row as a frame lays it out: its asks, its lines, the terminal row of its first, and the layout's width. */
+type DrawnAsks = { asking: Asking; y: number; lines: AsksLine[]; width: number }
+
+/** The opened row as `drawn` lays it out; none where it isn't in view. */
+const drawnAsks = (drawn: PanelState, row: string): DrawnAsks | undefined => {
   const layout = layoutIn(drawn)
   const placed = layout.placed.find(each => each.kind === 'row' && each.key === row)
 
@@ -701,46 +715,6 @@ const drawnAsks = (drawn: PanelState, row: string): { asking: Asking; y: number;
 /** Whether `drawn` draws a line of the ask shown in view, past the row's head. */
 const isAskInView = (drawn: PanelState, shown: AskShown) => drawnAsks(drawn, shown.row)?.lines.some(line => !isHeadLine(line)) ?? false
 
-/** What a tap lands on, as one string: a dot by the ask it shows, so paging leaves it standing; any other part with the ask it is of, as the ask reads. */
-const partOf = ({ row, asks, ask }: Asking, tap: AsksTap) =>
-  JSON.stringify('dot' in tap ? [rowKey(row), asks[tap.dot]?.id] : [rowKey(row), readingOf(ask), tap])
-
-/** Each cell of the opened row's lines in view, by terminal row, as the part a tap there lands on, `''` for none. */
-const partsDrawn = (state: PanelState): [number, string[]][] => {
-  const drawn = state.asking === undefined ? undefined : drawnAsks(state, state.asking.row)
-
-  if (drawn === undefined) {
-    return []
-  }
-
-  const { asking, y, lines, width } = drawn
-  const partAt = (line: AsksLine, x: number) => {
-    const tap = tapOn(line, x)
-
-    return tap === undefined ? '' : partOf(asking, tap)
-  }
-
-  return lines.map((line, at) => [y + at, Array.from({ length: width }, (_, x) => partAt(line, x))])
-}
-
-/** A cell's part drawn at `at`: standing since it was, where the frame before drew it there too, as `was` says; else from `at`. */
-const standing = (part: string, was: Stood | undefined, at: number): Stood => ({ part, since: was?.part === part ? was.since : at })
-
-/** A frame drawn at `at`: the clock moved to it, and each cell of the opened row standing as it is drawn now. */
-const drawnAt = (state: PanelState, at: number): PanelState => {
-  const moved = { ...state, now: at }
-  const stood = new Map(partsDrawn(moved).map(([y, parts]) => [y, parts.map((part, x) => standing(part, state.stood?.get(y)?.[x], at))]))
-
-  return withField(moved, 'stood', stood.size === 0 ? undefined : stood)
-}
-
-/** Whether the part a tap at `x`, `y` lands on in `drawn`, `part`, has stood there BEAT_MS by `at`, each frame since drawing it there. */
-const hasPartStood = (drawn: PanelState, x: number, y: number, part: string, at: number) => {
-  const stood = drawn.stood?.get(y)?.[x]
-
-  return stood?.part === part && at - stood.since >= BEAT_MS
-}
-
 /** A digit on the asks: the answer of its number held, where `drawn` draws it. */
 const numbered = (state: PanelState, shown: AskShown, n: number, drawn: PanelState, at: number): PanelState => {
   const asks = drawnAsks(drawn, shown.row)
@@ -750,9 +724,6 @@ const numbered = (state: PanelState, shown: AskShown, n: number, drawn: PanelSta
 
 /** The key each of the foot's hints, and the sending line's `undo`, stands for: a tap on one acts as its key. */
 const HINTED: Readonly<Record<string, Press>> = { x: 'ignore', z: 'snooze', o: 'open', u: 'undo' }
-
-/** Whether a tap lands on the sending line's `undo`, which waits on no beat, so an undo is never lost. */
-const isUndo = (tap: AsksTap) => 'key' in tap && HINTED[tap.key] === 'undo'
 
 /** What a key does on the asks, with the ask shown, the state as it was drawn, and when it was pressed. */
 type OnAsks<K extends Key['kind']> = (state: PanelState, shown: AskShown, key: Extract<Key, { kind: K }>, drawn: PanelState, at: number) => Stepped
@@ -779,24 +750,18 @@ const landed = (state: PanelState, shown: AskShown, tap: AsksTap, drawn: PanelSt
   return kind === undefined ? only(state) : keyed(state, { kind } as Key, drawn, at)
 }
 
-/**
- * A tap with a row's asks open, found where they stood as `drawn`: on a
- * part of the ask that has stood its beat under it, or on `undo`, where it
- * lands (`landed`); on its other lines, or a part still new there, nothing;
- * anywhere else, the asks closed and nothing more.
- */
+/** A tap with a row's asks open, found where they stood as `drawn`: on the ask, where it lands (`landed`), on its other lines nothing; anywhere else, the asks closed and nothing more. */
 const tappedAsks = (state: PanelState, shown: AskShown, { x, y }: Tap, drawn: PanelState, at: number): Stepped => {
   const asks = drawnAsks(drawn, shown.row)
   const line = asks === undefined || x >= asks.width ? undefined : asks.lines[y - asks.y]
 
-  if (asks === undefined || line === undefined || isHeadLine(line)) {
+  if (line === undefined || isHeadLine(line)) {
     return only(closedAsks(state))
   }
 
   const tap = tapOn(line, x)
-  const lands = tap !== undefined && (isUndo(tap) || hasPartStood(drawn, x, y, partOf(asks.asking, tap), at))
 
-  return lands ? landed(state, shown, tap, drawn, at) : only(state)
+  return tap === undefined ? only(state) : landed(state, shown, tap, drawn, at)
 }
 
 /** The band moved as `onKey` moves it, the asks closed first. */
@@ -846,9 +811,94 @@ const keyed = (state: PanelState, key: Key, drawn: PanelState, at: number): Step
   return onKey(state, key, drawn)
 }
 
-/** Whether the beat holds a key pressed at `at`: a digit or `x` on the asks, within BEAT_MS of the board changing the ask shown. */
-const isBeaten = (drawn: PanelState, key: Key, at: number) =>
-  drawn.asking !== undefined && drawn.menu === undefined && (key.kind === 'digit' || key.kind === 'ignore') && !hasAskStood(drawn, at)
+/** Whether a tap lands on the sending line's `undo`, which waits on no beat, so an undo is never lost. */
+const isUndo = (tap: AsksTap) => 'key' in tap && HINTED[tap.key] === 'undo'
+
+/**
+ * The parts of the opened asks' lines a tap lands on, by terminal row, all
+ * but `undo`: a dot by the ask it shows, so paging leaves it standing; any
+ * other part by the ask it is of, as the ask reads, worked out once.
+ */
+const askParts = ({ asking, y, lines, width }: DrawnAsks): [number, Part[]][] => {
+  const row = rowKey(asking.row)
+  const reading = readingOf(asking.ask)
+  const partOf = (tap: AsksTap) => JSON.stringify('dot' in tap ? [row, asking.asks[tap.dot]?.id] : [row, reading, tap])
+  const partsOn = (line: AsksLine) =>
+    tapsOn(line)
+      .filter(span => !isUndo(span.tap))
+      .map((span): Part => ({ from: span.from, to: Math.min(span.to, width), part: partOf(span.tap) }))
+
+  return lines.map((line, at) => [y + at, partsOn(line)])
+}
+
+/** The parts of an open menu's lines a tap lands on, by terminal row: each choice drawn, across the layout's width, by its menu and what it says. */
+const menuParts = (state: PanelState, menu: Menu): [number, Part[]][] => {
+  const layout = layoutIn(state)
+  const drawn = layout.menu
+  const whose = 'ask' in menu ? menu.ask : menu.asks
+
+  if (drawn === undefined) {
+    return []
+  }
+
+  return Array.from({ length: drawn.lines }, (_, line) => [
+    drawn.y + line,
+    [{ from: 0, to: layout.width, part: JSON.stringify([menu.row, whose, menu.options[drawn.first + line]]) }],
+  ])
+}
+
+/** What a tap lands on as `state` is drawn, by terminal row: a menu's choices while one is open, else the opened asks' parts; nothing that waits on a beat with neither. */
+const partsDrawn = (state: PanelState): ReadonlyMap<number, readonly Part[]> => {
+  if (state.menu !== undefined) {
+    return new Map(menuParts(state, state.menu))
+  }
+
+  const asks = state.asking === undefined ? undefined : drawnAsks(state, state.asking.row)
+
+  return new Map(asks === undefined ? [] : askParts(asks))
+}
+
+/** A part drawn at `at`, in runs: each stretch of it the frame before drew the same part on keeps the time it stood from, `was` holding its line's runs in order; the rest stands from `at`. */
+const standing = (part: Part, was: readonly Stood[], at: number): Stood[] => {
+  const kept = was
+    .filter(run => run.part === part.part && run.from < part.to && run.to > part.from)
+    .map(run => ({ ...part, from: Math.max(run.from, part.from), to: Math.min(run.to, part.to), since: run.since }))
+  const fresh = (from: number, to: number): Stood[] => (from < to ? [{ ...part, from, to, since: at }] : [])
+  const gaps = [part.from, ...kept.map(run => run.to)]
+
+  return [...kept.flatMap((run, index) => [...fresh(gaps[index] ?? part.from, run.from), run]), ...fresh(gaps.at(-1) ?? part.from, part.to)]
+}
+
+/**
+ * A frame drawn at `at`: the clock moved to it, and what a tap lands on
+ * standing as it is drawn now. Drawn afresh, on a terminal taken back,
+ * nothing drawn before stands, and the keys' beat starts from it where the
+ * asks are open.
+ */
+const drawnAt = (state: PanelState, { drawn: at, isAfresh = false }: Drawn): PanelState => {
+  const moved = { ...state, now: at, ...(isAfresh && state.asking !== undefined ? { changedAt: at } : {}) }
+  const was = isAfresh ? undefined : state.stood
+  const stood = new Map([...partsDrawn(moved)].map(([y, parts]) => [y, parts.flatMap(part => standing(part, was?.get(y) ?? [], at))]))
+
+  return withField(moved, 'stood', stood.size === 0 ? undefined : stood)
+}
+
+/** Whether a tap at `at` lands, as `drawn` draws what is under it: on a part of the opened asks or of a menu only once the frames have drawn it there BEAT_MS; anywhere else, beat or none. */
+const hasTapStood = (drawn: PanelState, { x, y }: Tap, at: number) => {
+  const part = partsDrawn(drawn).get(y)?.find(each => x >= each.from && x < each.to)
+  const stood = drawn.stood?.get(y)?.find(run => x >= run.from && x < run.to)
+
+  return part === undefined || (stood?.part === part.part && at - stood.since >= BEAT_MS)
+}
+
+/** Whether the beat holds a key pressed at `at`: a tap on a part not yet stood under it; a digit or `x` on the asks within BEAT_MS of the board changing the ask shown. */
+const isBeaten = (drawn: PanelState, key: Key, at: number) => {
+  if (key.kind === 'tap') {
+    return !hasTapStood(drawn, key, at)
+  }
+
+  return drawn.asking !== undefined && drawn.menu === undefined && (key.kind === 'digit' || key.kind === 'ignore') && !hasAskStood(drawn, at)
+}
 
 /** A key pressed at `at`, its answer dropped first; nothing more where the beat holds it. */
 const pressed = (drawn: PanelState, key: Key, at: number): Stepped => {
@@ -892,7 +942,7 @@ export const step = (state: PanelState, event: PanelEvent): Stepped => {
   }
 
   if ('drawn' in event) {
-    return only(drawnAt(state, event.drawn))
+    return only(drawnAt(state, event))
   }
 
   return ticked(state, event.tick)

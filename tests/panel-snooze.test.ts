@@ -2,7 +2,7 @@ import { expect, test } from './kit'
 import type { Size } from '../cli/panel/cells'
 import type { Key, Press } from '../cli/panel/keys'
 import { layoutOf } from '../cli/panel/layout'
-import { opening, step, type PanelEvent, type PanelState, type Write } from '../cli/panel/state'
+import { BEAT_MS, opening, step, type PanelEvent, type PanelState, type Write } from '../cli/panel/state'
 import { viewOf } from '../cli/panel/view'
 import { snoozeSettingsOf, type Feed, type Row, type RowKind } from '../core'
 import { boardRow, feedOfRows, snoozedRow } from './data'
@@ -66,6 +66,12 @@ const writeOf = (state: PanelState, ...keys: Key[]): Write | undefined => {
 
   return step(pressed(state, ...keys.slice(0, -1)), { key: last }).write
 }
+
+/** The state drawn by a frame at its clock, as the loop draws one after each step. */
+const drawn = (state: PanelState) => step(state, { drawn: state.now }).state
+
+/** The line a tap asks to write a beat after a frame drew the state, as a tap on the menu waits on one. */
+const tapWriteOf = (state: PanelState, key: Key): Write | undefined => step(drawn(state), { key, at: state.now + BEAT_MS }).write
 
 const layoutIn = (state: PanelState) => layoutOf(viewOf(state.feed, state, state.now, state.notHere), state.size)
 
@@ -190,14 +196,36 @@ test(
 
     expect(menu.lines).toBe(6)
     expect([layoutIn(open).rows[0]?.y, menu.y], 'the row under its heading, under the blank top row, the menu under the row').toEqual([2, 3])
-    expect(writeOf(open, tap(menu.y))).toMatchObject({ until: at(2026, 11, 18, 15) })
-    expect(writeOf(open, tap(menu.y + 1))).toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'], until: at(2026, 11, 18, 17) })
+    expect(tapWriteOf(open, tap(menu.y))).toMatchObject({ until: at(2026, 11, 18, 15) })
+    expect(tapWriteOf(open, tap(menu.y + 1))).toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'], until: at(2026, 11, 18, 17) })
 
     for (const key of [tap(menu.y - 1), tap(menu.y + 6), tap(menu.y, 40), ESC, Z]) {
       const closed = step(open, { key })
 
       expect([closed.write, closed.state.menu, closed.state.band], JSON.stringify(key)).toEqual([undefined, undefined, ASKING])
     }
+  }),
+)
+
+test(
+  'a tap on a choice lands only once the frames have drawn it there a beat: one as the menu opens does nothing, the menu staying open; the pick moving leaves the choices standing; scrolled, each line drawn anew waits its beat',
+  inLondon(() => {
+    const keyed = (state: PanelState, ms: number, ...keys: Key[]) =>
+      step(keys.reduce((sofar, key) => step(sofar, { key, at: NOW + ms }).state, state), { drawn: NOW + ms }).state
+    const tapped = (state: PanelState, y: number, ms: number) => step(state, { key: tap(y), at: NOW + ms })
+    const open = keyed(step(onRow(read(), 0), { drawn: NOW }).state, 1_000, Z)
+    const y = layoutIn(open).menu?.y ?? -1
+    const early = tapped(open, y, 1_000 + BEAT_MS - 1)
+    const short = step(pressed(stepped(read(board(), { width: 39, height: 8 }), { snoozeSettings: WEEKEND }), DOWN, Z), { drawn: NOW }).state
+    const scrolled = keyed(short, 1_000, ...Array<Key>(6).fill(DOWN))
+    const last = (layoutIn(scrolled).menu?.y ?? -1) + 5
+
+    expect([early.write, early.state.menu]).toEqual([undefined, open.menu])
+    expect(tapped(open, y, 1_000 + BEAT_MS).write).toMatchObject({ until: at(2026, 11, 18, 15) })
+    expect(tapped(keyed(open, 2_000, DOWN), y, 2_000).write, 'the pick moved, the lines did not').toMatchObject({ until: at(2026, 11, 18, 15) })
+    expect(layoutIn(scrolled).menu?.first).toBe(1)
+    expect(tapped(scrolled, last, 1_000 + BEAT_MS - 1).write).toBeUndefined()
+    expect(tapped(scrolled, last, 1_000 + BEAT_MS).write).toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'] })
   }),
 )
 
@@ -316,12 +344,12 @@ test(
     expect(writeOf(last, ENTER)).toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'] })
     expect([back.menu?.at, layoutIn(back).menu?.first], 'back up, scrolled only once the pick reaches the top').toEqual([1, 1])
     expect(layoutIn(pressed(back, UP)).menu?.first).toBe(0)
-    expect(writeOf(last, tap((layoutIn(last).menu?.y ?? 0) + 5)), 'a tap on the last line drawn makes the choice drawn there').toEqual({
+    expect(tapWriteOf(last, tap((layoutIn(last).menu?.y ?? 0) + 5)), 'a tap on the last line drawn makes the choice drawn there').toEqual({
       command: 'snooze',
       session: ASKING,
       asks: ['k1', 'k2'],
     })
-    expect(writeOf(last, tap(layoutIn(last).menu?.y ?? 0))).toMatchObject({ until: at(2026, 11, 18, 17) })
+    expect(tapWriteOf(last, tap(layoutIn(last).menu?.y ?? 0))).toMatchObject({ until: at(2026, 11, 18, 17) })
   }),
 )
 

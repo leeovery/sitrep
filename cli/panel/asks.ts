@@ -73,7 +73,7 @@ export type Asking = { row: PanelRow; asks: readonly PanelAsk[]; ask: PanelAsk; 
 export type AsksTap = { answer: number } | { dot: number } | { key: string }
 
 /** A stretch of a line of the ask a tap lands on, from its first column up to `to`, and what it lands on there. */
-type TapSpan = { from: number; to: number; tap: AsksTap }
+export type TapSpan = { from: number; to: number; tap: AsksTap }
 
 /** Where an answer's words start: past its number and a space. */
 export const ANSWER = NAME + 2
@@ -315,7 +315,7 @@ export const isHeadLine = (line: AsksLine) => line.part === 'head' || line.part 
  * a hint, as its key, on its key and its word, `u undo` on the sending line
  * among them; nowhere else.
  */
-const tapsOn = (line: AsksLine): TapSpan[] => {
+export const tapsOn = (line: AsksLine): TapSpan[] => {
   switch (line.part) {
     case 'answer':
       return [{ from: 0, to: Number.POSITIVE_INFINITY, tap: { answer: line.index } }]

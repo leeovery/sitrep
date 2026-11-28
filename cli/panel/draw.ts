@@ -563,15 +563,19 @@ const askingHints = ({ ask, asks }: Asking, view: PanelView): Hint[] => {
   return [...digits, ...(asks.length > 1 ? [['←→', 'ask'] satisfies Hint] : [])]
 }
 
+/** `u undo` while an answer sends, which `u` takes back from anywhere. */
+const undoHint = (view: PanelView): Hint[] => (view.sending === undefined ? [] : [UNDO])
+
 /**
  * The keys that work now, most needed first, and the one dropped last: in
  * the menu, its own, `u undo` while an answer sends, and `esc cancel`; else
  * `↑↓` only while a row is in view to move to, the band's row's keys while
- * there is one, `s` while Snoozed holds rows, and `q quit`.
+ * there is one, `u undo` while an answer sends, `s` while Snoozed holds
+ * rows, and `q quit`.
  */
 const hintsOf = (view: PanelView, layout: Layout): { hints: Hint[]; last: Hint } => {
   if (view.menu !== undefined) {
-    return { hints: [...MENU_HINTS, ...(view.sending === undefined ? [] : [UNDO])], last: CANCEL }
+    return { hints: [...MENU_HINTS, ...undoHint(view)], last: CANCEL }
   }
 
   const row = bandRowOf(view)
@@ -584,7 +588,7 @@ const hintsOf = (view: PanelView, layout: Layout): { hints: Hint[]; last: Hint }
   const arrows: Hint[] = layout.rows.length === 0 ? [] : [['↑↓', view.band === undefined ? 'pick' : 'move']]
   const snoozed: Hint[] = layout.sections.some(section => section.kind === 'snoozed') ? [['s', 'snoozed']] : []
 
-  return { hints: [...arrows, ...bandHints(view), ...snoozed], last: QUIT }
+  return { hints: [...arrows, ...bandHints(view), ...undoHint(view), ...snoozed], last: QUIT }
 }
 
 /** On a board gone stale, when it was last read; else nothing. */

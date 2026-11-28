@@ -285,7 +285,7 @@ const drawnAt = (state: PanelState, ms: number) => stepped(state, { drawn: NOW +
 const boardedAt = (state: PanelState, feed: Feed, ms: number) => stepped(state, { board: feed, news: [], now: NOW + ms })
 
 /** Help desk redesign's second answer, Flat, held at NOW. */
-const holdingFlat = (feed: Feed = board()) => pressed(open(feed), digit(2))
+const holdingFlat = (feed: Feed = board(), size: Size = SIZE) => pressed(open(feed, size), digit(2))
 
 /** Flat, as `sitrep answer` takes it, with what its ask wanted as shown. */
 const FLAT: Write = { command: 'answer', session: ASKING, ask: 'k1', wants: 'choice', answer: 'Flat' }
@@ -739,3 +739,54 @@ test('q, Ctrl-C or Ctrl-Z while an answer is held sends it at once, its hold cut
     expect(step(open(), { key }).write, key.kind).toBeUndefined()
   }
 }))
+
+test(
+  "a tap twice over `z Snooze` snoozes nothing: the menu it opens draws its first choice on that row, and a choice waits a beat as any part does before a tap lands on it",
+  inLondon(() => {
+    const opened = open(board(), { width: 60, height: 30 })
+    const y = lineWith(opened, 'z Snooze')
+    const z = tapOn(opened, 'z Snooze')
+    const menu = pressedAt(opened, 1_000, z)
+    const twice = step(menu, { key: z, at: NOW + 1_080 })
+    const second = step(menu, { key: tap(y + 1), at: NOW + 1_000 + BEAT_MS - 1 })
+    const [first] = snoozeTimes(NOW, SNOOZE_DEFAULTS)
+
+    expect(frameOf(menu)[y]).toBe(`   1 ${first?.title}`.padEnd(59 - (first?.time.length ?? 0)) + first?.time)
+    expect([twice.write, twice.state.menu]).toEqual([undefined, menu.menu])
+    expect([second.write, second.state.menu], 'any choice, as the menu opens').toEqual([undefined, menu.menu])
+    expect(step(menu, { key: z, at: NOW + 1_000 + BEAT_MS }).write).toEqual({ command: 'snoozeAsk', session: ASKING, ask: 'k1', until: first?.until })
+  }),
+)
+
+test("closing the ask's menu brings the foot back a beat before a tap lands on it: esc, then a tap at once where a choice stood, holds no ignore", inLondon(() => {
+  const menu = pressedAt(open(), 1_000, Z)
+  const y = lineWith(menu, '1 In an hour')
+  const back = pressedAt(menu, 2_000, ESC)
+
+  expect(frameOf(back)[y]).toBe('   x Ignore  z Snooze  o Open')
+  expect(pressedAt(back, 2_100, tap(y, 5)).sending).toBeUndefined()
+  expect(pressedAt(back, 2_000 + BEAT_MS, tap(y, 5)).sending).toMatchObject({ ask: 'k1' })
+}))
+
+test("a frame drawn afresh, as the terminal is taken back, keeps nothing drawn before it: a tap and a digit wait a beat on what it shows, though the asks stood long before; with the asks closed, keys open them and answer at once", () => {
+  const opened = open()
+  const back = stepped(opened, { drawn: NOW + 5_000, isAfresh: true })
+  const closed = stepped(onRow(read(), 0), { drawn: NOW + 5_000, isAfresh: true })
+
+  expect(pressedAt(drawnAt(opened, 5_000), 5_000, tapOn(opened, '2 Flat')).sending?.answer?.words, 'drawn as ever').toBe('Flat')
+
+  for (const key of [tapOn(back, '2 Flat'), digit(2)]) {
+    expect(pressedAt(back, 5_000 + BEAT_MS - 1, key).sending, key.kind).toBeUndefined()
+    expect(pressedAt(back, 5_000 + BEAT_MS, key).sending?.answer?.words, key.kind).toBe('Flat')
+  }
+
+  expect(pressedAt(closed, 5_000, ENTER, digit(2)).sending?.answer?.words).toBe('Flat')
+})
+
+test("while an answer is held with the asks closed, the board's key line keeps `u undo` after the band's row's keys, before `s snoozed`, giving way as they do", () => {
+  const wide = pressed(holdingFlat(board(), { width: 60, height: 30 }), ESC)
+
+  expect(frameOf(wide).at(-1)).toBe(' ↑↓ move  ⏎ asks  o open  z snooze  u undo  q quit')
+  expect(frameOf(pressed(holdingFlat(), ESC)).at(-1)).toBe(' ↑↓ move  ⏎ asks  o open  q quit')
+  expect(frameOf(pressedAt(wide, 500, U)).at(-1)).toBe(' ↑↓ move  ⏎ asks  o open  z snooze  s snoozed  q quit')
+})

@@ -57,7 +57,10 @@
  *   the panel lets its time go, so it is never sent.
  * - Each frame is stepped in as drawn, at the time it is drawn, and drawn
  *   on that clock: the state's view is the frame's, and a tap on the asks
- *   lands only on what the frames have shown under it a beat.
+ *   or a menu lands only on what the frames have shown under it a beat.
+ *   The first frame on a terminal taken back, after a pick's program or a
+ *   stop, is drawn afresh: nothing shown before it stands, so taps and
+ *   digits wait a beat on what it shows.
  * - At every look it reads SitRep's `here.json` too, the board changed,
  *   unchanged or not read at all, and draws hollow and dimmed each held
  *   session open on no device it is looked at from (core's here.ts): on
@@ -213,6 +216,8 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
   let isHanded = false
   /** `q`, Ctrl-C or Ctrl-Z was pressed while an answer was held: the panel leaves or suspends once it is written. */
   let isSendingNow = false
+  /** The terminal was taken back: the next frame drawn is drawn afresh. */
+  let isAfresh = false
   let letHoldGo = () => {}
   let letWashGo = () => {}
   let letSendGo = () => {}
@@ -292,7 +297,8 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
       return
     }
 
-    state = step(state, { drawn: io.now() }).state
+    state = step(state, { drawn: io.now(), isAfresh }).state
+    isAfresh = false
 
     const view = viewOf(state.feed, state, state.now, state.notHere)
     const lines = draw(view, state.size, paint).map(line => ansi([line], paint.level))
@@ -392,7 +398,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     }
   }
 
-  /** The terminal taken back, as after a stop, unless a program has it: the keys heard, the screen entered, its size read again, and drawn whole. */
+  /** The terminal taken back, as after a stop, unless a program has it: the keys heard, the screen entered, its size read again, and drawn whole and afresh. */
   const takeBack = () => {
     if (isHanded) {
       return
@@ -400,6 +406,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
 
     listen()
     enter()
+    isAfresh = true
     state = step(state, { size: sizeOf(terminal) }).state
     frame()
   }
