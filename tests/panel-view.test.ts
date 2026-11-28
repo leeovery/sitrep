@@ -1,5 +1,5 @@
 import { expect, test } from './kit'
-import { countdown, NEW_MS, rowKey, viewOf, type PanelRow, type ViewState } from '../cli/panel/view'
+import { askKey, countdown, NEW_MS, rowKey, viewOf, type PanelRow, type Sending, type ViewState } from '../cli/panel/view'
 import {
   feedOf as boardOf,
   foldSession,
@@ -357,9 +357,17 @@ test("a row's asks the view answers are its board asks waiting on you, a yes, a 
   ])
 
   expect(answerableOf(session)).toEqual([
-    { id: 'k3', title: 'Thread replies, or keep them flat?', wants: 'choice', answers: ['Threaded', 'Flat', 'Flat, with a quote'], pick: 'Threaded', age: '4m' },
-    { id: 'k2', title: 'Approve the rota', wants: 'yes', answers: ['Approve'], age: '12m' },
-    { id: 'k1', title: 'Which office moves first?', wants: 'words', answers: [], age: '1h' },
+    {
+      id: 'k3',
+      title: 'Thread replies, or keep them flat?',
+      wants: 'choice',
+      answers: ['Threaded', 'Flat', 'Flat, with a quote'],
+      sends: ['Threaded', 'Flat', 'Flat, with a quote'],
+      pick: 'Threaded',
+      age: '4m',
+    },
+    { id: 'k2', title: 'Approve the rota', wants: 'yes', answers: ['Approve'], sends: ['Approve'], age: '12m' },
+    { id: 'k1', title: 'Which office moves first?', wants: 'words', answers: [], sends: [], age: '1h' },
   ])
 })
 
@@ -412,10 +420,31 @@ test("a yes with no words of its own answers `yes`; a choice with no options has
   ])
 })
 
-test("an ask's title and answers are cleaned of control characters, as the board's words are", () => {
+test("an ask's title and answers are cleaned of control characters, as the board's words are; what its digits send keeps the board's own words, as `sitrep answer` takes them", () => {
   const session = helpDesk([[T0, choiceAsk('k1', 'Ship\x1b[31m it?', ['Now\x07', 'Later'], 'Now\x07')]])
 
-  expect(answerableOf(session)?.[0]).toMatchObject({ title: 'Ship[31m it?', answers: ['Now', 'Later'], pick: 'Now' })
+  expect(answerableOf(session)?.[0]).toMatchObject({ title: 'Ship[31m it?', answers: ['Now', 'Later'], sends: ['Now\x07', 'Later'], pick: 'Now' })
+})
+
+test('an answer sending says its row, its ask and its answer, and its ring, a quarter more of it filled each half second of its two; an ignore says no answer', () => {
+  const feed = boardWith(helpDesk([[T0, choiceAsk('k1', 'Which layout?', ['Flat', 'Threaded'])]]))
+  const sending: Sending = { row: META.id, session: META.id, ask: 'k1', wants: 'choice', answer: { index: 1, words: 'Threaded', sends: 'Threaded' }, at: ASKED_NOW }
+  const at = (ms: number, held = sending) => viewOf(feed, { ...STATE, sending: held }, ASKED_NOW + ms, NONE).sending
+
+  expect(at(0)).toEqual({ row: META.id, ask: 'k1', answer: { index: 1, words: 'Threaded' }, ring: '◔' })
+  expect([499, 500, 1_000, 1_499, 1_500, 1_999, 2_500].map(ms => at(ms)?.ring)).toEqual(['◔', '◑', '◕', '◕', '●', '●', '●'])
+  expect(at(0, { row: META.id, session: META.id, ask: 'k1', wants: 'choice', at: ASKED_NOW })).toEqual({ row: META.id, ask: 'k1', ring: '◔' })
+  expect(viewOf(feed, STATE, ASKED_NOW, NONE).sending).toBeUndefined()
+})
+
+test("an ask whose answer has gone is left out of its row's asks; with none left the row has none", () => {
+  const feed = boardWith(helpDesk([[T0, yesAsk('k1', 'Ship it')], [T0 + MIN, yesAsk('k2', 'Tag it')]]))
+  const asks = (sent: string[]) => rowsOf(feed, { state: { ...STATE, sent: new Set(sent) } })[0]?.answerable?.map(ask => ask.id)
+
+  expect(asks([])).toEqual(['k2', 'k1'])
+  expect(asks([askKey(META.id, 'k2')])).toEqual(['k1'])
+  expect(asks([askKey('sr-zz9999', 'k2')]), "another session's ask of the same id").toEqual(['k2', 'k1'])
+  expect(asks([askKey(META.id, 'k1'), askKey(META.id, 'k2')])).toBeUndefined()
 })
 
 test("the view says the band's asks open, by the ask shown's place, and whether Snooze offers a time; none where the ask is not the row's", () => {

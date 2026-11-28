@@ -5,7 +5,8 @@
  * - `CSI` and `SS3` arrows both read as arrows (`ESC [ A`, `ESC O A`), all
  *   four of them, so application cursor mode doesn't matter; Home and End
  *   the same. PgUp and PgDn come as `ESC [ 5 ~` and `ESC [ 6 ~`.
- * - `j` and `k` move as `↓` and `↑`; `q` and Ctrl-C both leave.
+ * - `j` and `k` move as `↓` and `↑`; `q` and Ctrl-C both leave; `x`
+ *   ignores the ask shown, and `u` takes back the answer sending.
  * - `1` to `9` each carry their number; `0` is nothing.
  * - A mouse report, in SGR's form or in the old X10 form a terminal without
  *   SGR's sends, its three bytes after `ESC [ M`: a press of the first
@@ -29,8 +30,8 @@
  *   the colour query among them, so none is taken as a key.
  */
 
-/** A key that says nothing but itself: `open` is `o`, `snooze` is `z`, `snoozed` is `s`, `quit` is `q` or Ctrl-C, `suspend` is Ctrl-Z. */
-export type Press = 'up' | 'down' | 'left' | 'right' | 'pageUp' | 'pageDown' | 'home' | 'end' | 'enter' | 'open' | 'snooze' | 'snoozed' | 'esc' | 'quit' | 'suspend'
+/** A key that says nothing but itself: `open` is `o`, `snooze` is `z`, `snoozed` is `s`, `ignore` is `x`, `undo` is `u`, `quit` is `q` or Ctrl-C, `suspend` is Ctrl-Z. */
+export type Press = 'up' | 'down' | 'left' | 'right' | 'pageUp' | 'pageDown' | 'home' | 'end' | 'enter' | 'open' | 'snooze' | 'snoozed' | 'ignore' | 'undo' | 'esc' | 'quit' | 'suspend'
 
 export type Key =
   | { [K in Press]: { kind: K } }[Press]
@@ -63,6 +64,8 @@ const PLAIN: Readonly<Record<string, Press>> = {
   o: 'open',
   z: 'snooze',
   s: 'snoozed',
+  x: 'ignore',
+  u: 'undo',
   q: 'quit',
   '\x03': 'quit',
   '\x1a': 'suspend',

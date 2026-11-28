@@ -9,9 +9,9 @@
  * - A session whose Claude ended is away on its row; one whose Claude runs
  *   where no terminal on this Mac shows it is away by `notHere`.
  * - Each is reached as the panel reaches it, at each size: its board read,
- *   then its keys pressed, both stepped as the panel steps them. A pick is
- *   answered from the board alone, as `reachOf` answers it: a fixture runs
- *   no command.
+ *   then its keys pressed, both stepped as the panel steps them, then the
+ *   clock run on, where it waits. A pick is answered from the board alone,
+ *   as `reachOf` answers it: a fixture runs no command.
  * - A session given a place has a live window there.
  * - Each row of asks holds them on the board, in its project, so the view
  *   answers them: round 5's asks (design/paper/round5) where it drew them,
@@ -57,6 +57,8 @@ export type Fixture = {
   news: readonly string[]
   /** The keys pressed once the board is read. */
   keys: readonly Key[]
+  /** How long the clock runs on once the keys are pressed, as the panel's ticks step it. */
+  later: number
 }
 
 /** The zone the fixtures' clock reads in. */
@@ -469,6 +471,12 @@ const SNOOZED: Key = { kind: 'snoozed' }
 
 const RIGHT: Key = { kind: 'right' }
 
+/** The second answer's digit: Flat, of Help desk redesign's choice. */
+const TWO: Key = { kind: 'digit', n: 2 }
+
+/** How far round 5 drew an answer held: 0.3 of its two seconds, its ring at `◑`. */
+const HELD_FOR = 600
+
 /** The keys that put the band on the session named so, from none: `↓` onto the first row, the top one in view, then a `↓` a row. */
 const downTo = (world: World, name: string): Key[] => {
   const state = readIn(world)
@@ -490,6 +498,7 @@ type Screen = {
   paint?: Paint
   news?: readonly string[]
   keys?: readonly Key[]
+  later?: number
   sizes: readonly (readonly [width: number, height: number])[]
 }
 
@@ -526,13 +535,14 @@ const SCREENS: Record<string, Screen> = {
   },
   words: { world: AT_REST, keys: [...downTo(AT_REST, 'Help desk redesign'), ENTER, RIGHT], sizes: [[39, 27], [69, 46]] },
   yes: { world: AT_REST, keys: [...downTo(AT_REST, 'Shift schedules'), ENTER], sizes: [[39, 27], [69, 46]] },
+  sending: { world: AT_REST, keys: [...downTo(AT_REST, 'Help desk redesign'), ENTER, TWO], later: HELD_FOR, sizes: [[39, 27], [69, 46]] },
   prompt: { world: AT_REST, keys: downTo(AT_REST, 'Data import'), sizes: [[39, 27]] },
   busyasks: { world: CROWDED, keys: [...downTo(CROWDED, 'Help desk redesign'), ENTER], sizes: [[39, 27], [73, 15]] },
   nocolorasks: { world: AT_REST, paint: NO_COLOR, keys: [...downTo(AT_REST, 'Help desk redesign'), ENTER], sizes: [[39, 27]] },
 }
 
-export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], sizes }]) =>
-  sizes.map(([width, height]) => ({ screen, size: { width, height }, world, paint, now: NOW, news, keys })),
+export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], later = 0, sizes }]) =>
+  sizes.map(([width, height]) => ({ screen, size: { width, height }, world, paint, now: NOW, news, keys, later })),
 )
 
 /** The fixture's frame's name: `panel-rest-39x27`. */
@@ -552,15 +562,18 @@ const pressedIn =
     return reach === undefined ? next : step(next, { opened: reach.answer }).state
   }
 
-/** The fixture's state at a size: its board read, then its keys pressed, as the panel steps them. */
-export const stateAt = ({ world, now, news, keys }: Fixture, size: Size): PanelState =>
-  keys.reduce(pressedIn(world), step(opening(size, now, world.notHere), { board: world.feed, news, now }).state)
+/** The fixture's state at a size: its board read, then its keys pressed, as the panel steps them, then the clock run on, where it waits. */
+export const stateAt = ({ world, now, news, keys, later }: Fixture, size: Size): PanelState => {
+  const pressed = keys.reduce(pressedIn(world), step(opening(size, now, world.notHere), { board: world.feed, news, now }).state)
+
+  return later === 0 ? pressed : step(pressed, { tick: now + later }).state
+}
 
 /** The fixture's view at a size, as the panel reaches it there. */
 export const viewAt = (fixture: Fixture, size: Size): PanelView => {
   const state = stateAt(fixture, size)
 
-  return viewOf(state.feed, state, fixture.now, state.notHere)
+  return viewOf(state.feed, state, state.now, state.notHere)
 }
 
 /** The fixture drawn, as the panel draws it, at its size or another. */

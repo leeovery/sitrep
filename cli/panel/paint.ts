@@ -15,6 +15,9 @@
  *   On the band, a dim mixes toward the band's ground instead.
  *   The wash is left out below 24-bit, where its nearest colour sits beside
  *   the band's, so an arriving row would look chosen: `◉` says it alone.
+ * - An answer sending is drawn ink on white: the background's colour on the
+ *   terminal's ink, with both answers at 256 colours or more; else reverse
+ *   video.
  * - The band stands off the background by one step of contrast, the
  *   faintest that still reads as a chosen row and a touch more: the
  *   background moved toward `BAND` by the least that reaches it, or toward
@@ -69,6 +72,9 @@ const DIMMED = 0.39
 
 /** How much orange a new ask's wash mixes into the background. */
 const WASHED = 0.22
+
+/** How far a held answer's `· Recommended` goes from the background toward the terminal's ink, its ground: the notch draws it in ink at half. */
+const HELD_TAG = 0.4
 
 /** A word's ink: one of the palette's, or the terminal's own. */
 export type Tone = keyof typeof PALETTE | 'ink'
@@ -232,6 +238,10 @@ export type Pens = {
   band: Pen
   /** What a new ask's wash lays over its row's cells, at 24-bit with both answers. */
   wash?: Pen
+  /** An answer sending: the background's colour on the terminal's ink, with both answers at 256 colours or more; else reverse video. */
+  held: Pen
+  /** A held answer's `· Recommended`: its ink part of the way from the background toward the ground, as `held` falls back. */
+  heldTag: Pen
   /** Whether the pens carry colour: without it, bold alone tells an ask. */
   isColoured: boolean
 }
@@ -291,6 +301,8 @@ export const pensOf = (paint: Paint): Pens => {
     dimmed: dimmedOver(bg),
     bandDimmed: dimmedOver(bandGround),
     band: isGround ? { bg: { rgb: bandGround } } : { reverse: true },
+    held: canMix ? { fg: { rgb: bg }, bg: { rgb: fg } } : { reverse: true },
+    heldTag: canMix ? { fg: { rgb: mix(bg, fg, HELD_TAG) }, bg: { rgb: fg } } : { reverse: true },
     isColoured: level !== 'none',
     ...(canMix && level === 'truecolor' ? { wash: { bg: { rgb: mix(bg, PALETTE.orange, WASHED) } } } : {}),
   }

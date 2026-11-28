@@ -301,3 +301,25 @@ test("a light background the terminal answered draws in its own 16, with no mix"
   expect(pens.band).toEqual({ reverse: true })
   expect(pens.wash).toBeUndefined()
 })
+
+test("an answer sending is ink on white, the background's colour on the terminal's ink, its tag's ink 0.4 of the way from the background to the ground, at 24-bit and 256 with both answers; else reverse video", () => {
+  const held = (paint: Paint) => {
+    const pens = pensOf(paint)
+
+    return [sgr(pens.held, paint.level), sgr(pens.heldTag, paint.level)]
+  }
+  const reversed: readonly Paint[] = [
+    { level: '16', fg: FG, bg: BG },
+    { level: 'none', fg: FG, bg: BG },
+    { level: 'truecolor', bg: BG },
+    { level: 'truecolor', fg: FG },
+    { level: 'truecolor', fg: BG, bg: rgbOf('#ECEFF4') },
+  ]
+
+  expect(held({ level: 'truecolor', fg: FG, bg: BG })).toEqual([`${ESC}[0;38;2;46;52;64;48;2;205;206;207m`, `${ESC}[0;38;2;${mix(BG, FG, 0.4).join(';')};48;2;205;206;207m`])
+  expect(held({ level: '256', fg: FG, bg: BG })).toEqual([`${ESC}[0;38;5;237;48;5;252m`, `${ESC}[0;38;5;${nearest256(mix(BG, FG, 0.4))};48;5;252m`])
+
+  for (const paint of reversed) {
+    expect(held(paint), JSON.stringify(paint)).toEqual([`${ESC}[0;7m`, `${ESC}[0;7m`])
+  }
+})

@@ -253,7 +253,7 @@ test(
     const grown = stepped(open, { board: board([another]), news: [], now: NOW })
 
     expect(gone.menu).toBeUndefined()
-    expect(grown.menu?.asks).toEqual(['k1', 'k2'])
+    expect(grown.menu).toMatchObject({ asks: ['k1', 'k2'] })
   }),
 )
 

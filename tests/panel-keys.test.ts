@@ -27,8 +27,8 @@ test('CSI and SS3 arrows both read as arrows, ← and → as ↑ and ↓, so app
   expect(kinds('\x1b[1;5A\x1b[1;2B\x1b[1;5D')).toEqual(['up', 'down', 'left'])
 })
 
-test('j and k move as ↓ and ↑; o opens; z snoozes; s is Snoozed; q and Ctrl-C leave; Ctrl-Z suspends; ⏎ comes as CR, LF or the keypad Enter', () => {
-  expect(kinds('jkozs')).toEqual(['down', 'up', 'open', 'snooze', 'snoozed'])
+test('j and k move as ↓ and ↑; o opens; z snoozes; s is Snoozed; x ignores; u undoes; q and Ctrl-C leave; Ctrl-Z suspends; ⏎ comes as CR, LF or the keypad Enter', () => {
+  expect(kinds('jkozsxu')).toEqual(['down', 'up', 'open', 'snooze', 'snoozed', 'ignore', 'undo'])
   expect(kinds('q\x03')).toEqual(['quit', 'quit'])
   expect(kinds('\x1a')).toEqual(['suspend'])
   expect(kinds('\r\n\x1bOM')).toEqual(['enter', 'enter', 'enter'])
@@ -47,7 +47,7 @@ test('PgUp, PgDn, Home and End, in each form terminals send them', () => {
 })
 
 test('any other byte or sequence does nothing: capitals, other letters, other keys, and a letter with Alt', () => {
-  expect(kinds('JKSQxé \t')).toEqual([])
+  expect(kinds('JKSQXUaé \t')).toEqual([])
   expect(kinds('\x1b[2~\x1b[3~\x1bOP')).toEqual([])
   expect(kinds('\x1bj\x1bq')).toEqual([])
 })
