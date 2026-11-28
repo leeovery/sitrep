@@ -59,8 +59,9 @@
  *   on that clock: the state's view is the frame's, and a tap on the asks
  *   or a menu lands only on what the frames have shown under it a beat.
  *   The first frame on a terminal taken back, after a pick's program or a
- *   stop, is drawn afresh: nothing shown before it stands, so taps and
- *   digits wait a beat on what it shows.
+ *   stop, is drawn afresh: nothing shown before it stands, so a tap on the
+ *   asks or a menu, and a digit or `x` on the asks, wait a beat on what it
+ *   shows; a menu's digits wait on none, as ever.
  * - At every look it reads SitRep's `here.json` too, the board changed,
  *   unchanged or not read at all, and draws hollow and dimmed each held
  *   session open on no device it is looked at from (core's here.ts): on

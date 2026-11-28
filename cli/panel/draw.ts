@@ -514,11 +514,11 @@ const answer = ({ grid, layout, pens }: Frame) =>
     put(grid, LEFT + 2, layout.answer.from + at, line, pens.of(STYLE.answer))
   })
 
-/** The keys the snooze menu takes, but `esc cancel`. */
-const MENU_HINTS: Hint[] = [
-  ['↑↓', 'pick'],
-  ['⏎', 'snooze'],
-]
+/** The snooze menu's arrows: they move its pick. */
+const PICK: Hint = ['↑↓', 'pick']
+
+/** The snooze menu's ⏎: it makes the choice picked. */
+const SNOOZE_PICKED: Hint = ['⏎', 'snooze']
 
 const CANCEL: Hint = ['esc', 'cancel']
 
@@ -568,14 +568,15 @@ const undoHint = (view: PanelView): Hint[] => (view.sending === undefined ? [] :
 
 /**
  * The keys that work now, most needed first, and the one dropped last: in
- * the menu, its own, `u undo` while an answer sends, and `esc cancel`; else
- * `↑↓` only while a row is in view to move to, the band's row's keys while
- * there is one, `u undo` while an answer sends, `s` while Snoozed holds
- * rows, and `q quit`.
+ * the menu, `↑↓ pick`, `u undo` while an answer sends, `⏎ snooze` and
+ * `esc cancel`; else `↑↓` only while a row is in view to move to, `u undo`
+ * while an answer sends, the band's row's keys while there is one, `s`
+ * while Snoozed holds rows, and `q quit`. Through an answer's two seconds
+ * `u undo` matters most, so only the arrows and the last outlast it.
  */
 const hintsOf = (view: PanelView, layout: Layout): { hints: Hint[]; last: Hint } => {
   if (view.menu !== undefined) {
-    return { hints: [...MENU_HINTS, ...undoHint(view)], last: CANCEL }
+    return { hints: [PICK, ...undoHint(view), SNOOZE_PICKED], last: CANCEL }
   }
 
   const row = bandRowOf(view)
@@ -588,7 +589,7 @@ const hintsOf = (view: PanelView, layout: Layout): { hints: Hint[]; last: Hint }
   const arrows: Hint[] = layout.rows.length === 0 ? [] : [['↑↓', view.band === undefined ? 'pick' : 'move']]
   const snoozed: Hint[] = layout.sections.some(section => section.kind === 'snoozed') ? [['s', 'snoozed']] : []
 
-  return { hints: [...arrows, ...bandHints(view), ...undoHint(view), ...snoozed], last: QUIT }
+  return { hints: [...arrows, ...undoHint(view), ...bandHints(view), ...snoozed], last: QUIT }
 }
 
 /** On a board gone stale, when it was last read; else nothing. */

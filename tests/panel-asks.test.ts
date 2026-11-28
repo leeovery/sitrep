@@ -408,17 +408,18 @@ test('u, or a tap on undo, takes the answer back within its two seconds, nothing
 })
 
 test(
-  "u takes the answer back with a menu open, as it does in every mode: the ask's snooze menu, or the row's; while it sends, the menu's key line keeps `u undo`, last but `esc cancel`",
+  "u takes the answer back with a menu open, as it does in every mode: the ask's snooze menu, or the row's; while it sends, the menu's key line names `u undo` after `↑↓ pick`, outlasting `⏎ snooze` short of columns",
   inLondon(() => {
     const asks = pressed(holdingFlat(), RIGHT, Z)
     const row = pressed(holdingFlat(), ESC, Z)
 
     expect([asks.menu, row.menu]).toMatchObject([{ ask: 'k2' }, { asks: ['k1', 'k2'] }])
+    expect(frameOf(pressed(holdingFlat(board(), { width: 30, height: 30 }), ESC, Z)).at(-1), 'at 30 columns').toBe(' ↑↓ pick  u undo  esc cancel')
 
     for (const menu of [asks, row]) {
       const undone = pressedAt(menu, 500, U)
 
-      expect(frameOf(menu).at(-1)).toBe(' ↑↓ pick  ⏎ snooze  u undo  esc cancel')
+      expect(frameOf(menu).at(-1)).toBe(' ↑↓ pick  u undo  ⏎ snooze  esc cancel')
       expect([undone.sending, undone.menu]).toEqual([undefined, menu.menu])
       expect(tickedAt(undone, SEND_MS).write).toBeUndefined()
       expect(frameOf(undone).at(-1)).toBe(' ↑↓ pick  ⏎ snooze  esc cancel')
@@ -783,10 +784,11 @@ test("a frame drawn afresh, as the terminal is taken back, keeps nothing drawn b
   expect(pressedAt(closed, 5_000, ENTER, digit(2)).sending?.answer?.words).toBe('Flat')
 })
 
-test("while an answer is held with the asks closed, the board's key line keeps `u undo` after the band's row's keys, before `s snoozed`, giving way as they do", () => {
+test("while an answer is held with the asks closed, the board's key line names `u undo` right after `↑↓ move`, so short of columns only the arrows and `q quit` outlast it", () => {
   const wide = pressed(holdingFlat(board(), { width: 60, height: 30 }), ESC)
 
-  expect(frameOf(wide).at(-1)).toBe(' ↑↓ move  ⏎ asks  o open  z snooze  u undo  q quit')
-  expect(frameOf(pressed(holdingFlat(), ESC)).at(-1)).toBe(' ↑↓ move  ⏎ asks  o open  q quit')
+  expect(frameOf(wide).at(-1)).toBe(' ↑↓ move  u undo  ⏎ asks  o open  z snooze  q quit')
+  expect(frameOf(pressed(holdingFlat(), ESC)).at(-1), 'at 39 columns').toBe(' ↑↓ move  u undo  ⏎ asks  q quit')
+  expect(frameOf(pressed(holdingFlat(board(), { width: 26, height: 30 }), ESC)).at(-1), 'at 26 columns').toBe(' ↑↓ move  u undo  q quit')
   expect(frameOf(pressedAt(wide, 500, U)).at(-1)).toBe(' ↑↓ move  ⏎ asks  o open  z snooze  s snoozed  q quit')
 })

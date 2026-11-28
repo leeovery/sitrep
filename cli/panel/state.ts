@@ -58,8 +58,10 @@
  *   standing, which shows the same ask whatever ask shows; a tap on `undo`
  *   never waits, nor does one on the board alone.
  * - The first frame on a terminal taken back is drawn afresh: nothing drawn
- *   before it stands, and the keys' beat starts from it, so taps and
- *   digits wait a beat on what it first shows.
+ *   before it stands, and with the asks open the beat of a digit or `x`
+ *   starts from it, so a tap on the asks or a menu, and a digit or `x` on
+ *   the asks, wait a beat on what it first shows; a menu's digits wait on
+ *   none, as ever.
  * - `z` on the asks, or a tap on Snooze, opens the ask shown's snooze menu
  *   in the foot's place, while Snooze offers a time, a line of the ask is
  *   drawn, and the ask isn't the one sending: its times, and no Until it
@@ -152,7 +154,7 @@ export type PanelEvent =
   | { size: Size }
   /** The clock, moved on: the answer held goes once its time has come. */
   | { tick: number }
-  /** A frame drawn, and when: the clock moved to then, and each part a tap lands on standing from then where it is new there; drawn afresh, every part, and the keys' beat with them. */
+  /** A frame drawn, and when: the clock moved to then, and each part a tap lands on standing from then where it is new there; drawn afresh, every part, and with the asks open the beat of a digit or `x` with them. */
   | Drawn
   /** A pick done: what it leaves to say, if anything. */
   | { opened: string | undefined }
@@ -872,8 +874,8 @@ const standing = (part: Part, was: readonly Stood[], at: number): Stood[] => {
 /**
  * A frame drawn at `at`: the clock moved to it, and what a tap lands on
  * standing as it is drawn now. Drawn afresh, on a terminal taken back,
- * nothing drawn before stands, and the keys' beat starts from it where the
- * asks are open.
+ * nothing drawn before stands, and with the asks open the beat of a digit
+ * or `x` on them starts from it; a menu's digits wait on no beat.
  */
 const drawnAt = (state: PanelState, { drawn: at, isAfresh = false }: Drawn): PanelState => {
   const moved = { ...state, now: at, ...(isAfresh && state.asking !== undefined ? { changedAt: at } : {}) }
