@@ -3,8 +3,10 @@
  * under test, and the asks Claude posts. Every name is a placeholder.
  */
 import type {
+  Ask,
   AskBody,
   Feed,
+  FeedProject,
   FolderKey,
   Project,
   ProjectKey,
@@ -240,11 +242,61 @@ export const snoozedRow = (
   ...(wakesAt === undefined ? {} : { wakesAt }),
 })
 
-/** A feed of these rows and Snoozed rows, in the order given, as core would give them. */
-export const feedOfRows = (rows: Row[], snoozed: SnoozedRow[] = []): Feed => ({
+/** What a board ask wants back: a yes and its words, a choice of options and the one Claude recommends, or words. */
+export type Wanting = Pick<Ask, 'wants' | 'yes' | 'options' | 'recommended'>
+
+/** A board ask waiting on Lee, posted at `at`. */
+export const boardAsk = (id: string, title: string, wanting: Wanting, at = T0): Ask => ({
+  type: 'ask',
+  id,
+  by: W1,
+  at,
+  openedAt: at,
+  title,
+  ...wanting,
+  state: 'waiting',
+  replies: [],
+})
+
+/** A project of its own holding the session `session`, and its open asks, as the feed lists them. */
+const projectHolding = (session: string, asks: readonly Ask[]): FeedProject => ({
+  key: `of-${session}`,
+  name: 'Northwind',
+  sessions: [
+    {
+      id: session,
+      name: session,
+      summary: '',
+      project: 'Northwind',
+      now: [],
+      isOpen: true,
+      isFinished: false,
+      waiting: asks.length,
+      snoozed: 0,
+      asked: asks.length,
+      parked: 0,
+      created: T0,
+      updatedAt: T0,
+      state: 'needsYou',
+      since: T0,
+      doing: { is: 'away', line: { lead: session }, since: T0 },
+      asks: [...asks],
+      parkedItems: [],
+    },
+  ],
+  open: 1,
+  waiting: asks.length,
+  snoozed: 0,
+  asked: asks.length,
+  parked: 0,
+  updatedAt: T0,
+})
+
+/** A feed of these rows and Snoozed rows, in the order given, as core would give them, and each session's open asks on the board, by its id. */
+export const feedOfRows = (rows: Row[], snoozed: SnoozedRow[] = [], asks: Readonly<Record<string, readonly Ask[]>> = {}): Feed => ({
   head: { needYou: 0, sessions: rows.length },
   rows,
   snoozed,
-  projects: [],
+  projects: Object.entries(asks).map(([session, held]) => projectHolding(session, held)),
   windows: [],
 })

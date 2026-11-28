@@ -48,6 +48,20 @@
  *   process; refused, or failing, it says why in the answer. Snooze's
  *   choices are SitRep's `snooze.json` as the last look read it, core's
  *   defaults where there is none.
+ * - An answer held is timed by the clock the looks and the washes share:
+ *   stepped at each quarter of its hold, so its ring turns, and at its
+ *   end, when it goes, written as `sitrep answer` writes it, in the panel's
+ *   own process; refused, it says why in the answer. `q`, Ctrl-C or Ctrl-Z
+ *   while one is held sends it at once, and leaves or suspends once it is
+ *   written, no key acting and nothing drawn meanwhile; a signal that ends
+ *   the panel lets its time go, so it is never sent.
+ * - Each frame is stepped in as drawn, at the time it is drawn, and drawn
+ *   on that clock: the state's view is the frame's, and a tap on the asks
+ *   or a menu lands only on what the frames have shown under it a beat.
+ *   The first frame on a terminal taken back, after a pick's program or a
+ *   stop, is drawn afresh: nothing shown before it stands, so a tap on the
+ *   asks or a menu, and a digit or `x` on the asks, wait a beat on what it
+ *   shows; a menu's digits wait on none, as ever.
  * - At every look it reads SitRep's `here.json` too, the board changed,
  *   unchanged or not read at all, and draws hollow and dimmed each held
  *   session open on no device it is looked at from (core's here.ts): on
@@ -78,7 +92,7 @@ import { noticesOf } from './notices'
 import { reachOf } from './reach'
 import { ENTER, LEAVE, repaint } from './screen'
 import { opening, step, type PanelEvent, type Write } from './state'
-import { cleaned, NEW_MS, viewOf } from './view'
+import { cleaned, NEW_MS, RING_MS, SEND_MS, viewOf } from './view'
 import { written } from './writes'
 
 /** How the panel ended: left by its keys, or by a signal, its terminal gone among them. */
@@ -201,8 +215,13 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
   let isPicking = false
   /** A program has the terminal. */
   let isHanded = false
+  /** `q`, Ctrl-C or Ctrl-Z was pressed while an answer was held: the panel leaves or suspends once it is written. */
+  let isSendingNow = false
+  /** The terminal was taken back: the next frame drawn is drawn afresh. */
+  let isAfresh = false
   let letHoldGo = () => {}
   let letWashGo = () => {}
+  let letSendGo = () => {}
   let looks: Promise<unknown> = Promise.resolve()
 
   const close = (closed: Closed) => {
@@ -257,12 +276,32 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     letWashGo = Number.isFinite(first) ? later(first + NEW_MS - io.now(), () => apply({ tick: io.now() })) : () => {}
   }
 
-  const frame = () => {
-    if (isHeld || !isOnScreen) {
+  /** The clock stepped at the answer held's next quarter, its ring turned, or at its end, when it goes; nothing while none is held. */
+  const sending = () => {
+    const held = state.sending
+
+    letSendGo()
+
+    if (held === undefined) {
+      letSendGo = () => {}
+
       return
     }
 
-    const view = viewOf(state.feed, state, io.now(), state.notHere)
+    const next = Math.min((Math.floor((io.now() - held.at) / RING_MS) + 1) * RING_MS, SEND_MS)
+
+    letSendGo = later(held.at + next - io.now(), () => apply({ tick: io.now() }))
+  }
+
+  const frame = () => {
+    if (isHeld || !isOnScreen || isSendingNow) {
+      return
+    }
+
+    state = step(state, { drawn: io.now(), isAfresh }).state
+    isAfresh = false
+
+    const view = viewOf(state.feed, state, state.now, state.notHere)
     const lines = draw(view, state.size, paint).map(line => ansi([line], paint.level))
     const writes = repaint(onScreen, lines)
 
@@ -274,26 +313,58 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     washing()
   }
 
+  /** The event stepped and drawn, the answer held timed afresh, and the line it asks to write written. */
   const apply = (event: PanelEvent) => {
-    state = step(state, event).state
+    const { state: next, write } = step(state, event)
+
+    state = next
     frame()
+    sending()
+    writing(write)
   }
 
-  const pressed = (key: Key) => {
-    if (isClosed) {
+  /** Why a write was refused, or failed as the files threw; none for one done. */
+  const refusalOf = (write: Write) => written(io, write).then(acted => (acted.ok ? undefined : acted.error), reasonOf)
+
+  /**
+   * `q`, Ctrl-C or Ctrl-Z: `then`, to leave or to suspend, once the answer
+   * held, which the key sends at once, is written, its refusal stepped in;
+   * no key acting and nothing drawn meanwhile. At once with none held.
+   */
+  const sentThen = (write: Write | undefined, then: () => void) => {
+    if (write === undefined) {
+      then()
+
       return
     }
 
-    const { state: next, open, write } = step(state, { key })
+    isSendingNow = true
+    letSendGo()
+    void refusalOf(write).then(said =>
+      guard(() => {
+        isSendingNow = false
+        state = said === undefined ? state : step(state, { written: said, write }).state
+        then()
+      }),
+    )
+  }
+
+  const pressed = (key: Key) => {
+    if (isClosed || isSendingNow) {
+      return
+    }
+
+    const { state: next, open, write } = step(state, { key, at: io.now() })
 
     state = next
 
     if (key.kind === 'quit') {
-      close('done')
+      sentThen(write, () => close('done'))
     } else if (key.kind === 'suspend') {
-      suspend()
+      sentThen(write, suspend)
     } else {
       frame()
+      sending()
       pick(open)
       writing(write)
     }
@@ -328,7 +399,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     }
   }
 
-  /** The terminal taken back, as after a stop, unless a program has it: the keys heard, the screen entered, its size read again, and drawn whole. */
+  /** The terminal taken back, as after a stop, unless a program has it: the keys heard, the screen entered, its size read again, and drawn whole and afresh. */
   const takeBack = () => {
     if (isHanded) {
       return
@@ -336,6 +407,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
 
     listen()
     enter()
+    isAfresh = true
     state = step(state, { size: sizeOf(terminal) }).state
     frame()
   }
@@ -423,16 +495,14 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     }, fail)
   }
 
-  /** The line the snooze menu or `z` asks for, written as the command writes it (writes.ts); a refusal, or a failure the files threw, said in words, changing nothing. The board shows a write done at the next look. */
+  /** The line the snooze menu, `z` or an answer going asks for, written as the command writes it (writes.ts); a refusal, or a failure the files threw, said in words, an answer's ask back. The board shows a write done at the next look. */
   const writing = (write: Write | undefined) => {
     if (write !== undefined) {
-      void written(io, write)
-        .then(acted => (acted.ok ? undefined : acted.error), reasonOf)
-        .then(said => {
-          if (said !== undefined) {
-            guard(() => apply({ written: said }))
-          }
-        })
+      void refusalOf(write).then(said => {
+        if (said !== undefined) {
+          guard(() => apply({ written: said, write }))
+        }
+      })
     }
   }
 
@@ -501,7 +571,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     const news = newRows(shown, feed, ownTime(look.clock))
 
     shown = news.shown
-    apply({ board: feed, news: news.news, now: look.now, notHere })
+    apply({ board: feed, news: news.news, now: look.now, at: io.now(), notHere })
     notify(feed, news.news)
   }
 

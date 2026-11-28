@@ -12,12 +12,21 @@
  *   each part shows, and how each gives way, is line.ts's.
  * - The chosen row expanded cuts nothing: its words wrap over the lines the
  *   layout gives it (expand.ts), the band over them all.
+ * - On the chosen row, where the view answers one of its asks, `▹` stands
+ *   in the time's place, expanded or not, in the terminal's ink, bold,
+ *   dimmed with an away row's words; `▿` while its asks are open under it
+ *   (asks.ts), the band over every line of the row and its asks, so they
+ *   read as one card.
+ * - An answer sending is ink on white, the background's colour on the
+ *   terminal's ink, from its number's column to W−2, `✓` at W−2, the band
+ *   not under it (round 5); the sending line stands in the foot's place,
+ *   and the key line reads `u undo  esc close`.
  * - An empty board, and one not yet read, stand centred in the body's place.
  * - The snooze menu stands under the chosen row, a choice a line, each of
  *   the first nine after its number, the band on the choice picked rather
  *   than on the row.
  * - The key line drops whole hints from the right, `q quit` last, or in the
- *   menu `esc cancel`.
+ *   menu `esc cancel`, or with a row's asks open `esc close`.
  * - There is no title: row 0 is blank, and gives way first, short of room
  *   (Lee, 20 November 2026). Nothing is drawn on it.
  * - A board gone stale says when it was read, at the key line's right end;
@@ -25,8 +34,24 @@
  * - Below 24 columns or 8 rows it draws only `Too small`, on row 1 while
  *   there is one.
  */
+import {
+  ANSWER,
+  askingIn,
+  asksLinesOf,
+  CHECK,
+  hintColumns,
+  hintsWidth,
+  sendingColumns,
+  UNDO,
+  type AnswerTag,
+  type Asking,
+  type AsksLine,
+  type Hint,
+  type SendingLine,
+} from './asks'
 import { cellsOf, cut, graphemesOf, widthOf, wrapIn, type Size, type Tagged } from './cells'
 import { expandedOf, type Tag } from './expand'
+import { DIGITS } from './keys'
 import { isTooSmall, layoutOf, LEFT, topRowOf, type Layout, type Placed, type Section } from './layout'
 import { fittedOf, NAME, type Lane } from './line'
 import { pensOf, sgr, type Ink, type Level, type Paint, type Pen, type Pens, type Style } from './paint'
@@ -46,7 +71,15 @@ const STYLE = {
   status: { tone: 'soft' },
   answer: { tone: 'ink' },
   arriving: { tone: 'orange', bold: true },
+  pick: { tone: 'pick' },
+  pickTag: { tone: 'pickTag', isMeta: true },
+  shownDot: { tone: 'orange', bold: true },
+  otherDot: { tone: 'rule', isMeta: true },
+  ring: { tone: 'orange' },
 } satisfies Record<string, Style>
+
+/** On the chosen row, where the view answers one of its asks: its asks to open, or open. */
+const ARROW = { folded: '▹', open: '▿' }
 
 const MARKS: Record<PanelRow['mark'], { here: string; away: string; style: Style; name: Style }> = {
   ask: { here: '●', away: '○', style: { tone: 'orange' }, name: { tone: 'ink', bold: true } },
@@ -70,8 +103,6 @@ const QUIET = 'Nothing needs you, and nothing is running.'
 const LOOKING = 'Looking for sessions…'
 
 const UNREADABLE = "Can't read the board"
-
-type Hint = [key: string, word: string]
 
 const QUIT: Hint = ['q', 'quit']
 
@@ -220,27 +251,27 @@ type Inking = (style: Style) => Pen
 const nameStyle = (row: PanelRow): Style =>
   row.isSnoozed ? { tone: 'grey', bold: row.mark === 'ask', isMeta: true } : MARKS[row.mark].name
 
-/** A row on its one line: its words from the names' column, then its count in grey; its project in grey, right-aligned in its section's column; and its time in the section's lane. */
-const oneLine = ({ grid, layout }: Frame, y: number, row: PanelRow, lane: Lane, ink: Inking) => {
+/** A row on its one line: its words from the names' column, then its count in grey; its project in grey, right-aligned in its section's column; and its time in the section's lane, or an arrow in its place. */
+const oneLine = ({ grid, layout }: Frame, y: number, row: PanelRow, lane: Lane, ink: Inking, arrow?: string) => {
   const fitted = fittedOf(row, layout.width, lane)
   const after = put(grid, NAME, y, fitted.words, ink(nameStyle(row)))
 
   put(grid, after, y, fitted.count, ink(STYLE.meta))
   putRight(grid, fitted.projectEnd, y, fitted.project, ink(STYLE.meta))
-  putRight(grid, layout.width - 1, y, fitted.time, ink(STYLE.meta))
+  putRight(grid, layout.width - 1, y, arrow ?? fitted.time, ink(arrow === undefined ? STYLE.meta : STYLE.strong))
 }
 
-/** The words of a line of an expanded row from the names' column, a space between each two, each in its tag's style. */
+/** The words of a line of an expanded row from the names' column, a space between each two, each in its tag's style, the space before it among them. */
 const words = (grid: Grid, y: number, line: readonly Tagged<Tag>[], styles: Record<Tag, Pen>) =>
-  line.reduce((x, word, at) => put(grid, at === 0 ? x : x + 1, y, word.text, styles[word.tag]), NAME)
+  line.reduce((x, word, at) => put(grid, x, y, at === 0 ? word.text : ` ${word.text}`, styles[word.tag]), NAME)
 
 /**
  * The chosen row expanded, in the two lines or more the layout gives it (in a
  * body of one row it is drawn as its folded line instead): its words whole,
- * the time at the first line's right; where the body cuts it short, its last
- * line kept, never its first, says `…`.
+ * the time at the first line's right, or an arrow in its place; where the
+ * body cuts it short, its last line kept, never its first, says `…`.
  */
-const expandedLines = ({ grid, layout }: Frame, y: number, height: number, row: PanelRow, lane: Lane, ink: Inking) => {
+const expandedLines = ({ grid, layout }: Frame, y: number, height: number, row: PanelRow, lane: Lane, ink: Inking, arrow?: string) => {
   const { time, lines } = expandedOf(row, layout.width, lane)
   const styles: Record<Tag, Pen> = { name: ink(nameStyle(row)), meta: ink(STYLE.meta), status: ink(STYLE.status) }
   const isCut = lines.length > height
@@ -250,7 +281,102 @@ const expandedLines = ({ grid, layout }: Frame, y: number, height: number, row: 
 
     words(grid, y + at, isLast ? [{ text: '…', tag: 'meta' }] : line, styles)
   })
-  putRight(grid, layout.width - 1, y, time, styles.meta)
+  putRight(grid, layout.width - 1, y, arrow ?? time, arrow === undefined ? styles.meta : ink(STYLE.strong))
+}
+
+/** Hints from column `x`, each key bold in the terminal's ink and its word grey, two spaces between each two. */
+const hinted = (grid: Grid, pens: Pens, x: number, y: number, hints: readonly Hint[]) =>
+  hintColumns(hints, x).forEach(({ hint: [key, word], x: at }) => {
+    put(grid, put(grid, at, y, key, pens.of(STYLE.strong)), y, ` ${word}`, pens.of(STYLE.meta))
+  })
+
+const ANSWER_STYLES: Record<AnswerTag, Style> = { answer: STYLE.answer, pick: STYLE.pick, tag: STYLE.pickTag }
+
+/** An answer's line: its number in grey on its first, for the first nine, then its words; held, all in ink on white, the check at its first line's right. */
+const answerLine = ({ grid, layout, pens }: Frame, y: number, line: Extract<AsksLine, { part: 'answer' }>) => {
+  const number = line.isFirst && line.index < DIGITS ? String(line.index + 1) : ''
+  const runPen = (tag: AnswerTag) => (line.isHeld ? (tag === 'tag' ? pens.heldTag : pens.held) : pens.of(ANSWER_STYLES[tag]))
+
+  put(grid, NAME, y, number.padEnd(1), line.isHeld ? pens.held : pens.of(STYLE.meta))
+  line.runs.reduce((x, run) => put(grid, x, y, run.text, runPen(run.tag)), ANSWER)
+
+  if (line.isHeld && line.isFirst) {
+    put(grid, layout.width - 2, y, CHECK, pens.held)
+  }
+}
+
+/** The sending line: `Sending` in grey and the answer's words in the ink, or `Ignoring`, then the ring in orange and `u undo`. */
+const sendingLine = ({ grid, pens }: Frame, y: number, line: SendingLine) => {
+  const at = sendingColumns(line)
+
+  put(grid, NAME, y, line.lead, pens.of(STYLE.meta))
+  put(grid, at.words, y, line.words, pens.of(STYLE.answer))
+  put(grid, at.ring, y, line.ring, pens.of(STYLE.ring))
+  hinted(grid, pens, at.undo, y, [UNDO])
+}
+
+/** A line of the opened row: the head's in the row's own looks, dimmed as the row is; the ask's in its own. */
+const asksLine = (frame: Frame, y: number, line: AsksLine, asking: Asking, lane: Lane, ink: Inking) => {
+  const { grid, pens } = frame
+  const styles: Record<Tag, Pen> = { name: ink(nameStyle(asking.row)), meta: ink(STYLE.meta), status: ink(STYLE.status) }
+
+  switch (line.part) {
+    case 'head':
+    case 'project':
+      return words(grid, y, line.words, styles)
+    case 'folded':
+      return oneLine(frame, y, asking.row, lane, ink, ARROW.open)
+    case 'title':
+      return put(grid, NAME, y, line.text, pens.of(STYLE.strong))
+    case 'asked':
+      put(grid, NAME, y, line.text, pens.of(STYLE.meta))
+
+      return line.dots.forEach(dot => put(grid, dot.x, y, dot.text, pens.of(dot.isShown ? STYLE.shownDot : STYLE.otherDot)))
+    case 'answer':
+      return answerLine(frame, y, line)
+    case 'foot':
+      return hinted(grid, pens, NAME, y, line.hints)
+    case 'sending':
+      return sendingLine(frame, y, line)
+  }
+}
+
+const isHeldLine = (line: AsksLine) => line.part === 'answer' && line.isHeld
+
+/**
+ * The row with its asks open under it, in the lines the layout gives it:
+ * its head, `▿` at its first line's right, then the ask shown, an answer
+ * sending ink on white from its number's column. Gives the lines the row's
+ * ground lies over: every one but the answer sending's.
+ */
+const askingLines = (frame: Frame, y: number, height: number, asking: Asking, lane: Lane, ink: Inking): number[] => {
+  const { grid, layout, pens } = frame
+  const lines = asksLinesOf(asking, layout.width, lane, height)
+
+  lines.forEach((line, at) => {
+    if (isHeldLine(line)) {
+      lay(grid, y + at, NAME, layout.width - 1, pens.held)
+    }
+
+    asksLine(frame, y + at, line, asking, lane, ink)
+  })
+
+  if (lines[0]?.part === 'head') {
+    putRight(grid, layout.width - 1, y, ARROW.open, ink(STYLE.strong))
+  }
+
+  return lines.flatMap((line, at) => (isHeldLine(line) ? [] : [at]))
+}
+
+/** A row not opened, on its one line, or expanded on the lines the layout gives it. Gives the lines the row's ground lies over: all of them. */
+const restingLines = (frame: Frame, { y, row, lane, key, height }: Extract<Placed, { kind: 'row' }>, view: PanelView, ink: Inking, arrow?: string): number[] => {
+  if (key === view.expanded && height > 1) {
+    expandedLines(frame, y, height, row, lane, ink, arrow)
+  } else {
+    oneLine(frame, y, row, lane, ink, arrow)
+  }
+
+  return Array.from({ length: height }, (_, at) => at)
 }
 
 const markOf = ({ pens }: Frame, row: PanelRow, dimmed: Inking) => {
@@ -266,9 +392,6 @@ const markOf = ({ pens }: Frame, row: PanelRow, dimmed: Inking) => {
 
   return { glyph: row.isAway ? mark.away : mark.here, pen: pens.of(mark.style) }
 }
-
-/** The most choices the snooze menu numbers: a digit's, `1` to `9`. */
-const NUMBERED = 9
 
 /** Where a snooze choice's name starts: past its number and a space. */
 const CHOICE = NAME + 2
@@ -289,7 +412,7 @@ const menuAt = ({ grid, layout, pens }: Frame, menu: NonNullable<PanelView['menu
     const isPicked = index === menu.at
     const time = widthOf(option.title) + 2 + widthOf(option.time) <= room ? option.time : ''
 
-    if (index < NUMBERED) {
+    if (index < DIGITS) {
       put(grid, NAME, y + at, String(index + 1), pens.of(STYLE.meta))
     }
 
@@ -308,26 +431,23 @@ const menuAt = ({ grid, layout, pens }: Frame, menu: NonNullable<PanelView['menu
  * as the layout gives it; the band or the wash over every one. With its
  * menu open the band is the menu's, on the choice picked.
  */
-const rowAt = (frame: Frame, { y, row, lane, key, height, menu }: Extract<Placed, { kind: 'row' }>, view: PanelView) => {
+const rowAt = (frame: Frame, placed: Extract<Placed, { kind: 'row' }>, view: PanelView) => {
   const { grid, layout, pens } = frame
+  const { y, row, lane, key, height, menu } = placed
   const isBand = key === view.band && view.menu === undefined
   const isDimmed = row.isAway && !row.isSnoozed
   const dimmed = isBand ? pens.bandDimmed : pens.dimmed
   const ink: Inking = style => (isDimmed ? dimmed(style) : pens.of(style))
   const mark = markOf(frame, row, dimmed)
   const ground = isBand ? pens.band : row.isNew ? pens.wash : undefined
+  const asking = askingIn(view, row)
+  const arrow = isBand && row.answerable !== undefined ? ARROW.folded : undefined
 
   put(grid, LEFT, y, mark.glyph, mark.pen)
 
-  if (key === view.expanded && height > 1) {
-    expandedLines(frame, y, height, row, lane, ink)
-  } else {
-    oneLine(frame, y, row, lane, ink)
-  }
+  const grounded = asking === undefined ? restingLines(frame, placed, view, ink, arrow) : askingLines(frame, y, height, asking, lane, ink)
 
-  for (let at = 0; ground !== undefined && at < height; at++) {
-    lay(grid, y + at, LEFT, layout.width - 1, ground)
-  }
+  grounded.forEach(at => ground !== undefined && lay(grid, y + at, LEFT, layout.width - 1, ground))
 
   if (view.menu !== undefined && menu > 0) {
     menuAt(frame, view.menu)
@@ -394,13 +514,15 @@ const answer = ({ grid, layout, pens }: Frame) =>
     put(grid, LEFT + 2, layout.answer.from + at, line, pens.of(STYLE.answer))
   })
 
-/** The keys the snooze menu takes, but `esc cancel`. */
-const MENU_HINTS: Hint[] = [
-  ['↑↓', 'pick'],
-  ['⏎', 'snooze'],
-]
+/** The snooze menu's arrows: they move its pick. */
+const PICK: Hint = ['↑↓', 'pick']
+
+/** The snooze menu's ⏎: it makes the choice picked. */
+const SNOOZE_PICKED: Hint = ['⏎', 'snooze']
 
 const CANCEL: Hint = ['esc', 'cancel']
+
+const CLOSE: Hint = ['esc', 'close']
 
 /** What `z` does to a row: wakes it in Snoozed, snoozes one that needs you, or nothing. */
 const snoozeHint = (row: PanelRow | undefined): Hint[] => {
@@ -411,34 +533,64 @@ const snoozeHint = (row: PanelRow | undefined): Hint[] => {
   return row?.asks === undefined ? [] : [['z', 'snooze']]
 }
 
-/** The keys the band's row takes: `⏎` to expand it, or fold it again, `o` to open it, and `z` where it can be snoozed or woken. */
-const bandHints = (view: PanelView): Hint[] => {
-  const row = view.sections.flatMap(section => section.rows).find(each => rowKey(each) === view.band)
+/** What `⏎` does to the band's row: opens its asks, where the view answers one; else expands it, or folds it again. */
+const lookCloser = (row: PanelRow | undefined, view: PanelView) => {
+  if (row?.answerable !== undefined) {
+    return 'asks'
+  }
 
-  return view.band === undefined
-    ? []
-    : [['⏎', view.expanded === undefined ? 'expand' : 'fold'], ['o', 'open'], ...snoozeHint(row)]
+  return view.expanded === undefined ? 'expand' : 'fold'
 }
+
+const bandRowOf = (view: PanelView) => view.sections.flatMap(section => section.rows).find(each => rowKey(each) === view.band)
+
+/** The keys the band's row takes: `⏎` to look closer, `o` to open it, and `z` where it can be snoozed or woken. */
+const bandHints = (view: PanelView): Hint[] => {
+  const row = bandRowOf(view)
+
+  return view.band === undefined ? [] : [['⏎', lookCloser(row, view)], ['o', 'open'], ...snoozeHint(row)]
+}
+
+/** The keys a row's asks take, open: while an answer sends, `u undo`; else the digits of the ask's answers, `1–3`, or `1` for one; `←→` where the row has more than one ask. */
+const askingHints = ({ ask, asks }: Asking, view: PanelView): Hint[] => {
+  if (view.sending !== undefined) {
+    return [UNDO]
+  }
+
+  const answers = Math.min(ask.answers.length, DIGITS)
+  const digits: Hint[] = answers === 0 ? [] : [[answers === 1 ? '1' : `1–${answers}`, 'answer']]
+
+  return [...digits, ...(asks.length > 1 ? [['←→', 'ask'] satisfies Hint] : [])]
+}
+
+/** `u undo` while an answer sends, which `u` takes back from anywhere. */
+const undoHint = (view: PanelView): Hint[] => (view.sending === undefined ? [] : [UNDO])
 
 /**
  * The keys that work now, most needed first, and the one dropped last: in
- * the menu, its own and `esc cancel`; else `↑↓` only while a row is in view
- * to move to, the band's row's keys while there is one, `s` while Snoozed
- * holds rows, and `q quit`.
+ * the menu, `↑↓ pick`, `u undo` while an answer sends, `⏎ snooze` and
+ * `esc cancel`; else `↑↓` only while a row is in view to move to, `u undo`
+ * while an answer sends, the band's row's keys while there is one, `s`
+ * while Snoozed holds rows, and `q quit`. Through an answer's two seconds
+ * `u undo` matters most, so only the arrows and the last outlast it.
  */
 const hintsOf = (view: PanelView, layout: Layout): { hints: Hint[]; last: Hint } => {
   if (view.menu !== undefined) {
-    return { hints: MENU_HINTS, last: CANCEL }
+    return { hints: [PICK, ...undoHint(view), SNOOZE_PICKED], last: CANCEL }
+  }
+
+  const row = bandRowOf(view)
+  const asking = row === undefined ? undefined : askingIn(view, row)
+
+  if (asking !== undefined) {
+    return { hints: askingHints(asking, view), last: CLOSE }
   }
 
   const arrows: Hint[] = layout.rows.length === 0 ? [] : [['↑↓', view.band === undefined ? 'pick' : 'move']]
   const snoozed: Hint[] = layout.sections.some(section => section.kind === 'snoozed') ? [['s', 'snoozed']] : []
 
-  return { hints: [...arrows, ...bandHints(view), ...snoozed], last: QUIT }
+  return { hints: [...arrows, ...undoHint(view), ...bandHints(view), ...snoozed], last: QUIT }
 }
-
-const hintsWidth = (hints: readonly Hint[]) =>
-  hints.reduce((sum, [key, word], at) => sum + (at === 0 ? 0 : 2) + widthOf(key) + 1 + widthOf(word), 0)
 
 /** On a board gone stale, when it was last read; else nothing. */
 const staleOf = (view: PanelView) => (view.board === 'stale' && view.asOf !== undefined ? `as of ${view.asOf}` : undefined)
@@ -463,11 +615,7 @@ const keyLine = ({ grid, layout, pens }: Frame, { hints, last }: { hints: readon
 
   const shown = hintsWidth([...kept, last]) <= room ? [...kept, last] : []
 
-  shown.reduce((x, [key, word], at) => {
-    const after = put(grid, at === 0 ? x : x + 2, y, key, pens.of(STYLE.strong))
-
-    return put(grid, after, y, ` ${word}`, pens.of(STYLE.meta))
-  }, LEFT)
+  hinted(grid, pens, LEFT, y, shown)
 }
 
 const tooSmall = (size: Size): Line[] => {

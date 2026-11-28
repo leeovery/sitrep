@@ -28,6 +28,8 @@ const STYLES: Record<string, Style> = {
   heading: { tone: 'grey' },
   meta: { tone: 'grey', isMeta: true },
   rule: { tone: 'rule', isMeta: true },
+  pick: { tone: 'pick' },
+  pickTag: { tone: 'pickTag', isMeta: true },
 }
 
 /** Each style's escape at the level, the band's last. */
@@ -90,8 +92,8 @@ test("a light background by COLORFGBG draws in the terminal's 16; a dark one kee
   expect(levelOf({ NO_COLOR: '1', COLORFGBG: '0;15' })).toBe('none')
 })
 
-test("the palette at 256 colours is the nearest of xterm's to each ink", () => {
-  expect(Object.values(PALETTE).map(nearest256)).toEqual([173, 111, 146, 103, 60])
+test("the palette at 256 colours is the nearest of xterm's to each ink, Claude's pick 147 and its tag 111", () => {
+  expect(Object.values(PALETTE).map(nearest256)).toEqual([173, 111, 146, 103, 60, 147, 111])
 })
 
 /** WCAG's contrast between two colours, to measure the band's step by. */
@@ -186,6 +188,8 @@ test("each pen's escape at 24-bit: the palette's own inks, the terminal's ink fo
     `${ESC}[0;38;2;122;130;171m`,
     `${ESC}[0;38;2;122;130;171m`,
     `${ESC}[0;38;2;86;95;137m`,
+    `${ESC}[0;38;2;177;185;249m`,
+    `${ESC}[0;38;2;154;162;238m`,
     `${ESC}[0;48;2;40;43;48m`,
   ])
 })
@@ -199,11 +203,13 @@ test("each pen's escape at 256 colours: the nearest of each", () => {
     `${ESC}[0;38;5;103m`,
     `${ESC}[0;38;5;103m`,
     `${ESC}[0;38;5;60m`,
+    `${ESC}[0;38;5;147m`,
+    `${ESC}[0;38;5;111m`,
     `${ESC}[0;48;5;236m`,
   ])
 })
 
-test("each pen's escape at 16 colours: the terminal's own, the rule faint, the band reverse video", () => {
+test("each pen's escape at 16 colours: the terminal's own, the rule and the pick's tag faint, the band reverse video", () => {
   expect(escapes({ level: '16' })).toEqual([
     `${ESC}[0;1m`,
     `${ESC}[0;33m`,
@@ -212,6 +218,8 @@ test("each pen's escape at 16 colours: the terminal's own, the rule faint, the b
     `${ESC}[0;90m`,
     `${ESC}[0;90m`,
     `${ESC}[0;2;90m`,
+    `${ESC}[0;94m`,
+    `${ESC}[0;2;34m`,
     `${ESC}[0;7m`,
   ])
 })
@@ -224,6 +232,8 @@ test('with NO_COLOR, no colour at all: metadata faint, never a bold word, the ba
     `${ESC}[0m`,
     `${ESC}[0m`,
     `${ESC}[0;2m`,
+    `${ESC}[0;2m`,
+    `${ESC}[0m`,
     `${ESC}[0;2m`,
     `${ESC}[0;7m`,
   ])
@@ -290,4 +300,26 @@ test("a light background the terminal answered draws in its own 16, with no mix"
   expect(sgr(pens.of(STYLES.orange as Style), 'truecolor')).toBe(`${ESC}[0;33m`)
   expect(pens.band).toEqual({ reverse: true })
   expect(pens.wash).toBeUndefined()
+})
+
+test("an answer sending is ink on white, the background's colour on the terminal's ink, its tag's ink 0.4 of the way from the background to the ground, at 24-bit and 256 with both answers; else reverse video", () => {
+  const held = (paint: Paint) => {
+    const pens = pensOf(paint)
+
+    return [sgr(pens.held, paint.level), sgr(pens.heldTag, paint.level)]
+  }
+  const reversed: readonly Paint[] = [
+    { level: '16', fg: FG, bg: BG },
+    { level: 'none', fg: FG, bg: BG },
+    { level: 'truecolor', bg: BG },
+    { level: 'truecolor', fg: FG },
+    { level: 'truecolor', fg: BG, bg: rgbOf('#ECEFF4') },
+  ]
+
+  expect(held({ level: 'truecolor', fg: FG, bg: BG })).toEqual([`${ESC}[0;38;2;46;52;64;48;2;205;206;207m`, `${ESC}[0;38;2;${mix(BG, FG, 0.4).join(';')};48;2;205;206;207m`])
+  expect(held({ level: '256', fg: FG, bg: BG })).toEqual([`${ESC}[0;38;5;237;48;5;252m`, `${ESC}[0;38;5;${nearest256(mix(BG, FG, 0.4))};48;5;252m`])
+
+  for (const paint of reversed) {
+    expect(held(paint), JSON.stringify(paint)).toEqual([`${ESC}[0;7m`, `${ESC}[0;7m`])
+  }
 })

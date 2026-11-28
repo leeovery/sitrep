@@ -1,0 +1,45 @@
+
+ NEEDS YOU ●5 ●2 ────────────────────────────────────────────────────────────────────────────────────────────── ▿
+ ● Data import                                                                                       Litware   1m
+ ● Help desk redesign 2                                                                                         ▿
+   Northwind
+   Thread replies, or keep them flat?
+   Asked 4m ago                                                                                              ━━ ━
+   1 Threaded · Recommended
+   2 Flat
+   3 Flat, with a quote of the one it answers
+   x Ignore  z Snooze  o Open
+ ● Shift schedules                                                                                   Contoso  26m
+ ○ Email templates                                                                                  Fabrikam   2h
+ ● Drafted the 2.4 release notes                                                                    Tailspin  31m
+ ○ Mapped the ground floor                                                                           Litware   1h
+
+ WORKING 3 ──────────────────────────────────────────────────────────────────────────────────────────────────── ▿
+ ✻ Running npm test                                                                                Woodgrove   6m
+ ✻ Exporting the ledger as CSV                                                                     Northwind   2m
+ ◌ Waiting on 2 agents                                                                              Fabrikam  15m
+
+ SNOOZED 2 ──────────────────────────────────────────────────────────────────────────────────────────────────── ▹
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 1–3 answer  ←→ ask  esc close

@@ -19,18 +19,21 @@
  *   its row kept free while any block is left after, but never at the cost
  *   of the first row shown.
  * - A row takes one line; the chosen row expanded, the lines its words
- *   need (expand.ts), cut to the body's height where it is taller. Each
- *   row carries its section's lane (line.ts), worked out once a section. The snooze menu stands under the chosen row, a line a
- *   choice, the two as one block; short of room, the row's lines give way
- *   first, down to its first, then the menu shows the choices it has room
- *   for, scrolled the least from where it was that keeps the pick among
- *   them.
+ *   need (expand.ts), cut to the body's height where it is taller; with its
+ *   asks open, the lines of its head and its ask (asks.ts), given way as
+ *   they give way short of rows. Each row carries its section's lane
+ *   (line.ts), worked out once a section.
+ * - The snooze menu stands under the chosen row, a line a choice, the two
+ *   as one block; short of room, the row's lines give way first, down to
+ *   its first, then the menu shows the choices it has room for, scrolled
+ *   the least from where it was that keeps the pick among them.
  * - The body never starts or ends on a blank row, or on an open section's
  *   heading, while blocks follow: a heading stands only with a row under it.
  *   A folded Snoozed heading is drawn last.
  * - `top` goes no further than the least from which the body shows the last
  *   block.
  */
+import { askingIn, asksLinesOf } from './asks'
 import { wrapIn, type Size } from './cells'
 import { expandedOf } from './expand'
 import { laneOf, type Lane } from './line'
@@ -88,8 +91,8 @@ type Block =
   | { kind: 'heading'; section: Section }
   | ({ kind: 'row'; row: PanelRow; section: Section; lane: Lane } & RowShape)
 
-/** The lines a row takes, and the snooze menu under it, none where it has no menu. */
-type RowShape = { height: number; menu: number }
+/** The lines a row takes, the lines it takes in `room` rows at most, and the snooze menu under it, none where it has no menu. */
+type RowShape = { height: number; fit: (room: number) => number; menu: number }
 
 /** A row's lines, folded. */
 const ROW = 1
@@ -252,8 +255,9 @@ const bodyOf = (sections: readonly Section[], height: number, foot: number, shap
 /**
  * A block cut to the body's `room` where it is taller: a row with its menu
  * keeps the menu whole under its first line at least, its own lines giving
- * way first, then the menu's last; one with none, an expanded row, is cut
- * to the body, down to its first line alone in a body of one row.
+ * way first, as many as they draw in the rows the menu leaves them, then
+ * the menu's last; one with none, an expanded row, is cut to the body, down
+ * to its first line alone in a body of one row.
  */
 const cutTo = (block: Block, room: number): Block => {
   if (block.kind !== 'row' || linesOf(block) <= room) {
@@ -261,10 +265,10 @@ const cutTo = (block: Block, room: number): Block => {
   }
 
   if (block.menu === 0) {
-    return { ...block, height: room }
+    return { ...block, height: block.fit(room) }
   }
 
-  const height = Math.min(block.height, Math.max(room - block.menu, 1))
+  const height = block.fit(Math.max(room - block.menu, 1))
 
   return { ...block, height, menu: Math.max(Math.min(block.menu, room - height), 0) }
 }
@@ -278,10 +282,18 @@ const partsOf = (view: PanelView, size: Size) => {
   const foot = height - 1 - (said.length === 0 ? 0 : said.length + 1)
   const laneBy = new Map(sections.map(section => [section, laneOf(section.rows, width)]))
   const lanes: Lanes = section => laneBy.get(section) ?? laneOf(section.rows, width)
-  const shape: Shaping = (row, lane) => ({
-    height: rowKey(row) === view.expanded ? expandedOf(row, width, lane).lines.length : ROW,
-    menu: rowKey(row) === view.menu?.row ? view.menu.options.length : 0,
-  })
+  const shape: Shaping = (row, lane) => {
+    const asking = askingIn(view, row)
+    const menu = rowKey(row) === view.menu?.row ? view.menu.options.length : 0
+
+    if (asking !== undefined) {
+      return { height: asksLinesOf(asking, width, lane).length, fit: room => asksLinesOf(asking, width, lane, room).length, menu }
+    }
+
+    const height = rowKey(row) === view.expanded ? expandedOf(row, width, lane).lines.length : ROW
+
+    return { height, fit: room => Math.min(height, room), menu }
+  }
   const { body, blocks } = bodyOf(sections, height, foot, shape, lanes)
   const room = Math.max(body.to - body.from, 0)
   const shown = isTooSmall(size) || room === 0 ? [] : blocks.map(block => cutTo(block, room))

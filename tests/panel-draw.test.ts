@@ -3,7 +3,7 @@ import { ansi, draw, text } from '../cli/panel/draw'
 import { widthOf } from '../cli/panel/cells'
 import { layoutOf, topFor } from '../cli/panel/layout'
 import { rgbOf, type Paint } from '../cli/panel/paint'
-import { rowKey, type PanelRow, type PanelView } from '../cli/panel/view'
+import { rowKey, type PanelAsk, type PanelRow, type PanelView } from '../cli/panel/view'
 
 /** No colour at all, as with NO_COLOR: the frames below hold glyphs alone. */
 const NONE: Paint = { level: 'none' }
@@ -1333,4 +1333,419 @@ test('an expanded row the menu leaves one line draws its folded first line, neve
   const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010', menu: { ...MENU, row: 'sr-nw0010' } })
 
   expect(frame(view, 39, 8).slice(0, 2)).toEqual([' ● Shift schedules 3      Contoso   4m', '   1 In an hour                  15:00'])
+})
+
+// ---------------------------------------------------------------- a row's asks, opened under it
+
+const THREAD: PanelAsk = {
+  id: 'k1',
+  title: 'Thread replies, or keep them flat?',
+  wants: 'choice',
+  answers: ['Threaded', 'Flat', 'Flat, with a quote of the one it answers'],
+  sends: ['Threaded', 'Flat', 'Flat, with a quote of the one it answers'],
+  pick: 'Threaded',
+  age: '4m',
+}
+
+const OFFICE: PanelAsk = { id: 'k2', title: 'Which office moves to the new desk first?', wants: 'words', answers: [], sends: [], age: '12m' }
+
+const ROTA: PanelAsk = { id: 'k1', title: 'Approve the rota for the first week of December', wants: 'yes', answers: ['Approve'], sends: ['Approve'], age: '26m' }
+
+/** Help desk redesign's two asks, a choice and a words ask; Shift schedules' yes; Data import at a prompt alone. */
+const ASKING = { ...HELP_DESK, answerable: [THREAD, OFFICE] }
+const ROTA_ROW = row('sr-ct0002', 'ask', 'Shift schedules', 'Contoso', 'Approve the rota for the first week of December', '26m', { answerable: [ROTA] })
+const PROMPT = { ...DATA_IMPORT, isAway: false }
+
+/** Needs you's three rows, the band on the one given, in its row's place, its asks open at `at` unless `isOpen` is false. */
+const asking = (
+  band: PanelRow,
+  { at = 0, isOpen = true, offersSnooze = true, rows = [PROMPT, ASKING, ROTA_ROW].map(each => (rowKey(each) === rowKey(band) ? band : each)) }: { at?: number; isOpen?: boolean; offersSnooze?: boolean; rows?: PanelRow[] } = {},
+): PanelView => ({
+  sections: [
+    {
+      kind: 'needsYou',
+      rows,
+      counts: [
+        { value: 5, need: 'ask' },
+        { value: 2, need: 'turn' },
+      ],
+      isOpen: true,
+    },
+  ],
+  band: rowKey(band),
+  ...(isOpen ? { asking: { row: rowKey(band), at, offersSnooze } } : {}),
+  top: 0,
+  board: 'read',
+})
+
+test("on the band's row, where the view answers one of its asks, `▹` stands in the time's place, in the terminal's ink, bold; on no other row", () => {
+  const closed = asking(ASKING, { isOpen: false })
+
+  expect(frame(closed, 39, 8).slice(2, 5)).toEqual([
+    ' ● Data import            Litware   1m',
+    ' ● Help desk redesi… 2  Northwind    ▹',
+    ' ● Shift schedules        Contoso  26m',
+  ])
+  expect(drawn(closed, 39, 8, NONE, 3, 4)).toEqual([` ${ESC}[0;7m● ${ESC}[0;1;7mHelp desk redesi…${ESC}[0;2;7m 2${ESC}[0;7m  ${ESC}[0;2;7mNorthwind${ESC}[0;7m    ${ESC}[0;1;7m▹${ESC}[0m`])
+  expect(frame(asking(PROMPT, { isOpen: false }), 39, 8)[2]).toBe(' ● Data import            Litware   1m')
+})
+
+test("⏎ opens a row's asks under it, as round 5 drew them: its head, `▿` in the time's place, its project, the ask's title, when it was asked and the page dots, its answers numbered, Claude's pick first with its tag, and the foot", () => {
+  expect(frame(asking(ASKING), 39, 15)).toEqual([
+    '',
+    ' NEEDS YOU ●5 ●2 ─────────────────── ▿',
+    ' ● Data import            Litware   1m',
+    ' ● Help desk redesign 2              ▿',
+    '   Northwind',
+    '   Thread replies, or keep them flat?',
+    '   Asked 4m ago                   ━━ ━',
+    '   1 Threaded · Recommended',
+    '   2 Flat',
+    '   3 Flat, with a quote of the one it',
+    '     answers',
+    '   x Ignore  z Snooze  o Open',
+    ' ● Shift schedules        Contoso  26m',
+    '',
+    ' 1–3 answer  ←→ ask  esc close',
+  ])
+  expect(frame(asking(ASKING), 69, 13).slice(3, 11)).toEqual([
+    ' ● Help desk redesign 2                                            ▿',
+    '   Northwind',
+    '   Thread replies, or keep them flat?',
+    '   Asked 4m ago                                                 ━━ ━',
+    '   1 Threaded · Recommended',
+    '   2 Flat',
+    '   3 Flat, with a quote of the one it answers',
+    '   x Ignore  z Snooze  o Open',
+  ])
+})
+
+test('the title and the name wrap whole under the names\' column, the name leaving room for `▿` on its first line', () => {
+  const long = { ...LONG, mark: 'ask' as const, answerable: [{ ...ROTA, title: 'Approve the rota for the first week of December, nights and weekends included' }] }
+
+  expect(frame(asking(long, { rows: [long] }), 39, 12).slice(2, 10)).toEqual([
+    ' ● Help desk redesign for every      ▿',
+    '   regional support office',
+    '   Northwind',
+    '   Approve the rota for the first week',
+    '   of December, nights and weekends',
+    '   included',
+    '   Asked 26m ago',
+    '   1 Approve',
+  ])
+})
+
+test("Claude's pick's tag stands after its words, or on a line of its own within the two where they leave no room; past two lines the words are cut before it, so it always shows", () => {
+  const picked = (pick: string) => {
+    const ask: PanelAsk = { ...THREAD, answers: [pick, 'Flat'], pick }
+
+    return frame(asking({ ...ASKING, answerable: [ask] }), 39, 14).slice(7, 10)
+  }
+
+  expect(picked('Thread every reply under its ask')).toEqual(['   1 Thread every reply under its ask', '     · Recommended', '   2 Flat'])
+  expect(picked('Thread every reply under the ask it answers, quoting the reply before it')).toEqual([
+    '   1 Thread every reply under the ask',
+    '     it answers, quotin… · Recommended',
+    '   2 Flat',
+  ])
+  expect(frame(asking(ASKING), 39, 15)[9], 'any other answer wraps to two lines, cut past them').toBe('   3 Flat, with a quote of the one it')
+  expect(frame(asking({ ...ASKING, answerable: [{ ...THREAD, answers: ['Threaded', 'Flat, with a quote of the one it answers and of the one before that one'] }] }), 39, 14).slice(8, 10)).toEqual([
+    '   2 Flat, with a quote of the one it',
+    '     answers and of the one before th…',
+  ])
+})
+
+test("Claude's pick in lilac, its tag in the lighter lilac, any other answer in the terminal's ink, each number grey: at 24-bit, 256 and 16 colours, and none at all without colour", () => {
+  const line = (paint: Paint) => drawn(asking(ASKING), 39, 15, paint, 7, 9)
+  const ground = '48;2;52;61;75'
+
+  expect(line(NORDFOX)).toEqual([
+    ` ${ESC}[0;${ground}m  ${ESC}[0;38;2;122;130;171;${ground}m1${ESC}[0;${ground}m ${ESC}[0;38;2;177;185;249;${ground}mThreaded${ESC}[0;38;2;154;162;238;${ground}m · Recommended${ESC}[0;${ground}m           ${ESC}[0m`,
+    ` ${ESC}[0;${ground}m  ${ESC}[0;38;2;122;130;171;${ground}m2${ESC}[0;${ground}m Flat                             ${ESC}[0m`,
+  ])
+  expect(line({ ...NORDFOX, level: '256' })[0]).toBe(
+    ` ${ESC}[0;48;5;237m  ${ESC}[0;38;5;103;48;5;237m1${ESC}[0;48;5;237m ${ESC}[0;38;5;147;48;5;237mThreaded${ESC}[0;38;5;111;48;5;237m · Recommended${ESC}[0;48;5;237m           ${ESC}[0m`,
+  )
+  expect(line({ ...NORDFOX, level: '16' })[0]).toBe(` ${ESC}[0;7m  ${ESC}[0;7;90m1${ESC}[0;7m ${ESC}[0;7;94mThreaded${ESC}[0;2;7;34m · Recommended${ESC}[0;7m           ${ESC}[0m`)
+  expect(line(NONE)[0]).toBe(` ${ESC}[0;7m  ${ESC}[0;2;7m1${ESC}[0;7m Threaded${ESC}[0;2;7m · Recommended${ESC}[0;7m           ${ESC}[0m`)
+})
+
+test("the band lies over every line of the opened row and its asks, from column 1 to W−2, so they read as one card; without colour, reverse video", () => {
+  const lines = drawn(asking(ASKING), 39, 15, NONE, 3, 12)
+
+  expect(lines.every(line => line.startsWith(` ${ESC}[0;7m`) && line.endsWith(`${ESC}[0m`))).toBe(true)
+  expect(lines.map(line => line.replace(/\x1b\[[0-9;]*m/g, '').length)).toEqual(Array.from({ length: 9 }, () => 38))
+  expect(drawn(asking(ASKING), 39, 15, NONE, 2, 3)[0]?.includes(';7m'), 'the row above is not banded').toBe(false)
+  expect(drawn(asking(ASKING), 39, 15, NORDFOX, 4, 5)).toEqual([` ${ESC}[0;48;2;52;61;75m  ${ESC}[0;38;2;122;130;171;48;2;52;61;75mNorthwind${ESC}[0;48;2;52;61;75m                          ${ESC}[0m`])
+})
+
+test('the page dots end at W−2, where the row has more than one ask: the one shown `━━` in bold orange, each other `━` faint, a space between; one ask has none', () => {
+  const ground = '48;2;52;61;75'
+
+  expect(frame(asking(ASKING, { at: 1 }), 39, 15)[7]).toBe('   Asked 12m ago                  ━ ━━')
+  expect(drawn(asking(ASKING), 39, 15, NORDFOX, 6, 7)[0]).toContain(
+    `${ESC}[0;1;38;2;215;119;87;${ground}m━━${ESC}[0;${ground}m ${ESC}[0;38;2;86;95;137;${ground}m━${ESC}[0m`,
+  )
+  expect(drawn(asking(ASKING), 39, 15, NONE, 6, 7)[0]).toContain(`${ESC}[0;1;7m━━${ESC}[0;7m ${ESC}[0;2;7m━${ESC}[0m`)
+  expect(frame(asking(ROTA_ROW), 39, 15)[8]).toBe('   Asked 26m ago')
+})
+
+test('a yes has one answer, its yes; the key line says `1 answer`', () => {
+  expect(frame(asking(ROTA_ROW), 39, 15).slice(4, 14)).toEqual([
+    ' ● Shift schedules                   ▿',
+    '   Contoso',
+    '   Approve the rota for the first week',
+    '   of December',
+    '   Asked 26m ago',
+    '   1 Approve',
+    '   x Ignore  z Snooze  o Open',
+    '',
+    '',
+    '',
+  ])
+  expect(frame(asking(ROTA_ROW), 39, 15).at(-1)).toBe(' 1 answer  esc close')
+})
+
+test('a words ask, and a choice with no options, has no answers: its title, its age, then the foot; the key line names no digits', () => {
+  const lonely = { ...ASKING, count: 1, answerable: [{ ...THREAD, answers: [] }] }
+
+  expect(frame(asking(ASKING, { at: 1 }), 39, 15).slice(3, 10)).toEqual([
+    ' ● Help desk redesign 2              ▿',
+    '   Northwind',
+    '   Which office moves to the new desk',
+    '   first?',
+    '   Asked 12m ago                  ━ ━━',
+    '   x Ignore  z Snooze  o Open',
+    ' ● Shift schedules        Contoso  26m',
+  ])
+  expect(frame(asking(ASKING, { at: 1 }), 39, 15).at(-1)).toBe(' ←→ ask  esc close')
+  expect(frame(asking(lonely), 39, 15).slice(5, 8)).toEqual(['   Thread replies, or keep them flat?', '   Asked 4m ago', '   x Ignore  z Snooze  o Open'])
+  expect(frame(asking(lonely), 39, 15).at(-1)).toBe(' esc close')
+})
+
+test('the foot names Snooze only while Snooze offers a time; its keys bold in the terminal\'s ink, its words grey', () => {
+  expect(frame(asking(ASKING, { offersSnooze: false }), 39, 15)[11]).toBe('   x Ignore  o Open')
+  expect(drawn(asking(ASKING), 39, 15, NONE, 11, 12)).toEqual([
+    ` ${ESC}[0;7m  ${ESC}[0;1;7mx${ESC}[0;2;7m Ignore${ESC}[0;7m  ${ESC}[0;1;7mz${ESC}[0;2;7m Snooze${ESC}[0;7m  ${ESC}[0;1;7mo${ESC}[0;2;7m Open${ESC}[0;7m         ${ESC}[0m`,
+  ])
+})
+
+test('short of columns the foot drops whole hints, `z Snooze` first, then `x Ignore`, `o Open` kept; it never runs past W−2', () => {
+  const footAt = (width: number) => {
+    const lines = frame(asking(ASKING), width, 20)
+
+    return lines.find(line => line.includes(' Open')) ?? ''
+  }
+
+  expect([footAt(24), footAt(27), footAt(30)]).toEqual(['   x Ignore  o Open', '   x Ignore  o Open', '   x Ignore  z Snooze  o Open'])
+  expect([24, 27, 30].every(width => footAt(width).length <= width - 1)).toBe(true)
+})
+
+test('the page dots go where they would leave `Asked …` less than its whole words: the asks still page by `←→`, as the key line says', () => {
+  const asks = Array.from({ length: 14 }, (_, at): PanelAsk => ({ ...OFFICE, id: `k${at + 1}`, age: '4m' }))
+  const crowded = { ...ASKING, count: 14, answerable: asks }
+  const askedAt = (width: number) => frame(asking(crowded, { rows: [crowded] }), width, 15).find(line => line.startsWith('   Asked')) ?? ''
+  const at69 = askedAt(69)
+
+  expect(askedAt(30)).toBe('   Asked 4m ago')
+  expect(frame(asking(crowded, { rows: [crowded] }), 30, 15).at(-1)).toBe(' ←→ ask  esc close')
+  expect([at69.startsWith('   Asked 4m ago '), at69.endsWith(`━━${' ━'.repeat(13)}`), at69.length]).toEqual([true, true, 68])
+})
+
+test("Claude's pick is the first answer alone: another option whose words clean to the same is drawn as any other", () => {
+  const twins = { ...ASKING, answerable: [{ ...THREAD, answers: ['Now', 'Now', 'Later'], pick: 'Now' }] }
+  const [first = '', second = ''] = drawn(asking(twins), 39, 15, NORDFOX, 7, 9)
+
+  expect(first).toContain(`${ESC}[0;38;2;177;185;249;48;2;52;61;75mNow`)
+  expect(second).not.toContain('38;2;177;185;249')
+  expect(frame(asking(twins), 39, 15).slice(7, 10)).toEqual(['   1 Now · Recommended', '   2 Now', '   3 Later'])
+})
+
+test("an expanded band row that has come to hold asks draws `▹` in its time's place, as its folded line would", () => {
+  const view = { ...asking(ASKING, { isOpen: false }), expanded: rowKey(ASKING) }
+
+  expect(frame(view, 39, 15).slice(3, 5)).toEqual([' ● Help desk redesign 2              ▹', '   Northwind · Thread replies, or keep'])
+})
+
+test('only the first nine answers are numbered, as the digits send them; the key line says `1–9 answer`', () => {
+  const many = { ...ASKING, answerable: [{ ...THREAD, answers: Array.from({ length: 10 }, (_, at) => `Option ${at + 1}`), pick: 'Option 1' }] }
+  const lines = frame(asking(many, { rows: [many] }), 39, 20)
+
+  expect(lines.slice(14, 16)).toEqual(['   9 Option 9', '     Option 10'])
+  expect(lines.at(-1)).toBe(' 1–9 answer  esc close')
+})
+
+test("the key line, with a row's asks open, keeps `esc close` last where it is short of room", () => {
+  expect(frame(asking(ASKING), 24, 20).at(-1)).toBe(' 1–3 answer  esc close')
+  expect(frame(asking(ASKING), 31, 20).at(-1)).toBe(' 1–3 answer  ←→ ask  esc close')
+})
+
+test("an away row's head dims as the row's words do, toward the band's ground; the ask under it is drawn whole, to be read and answered", () => {
+  const away = { ...ASKING, isAway: true }
+  const ground = '48;2;52;61;75'
+  const [head = '', project = '', title = '', asked = ''] = drawn(asking(away, { rows: [away] }), 39, 15, NORDFOX, 2, 6)
+
+  expect(head).toContain(`${ESC}[0;1;38;2;145;149;156;${ground}mHelp desk redesign${ESC}[0;38;2;95;103;134;${ground}m 2`)
+  expect(project).toContain(`${ESC}[0;38;2;95;103;134;${ground}mNorthwind`)
+  expect(title).toContain(`${ESC}[0;1;${ground}mThread replies, or keep them flat?`)
+  expect(asked).toContain(`${ESC}[0;38;2;122;130;171;${ground}mAsked 4m ago`)
+})
+
+test("a head's spaces take the pen of the word after them, as the row's one line draws them: bold in the name, grey before the count", () => {
+  const [head = ''] = drawn(asking(ASKING, { rows: [ASKING] }), 39, 15, NONE, 2, 3)
+
+  expect(head).toContain(`${ESC}[0;1;7mHelp desk redesign${ESC}[0;2;7m 2`)
+})
+
+test("an away row's arrow dims with its row's words, folded and open", () => {
+  const away = { ...ASKING, isAway: true }
+  const dimmedArrow = (glyph: string) => `${ESC}[0;1;38;2;145;149;156;48;2;52;61;75m${glyph}${ESC}[0m`
+
+  expect(drawn(asking(away, { rows: [away], isOpen: false }), 39, 15, NORDFOX, 2, 3)[0]).toContain(dimmedArrow('▹'))
+  expect(drawn(asking(away, { rows: [away] }), 39, 15, NORDFOX, 2, 3)[0]).toContain(dimmedArrow('▿'))
+})
+
+/** An ask whose block gives way step by step: a head of two lines, a title of two, three answers of one, and the foot: 9 lines whole. */
+const STEPPED_ASK: PanelAsk = { id: 'k1', title: 'Which office moves to the new desk first, and when?', wants: 'choice', answers: ['North', 'South', 'East'], sends: ['North', 'South', 'East'], age: '4m' }
+const STEPPED = { ...ASKING, answerable: [STEPPED_ASK, OFFICE] }
+
+/** The opened row's lines at a height, an answer of `said` lines taking rows above the key line. */
+const blockAt = (height: number, said = 0) => {
+  const answer = Array.from({ length: said }, () => 'a'.repeat(35)).join(' ')
+  const view = { ...asking(STEPPED, { rows: [STEPPED] }), ...(said === 0 ? {} : { answer }) }
+  const { rows } = layoutOf(view, { width: 39, height })
+  const placed = rows.find(each => each.key === rowKey(STEPPED))
+
+  return placed === undefined ? [] : frame(view, 39, height).slice(placed.y, placed.y + placed.height)
+}
+
+test("short of rows the opened row gives way: the head to the row's one line, then the title to its first line cut, then the `Asked` line, then the foot, then the answers from the last; the row's one line always says whose they are", () => {
+  const whole = [
+    ' ● Help desk redesign 2              ▿',
+    '   Northwind',
+    '   Which office moves to the new desk',
+    '   first, and when?',
+    '   Asked 4m ago                   ━━ ━',
+    '   1 North',
+    '   2 South',
+    '   3 East',
+    '   x Ignore  z Snooze  o Open',
+  ]
+  const folded = ' ● Help desk redesi… 2  Northwind    ▿'
+  const cut = '   Which office moves to the new desk…'
+  const answers = ['   1 North', '   2 South', '   3 East']
+
+  expect(blockAt(10)).toEqual(whole)
+  expect(blockAt(9)).toEqual([folded, ...whole.slice(2)])
+  expect(blockAt(8)).toEqual([folded, cut, ...whole.slice(4)])
+  expect(blockAt(9, 1)).toEqual([folded, cut, ...answers, '   x Ignore  z Snooze  o Open'])
+  expect(blockAt(8, 1)).toEqual([folded, cut, ...answers])
+  expect(blockAt(8, 2)).toEqual([folded, cut, ...answers.slice(0, 2)])
+  expect(blockAt(8, 3)).toEqual([folded, cut, ...answers.slice(0, 1)])
+  expect(blockAt(8, 4)).toEqual([folded, cut])
+  expect(blockAt(8, 5)).toEqual([folded])
+})
+
+test('the opened row is kept whole in sight, the layout moving the least that shows it, as it keeps any band', () => {
+  const late = { ...ASKING, session: 'sr-nw0099' }
+  const view = { ...asking(late), sections: [{ ...asking(late).sections[0]!, rows: [...ASKS, PROMPT, late, ROTA_ROW] }] }
+  const size = { width: 39, height: 14 }
+  const top = topFor(view, size, rowKey(late)) ?? -1
+  const isWhole = (at: number) => layoutOf({ ...view, top: at }, size).rows.some(each => each.key === rowKey(late) && each.height === 9)
+
+  expect([top > 0, isWhole(top), isWhole(top - 1)]).toEqual([true, true, false])
+})
+
+// ---------------------------------------------------------------- an answer sending
+
+/** The answer at `index` of the band's ask shown, as the view says it sending: its words as shown and as they send. */
+const heldOf = (band: PanelRow, at: number, index: number) => {
+  const ask = band.answerable?.[at]
+
+  return { words: ask?.answers[index] ?? '', sends: ask?.sends[index] ?? '' }
+}
+
+/** The band's asks open on Thread replies, the answer at `answer` held, the ring as given; an ignore with none. */
+const sendingOn = (answer: number | undefined, ring = '◑', band: PanelRow = ASKING, at = 0): PanelView => ({
+  ...asking(band, { at }),
+  sending: { row: rowKey(band), ask: band.answerable?.[at]?.id ?? '', ring, ...(answer === undefined ? {} : { answer: heldOf(band, at, answer) }) },
+})
+
+test("an answer held keeps its lines, its check at W−2, the sending line in the foot's place, the key line `u undo  esc close`, as round 5 drew it", () => {
+  expect(frame(sendingOn(1), 39, 15).slice(3, 15)).toEqual([
+    ' ● Help desk redesign 2              ▿',
+    '   Northwind',
+    '   Thread replies, or keep them flat?',
+    '   Asked 4m ago                   ━━ ━',
+    '   1 Threaded · Recommended',
+    '   2 Flat                            ✓',
+    '   3 Flat, with a quote of the one it',
+    '     answers',
+    '   Sending Flat  ◑  u undo',
+    ' ● Shift schedules        Contoso  26m',
+    '',
+    ' u undo  esc close',
+  ])
+  expect(frame(sendingOn(2), 39, 15).slice(9, 11)).toEqual(['   3 Flat, with a quote of the one…  ✓', '     answers'])
+})
+
+test("the answer held is ink on white, the background's colour on the terminal's ink, from its number's column to W−2, its check with it, the band not under it; its tag in ink part of the way to the ground; reverse video at 16 colours and without colour", () => {
+  const ground = '48;2;52;61;75'
+  const held = '38;2;46;52;64;48;2;205;206;207'
+
+  expect(drawn(sendingOn(1), 39, 15, NORDFOX, 8, 9)).toEqual([`   ${ESC}[0;${held}m2 Flat                            ✓${ESC}[0m`])
+  expect(drawn(sendingOn(0), 39, 15, NORDFOX, 7, 8)).toEqual([
+    `   ${ESC}[0;${held}m1 Threaded${ESC}[0;38;2;110;114;121;48;2;205;206;207m · Recommended${ESC}[0;${held}m          ✓${ESC}[0m`,
+  ])
+  expect(drawn(sendingOn(1), 39, 15, NORDFOX, 7, 8)[0]).toContain(`${ESC}[0;${ground}m  `)
+  expect(drawn(sendingOn(1), 39, 15, { ...NORDFOX, level: '256' }, 8, 9)).toEqual([`   ${ESC}[0;38;5;237;48;5;252m2 Flat                            ✓${ESC}[0m`])
+  expect(drawn(sendingOn(1), 39, 15, { ...NORDFOX, level: '16' }, 8, 9)).toEqual([`   ${ESC}[0;7m2 Flat                            ✓${ESC}[0m`])
+  expect(drawn(sendingOn(1), 39, 15, NONE, 8, 9)).toEqual([`   ${ESC}[0;7m2 Flat                            ✓${ESC}[0m`])
+  expect(drawn(sendingOn(1), 39, 15, { level: 'truecolor', bg: rgbOf('#2E3440') }, 8, 9), 'without the ink answered').toEqual([`   ${ESC}[0;7m2 Flat                            ✓${ESC}[0m`])
+})
+
+test("the sending line: `Sending` grey, the answer's words in the terminal's ink, the ring orange, `u` bold and `undo` grey, on the band", () => {
+  const ground = '48;2;52;61;75'
+
+  expect(drawn(sendingOn(1), 39, 15, NORDFOX, 11, 12)).toEqual([
+    ` ${ESC}[0;${ground}m  ${ESC}[0;38;2;122;130;171;${ground}mSending${ESC}[0;${ground}m Flat  ${ESC}[0;38;2;215;119;87;${ground}m◑${ESC}[0;${ground}m  ${ESC}[0;1;${ground}mu${ESC}[0;38;2;122;130;171;${ground}m undo${ESC}[0;${ground}m            ${ESC}[0m`,
+  ])
+  expect(drawn(sendingOn(1), 39, 15, NONE, 11, 12)).toEqual([` ${ESC}[0;7m  ${ESC}[0;2;7mSending${ESC}[0;7m Flat  ◑  ${ESC}[0;1;7mu${ESC}[0;2;7m undo${ESC}[0;7m            ${ESC}[0m`])
+})
+
+test('an ignore held turns no answer white: its line reads `Ignoring`, then the ring and `u undo`', () => {
+  const lines = frame(sendingOn(undefined, '◔'), 39, 15)
+
+  expect(lines.slice(7, 12)).toEqual(['   1 Threaded · Recommended', '   2 Flat', '   3 Flat, with a quote of the one it', '     answers', '   Ignoring  ◔  u undo'])
+  expect(lines.some(line => line.includes('✓'))).toBe(false)
+})
+
+test("the sending line cuts the answer's words to leave the ring and `u undo` whole, down to 24 columns", () => {
+  const long = { ...ASKING, answerable: [{ ...THREAD, answers: ['Thread every reply under the one it answers'], sends: ['Thread every reply under the one it answers'] }] }
+  const lineAt = (width: number) => frame(sendingOn(0, '◕', long), width, 20).find(line => line.includes('Sending')) ?? ''
+
+  expect(lineAt(39)).toBe('   Sending Thread every re…  ◕  u undo')
+  expect(lineAt(24)).toBe('   Sending …  ◕  u undo')
+  expect([39, 30, 24].every(width => lineAt(width).length <= width - 1)).toBe(true)
+})
+
+test("the answer sending shows on its own ask alone: paged to another, the asks show that ask's foot, the key line still `u undo  esc close`", () => {
+  const view = { ...sendingOn(1), asking: { row: rowKey(ASKING), at: 1, offersSnooze: true } }
+
+  expect(frame(view, 39, 15).slice(5, 9)).toEqual(['   Which office moves to the new desk', '   first?', '   Asked 12m ago                  ━ ━━', '   x Ignore  z Snooze  o Open'])
+  expect(frame(view, 39, 15).at(-1)).toBe(' u undo  esc close')
+})
+
+test("the ask's snooze menu stands in the foot's place, a choice a line, the band leaving the card for the choice picked", () => {
+  const options = [
+    { title: 'In an hour', time: '15:00', until: 1 },
+    { title: 'Later today', time: '17:00', until: 2 },
+  ]
+  const view: PanelView = { ...asking(ASKING), menu: { row: rowKey(ASKING), options, at: 1, top: 0 } }
+  const lines = frame(view, 39, 15)
+
+  expect(lines.slice(8, 13)).toEqual(['   2 Flat', '   3 Flat, with a quote of the one it', '     answers', '   1 In an hour                  15:00', '   2 Later today                 17:00'])
+  expect(lines.at(-1)).toBe(' ↑↓ pick  ⏎ snooze  esc cancel')
+  expect(drawn(view, 39, 15, NONE, 3, 12).some(line => line.includes(';7m')), 'the card unbanded').toBe(false)
+  expect(drawn(view, 39, 15, NONE, 12, 13)[0]).toContain(`${ESC}[0;1;7mLater today`)
 })

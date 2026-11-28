@@ -2,8 +2,8 @@
  * A command on a session, acted: the session read, the command's rules,
  * then its lines appended, and what it prints, printing nothing itself.
  * `main` runs every command on a session through it, and the panel its
- * snooze and its wake, from the words `sitrep` would be given, so each
- * writes the line the command writes.
+ * snoozes, its wake and its answers, from the words `sitrep` would be
+ * given, so each writes the line the command writes.
  *
  * It writes as the writer `cli`, appending to `<session>/cli.jsonl` and
  * never rewriting it, and an answer to its letters in the session's inbox,

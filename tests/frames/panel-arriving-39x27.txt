@@ -1,8 +1,8 @@
 
- NEEDS YOU ●5 ●2 ─────────────────── ▿
+ NEEDS YOU ●6 ●2 ─────────────────── ▿
  ◉ Room bookings        Woodgrove  now
  ● Data import            Litware   1m
- ● Help desk redesign   Northwind   4m
+ ● Help desk redesi… 2  Northwind   4m
  ● Shift schedules        Contoso  26m
  ○ Email templates       Fabrikam   2h
  ● Drafted the 2.4 rel…  Tailspin  31m

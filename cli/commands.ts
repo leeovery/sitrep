@@ -223,7 +223,7 @@ const board: SessionCommand = {
   }),
 }
 
-const answer: SessionCommand = {
+export const answer: SessionCommand = {
   name: 'answer',
   about: `Answer a yes, a choice or a words ask, or ignore any ask, as ${USER.name} does on the board: into the session's inbox, which its window gives Claude as ${USER.possessive} own message, now or once a window takes the session up. Words keep to one line. A comment and a permission prompt need Claude Code's prompt. Prints nothing.`,
   grammar: {

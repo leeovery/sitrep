@@ -15,6 +15,9 @@
  *   On the band, a dim mixes toward the band's ground instead.
  *   The wash is left out below 24-bit, where its nearest colour sits beside
  *   the band's, so an arriving row would look chosen: `◉` says it alone.
+ * - An answer sending is drawn ink on white: the background's colour on the
+ *   terminal's ink, with both answers at 256 colours or more; else reverse
+ *   video.
  * - The band stands off the background by one step of contrast, the
  *   faintest that still reads as a chosen row and a touch more: the
  *   background moved toward `BAND` by the least that reaches it, or toward
@@ -42,13 +45,15 @@ export const rgbOf = (hex: string): Rgb => [
   Number.parseInt(hex.slice(5, 7), 16),
 ]
 
-/** The inks round 4 was drawn and picked in. */
+/** The inks round 4 was drawn and picked in, and round 5's for Claude's pick: Claude Code's suggestion lilac, and its tag's. */
 export const PALETTE = {
   orange: rgbOf('#D77757'),
   blue: rgbOf('#7AA2F7'),
   soft: rgbOf('#A9B1D6'),
   grey: rgbOf('#7A82AB'),
   rule: rgbOf('#565F89'),
+  pick: rgbOf('#B1B9F9'),
+  pickTag: rgbOf('#9AA2EE'),
 }
 
 /** The cool grey the band's ground leans toward from the background. */
@@ -68,6 +73,9 @@ const DIMMED = 0.39
 /** How much orange a new ask's wash mixes into the background. */
 const WASHED = 0.22
 
+/** How far a held answer's `· Recommended` goes from the background toward the terminal's ink, its ground: the notch draws it in ink at half. */
+const HELD_TAG = 0.4
+
 /** A word's ink: one of the palette's, or the terminal's own. */
 export type Tone = keyof typeof PALETTE | 'ink'
 
@@ -82,7 +90,12 @@ const SIXTEEN: Record<Tone, number | undefined> = {
   soft: undefined,
   grey: 8,
   rule: 8,
+  pick: 12,
+  pickTag: 4,
 }
+
+/** The tones drawn faint at 16 colours, where their own 16 is too loud: the rule, and the pick's tag. */
+const FAINT_AT_16: ReadonlySet<Tone> = new Set(['rule', 'pickTag'])
 
 /** `a` moved `t` of the way to `b`. */
 export const mix = (a: Rgb, b: Rgb, t: number): Rgb => [
@@ -225,6 +238,10 @@ export type Pens = {
   band: Pen
   /** What a new ask's wash lays over its row's cells, at 24-bit with both answers. */
   wash?: Pen
+  /** An answer sending: the background's colour on the terminal's ink, with both answers at 256 colours or more; else reverse video. */
+  held: Pen
+  /** A held answer's `· Recommended`: its ink part of the way from the background toward the ground, as `held` falls back. */
+  heldTag: Pen
   /** Whether the pens carry colour: without it, bold alone tells an ask. */
   isColoured: boolean
 }
@@ -250,7 +267,7 @@ const inkAt = (tone: Tone, level: Level): Ink | undefined => {
 }
 
 const isFaintAt = (style: Style, level: Level) =>
-  (level === 'none' && style.isMeta === true && style.bold !== true) || (level === '16' && style.tone === 'rule')
+  (level === 'none' && style.isMeta === true && style.bold !== true) || (level === '16' && FAINT_AT_16.has(style.tone))
 
 /** A pen with only what it sets, so two pens alike compare alike. */
 const penOf = (fg: Ink | undefined, bold: boolean, faint: boolean): Pen => ({
@@ -284,6 +301,8 @@ export const pensOf = (paint: Paint): Pens => {
     dimmed: dimmedOver(bg),
     bandDimmed: dimmedOver(bandGround),
     band: isGround ? { bg: { rgb: bandGround } } : { reverse: true },
+    held: canMix ? { fg: { rgb: bg }, bg: { rgb: fg } } : { reverse: true },
+    heldTag: canMix ? { fg: { rgb: mix(bg, fg, HELD_TAG) }, bg: { rgb: fg } } : { reverse: true },
     isColoured: level !== 'none',
     ...(canMix && level === 'truecolor' ? { wash: { bg: { rgb: mix(bg, PALETTE.orange, WASHED) } } } : {}),
   }

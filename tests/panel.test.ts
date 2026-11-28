@@ -7,10 +7,12 @@ import { paintOf } from '../cli/panel/colours'
 import { DEFAULTS, PS_MS } from '../cli/panel/edge'
 import { ESC_MS, HOLD_MS } from '../cli/panel/panel'
 import { repaint } from '../cli/panel/screen'
+import { BEAT_MS } from '../cli/panel/state'
+import { RING_MS, SEND_MS } from '../cli/panel/view'
 import { written } from '../cli/panel/writes'
 import { append, clockOf, HERE_STALE_MS, hereFile, projectsDir, wakeWords, type Body, type SessionMeta, type Where } from '../core'
-import { HOME, META, PROJECT, REPO, ROOT, T0, W1 } from './data'
-import { beat, snoozeSession, yesAsk, type Line } from './lines'
+import { HOME, META, PLUGIN_VERSION, PROJECT, REPO, ROOT, T0, W1 } from './data'
+import { beat, choiceAsk, file, reply, snoozeSession, yesAsk, type Line } from './lines'
 import { defaultsOf } from './plist'
 import { WHERE } from './world'
 import { ENV, HANDED, NO_PROCESS, NOW, STOPPED, terminal, tty } from './terminal'
@@ -61,6 +63,8 @@ type Opened = {
   device?: string
   /** The session's lines, as its window wrote them: Review round 1, asked since T0, unless given. */
   lines?: Line[]
+  /** The sitrep its window runs, as its heartbeat says it; none unless given. */
+  version?: string
 }
 
 /**
@@ -83,6 +87,7 @@ const opened = ({
   ps = async () => NO_PROCESS,
   device,
   lines = ASKED,
+  version,
 }: Opened = {}) => {
   let clock = NOW
   let err = ''
@@ -99,7 +104,7 @@ const opened = ({
 
   const paths = t.seed(meta, { lines })
 
-  t.files.set(paths.heartbeat(W1), { text: beat(W1, { attachedAt: NOW, seenAt: NOW, where, directory }), mtimeMs: NOW })
+  t.files.set(paths.heartbeat(W1), { text: beat(W1, { attachedAt: NOW, seenAt: NOW, where, directory, version }), mtimeMs: NOW })
 
   if (where.device !== undefined) {
     t.files.set(where.device, { text: '', mtimeMs: T0 })
@@ -234,11 +239,11 @@ const FIRST_FRAME =
   '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m pick\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
   '\x1b[?2026l'
 
-/** `j`'s frame: only the rows it changed, the band's in reverse video and the key line. */
+/** `j`'s frame: only the rows it changed, the band's in reverse video, its arrow in its time's place, and the key line. */
 const BANDED =
   '\x1b[?2026h' +
-  '\x1b[3;1H \x1b[0;7m● \x1b[0;1;7mHelp desk redesign\x1b[0;7m    \x1b[0;2;7mNorthwind\x1b[0;7m   \x1b[0;2;7m1m\x1b[0m\x1b[K' +
-  '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m move\x1b[0m  \x1b[0;1m⏎\x1b[0;2m expand\x1b[0m  \x1b[0;1mo\x1b[0;2m open\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
+  '\x1b[3;1H \x1b[0;7m● \x1b[0;1;7mHelp desk redesign\x1b[0;7m    \x1b[0;2;7mNorthwind\x1b[0;7m    \x1b[0;1;7m▹\x1b[0m\x1b[K' +
+  '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m move\x1b[0m  \x1b[0;1m⏎\x1b[0;2m asks\x1b[0m  \x1b[0;1mo\x1b[0;2m open\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
   '\x1b[?2026l'
 
 test('the panel asks the colours, takes the screen, draws the board whole, a key rewrites only the rows it changed, and q gives it all back', async () => {
@@ -408,7 +413,7 @@ test('Ctrl-Z gives the terminal back before it stops, and takes it back as the s
 
   expect(stopped()[2]).toBe(ENTER)
   expect(stopped()[3]?.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
-  expect(screenOf(stopped())[2]).toBe(' ● Help desk redesign    Northwind   1m')
+  expect(screenOf(stopped())[2]).toBe(' ● Help desk redesign    Northwind    ▹')
   expect(stopped()[3]).toContain('\x1b[0;7m')
   expect(run.screen.isReading()).toBe(true)
 
@@ -475,7 +480,7 @@ test('a sequence cut short by a stop from outside is never read with the first k
   await run.passing(0)
   await run.type('j')
 
-  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
+  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ asks  o open  q quit')
   await run.type('q')
 })
 
@@ -570,7 +575,7 @@ test('a sequence split across reads is read whole, and a lone ESC is esc once 50
 
   await run.passing(1)
 
-  expect(banded).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
+  expect(banded).toBe(' ↑↓ move  ⏎ asks  o open  q quit')
   expect(run.screen.writes.length).toBe(before + 1)
   expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ pick  q quit')
   await run.type('q')
@@ -593,7 +598,7 @@ test('a paste is never keys, however long its pieces take to come', async () => 
 
   await run.type('j')
 
-  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
+  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ asks  o open  q quit')
   await run.type('q')
 })
 
@@ -954,9 +959,9 @@ test('as the program ends, the terminal is taken back, raw mode set afresh, draw
   expect([left, handed, entered, writes().length]).toEqual([LEAVE, HANDED, ENTER, 4])
   expect(frame.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
   expect(frame).toContain('\x1b[0;7m')
-  expect(rows[2]).toBe(' ● Help desk redesign                                 Northwind   1m')
+  expect(rows[2]).toBe(' ● Help desk redesign                                 Northwind    ▹')
   expect(rows.some(row => row.startsWith(' !'))).toBe(false)
-  expect(rows[19]).toBe(' ↑↓ move  ⏎ expand  o open  z snooze  q quit')
+  expect(rows[19]).toBe(' ↑↓ move  ⏎ asks  o open  z snooze  q quit')
   expect([run.screen.isReading(), run.screen.listens()]).toEqual([true, listens + 1])
   await run.type('q')
 
@@ -976,7 +981,7 @@ test('a command that ends non-zero within 2 seconds leaves its answer above the 
   slow.run.screen.end(1)
   await slow.run.passing(0)
 
-  expect(rowsOf(quick.writes()).slice(17)).toEqual(['', ' ! The resume command ended with 1 for Help desk redesign.', ' ↑↓ move  ⏎ expand  o open  z snooze  q quit'])
+  expect(rowsOf(quick.writes()).slice(17)).toEqual(['', ' ! The resume command ended with 1 for Help desk redesign.', ' ↑↓ move  ⏎ asks  o open  z snooze  q quit'])
   expect(rowsOf(slow.writes()).some(row => row.startsWith(' !'))).toBe(false)
   await quick.run.type('q')
   await slow.run.type('q')
@@ -1113,7 +1118,7 @@ test('the board is looked at while a program has the terminal, drawing nothing, 
   run.screen.end(0)
   await run.passing(0)
 
-  expect(screenOf(writes(), 20)[2]).toBe(' ◉ Help desk redesign 2                                   Northwind  now')
+  expect(screenOf(writes(), 20)[2]).toBe(' ◉ Help desk redesign 2                                   Northwind    ▹')
   await run.type('q')
 })
 
@@ -1378,7 +1383,7 @@ test('a snooze the command refuses says why above the key line and writes nothin
     ' ! An ask waits on you that the snooze',
     '   did not name: look at it, then',
     '   snooze again.',
-    ' ↑↓ move  ⏎ expand  o open  q quit',
+    ' ↑↓ move  ⏎ asks  o open  q quit',
   ])
   await run.type('q')
 })
@@ -1391,4 +1396,275 @@ test("a snooze whose time has come already writes nothing, said as the notch say
   expect(await snooze(NOW)).toEqual({ ok: false, error: `${wakeWords(NOW, NOW)} has come already.`, ending: 'refused' })
   expect(t.files.has(paths.log('cli'))).toBe(false)
   expect(await snooze(NOW + 1)).toMatchObject({ ok: true })
+})
+
+// ---------------------------------------------------------------- answering
+
+/** The CLI's letters in the run's session's inbox, as their text: where an answer goes. */
+const lettersText = (run: Run) => run.t.files.get(run.paths.letters('cli'))?.text ?? ''
+
+/** The text `sitrep <words>` leaves in the session's inbox, run at `at` on a twin of the panel's world: the session holding these lines, its window seen now. */
+const asTheCommandAnswers = async (lines: Line[], at: number, words: string[]) => {
+  const twin = terminal({ now: () => at })
+  const paths = twin.seed(META, { lines, seenAt: NOW, version: PLUGIN_VERSION })
+
+  expect((await twin.run(...words)).exit).toBe(EXIT.done)
+
+  return twin.files.get(paths.letters('cli'))?.text ?? ''
+}
+
+/** Lines the session's window appends to its own file, as the clock stands. */
+const windowPosts = (run: Run, ...bodies: Body[]) => {
+  const path = run.paths.log(W1)
+  const now = run.now()
+
+  run.t.files.set(path, { text: append(run.t.files.get(path)?.text ?? '', bodies, now).text, mtimeMs: now })
+}
+
+/** The session's one ask a choice, Thread replies, as its window posted it at T0. */
+const CHOICE: Line[] = [[T0, choiceAsk('k1', 'Thread replies?', ['Flat', 'Threaded'], 'Threaded')]]
+
+/** The screen's row holding `words`, as the writes leave it. */
+const rowWith = (run: Run, words: string) => screenOf(run.screen.writes).find(row => row.includes(words))
+
+test("a digit's answer goes once its two seconds pass, writing into the session's inbox the very text sitrep answer writes, --wants with it: a yes, a choice", async () => {
+  for (const [lines, keys, words] of [
+    [ASKED, 'j\r1', ['answer', 'k1', 'Approve', '--wants', 'yes', '--session', META.id]],
+    [CHOICE, 'j\r2', ['answer', 'k1', 'Flat', '--wants', 'choice', '--session', META.id]],
+  ] as const) {
+    const run = opened({ lines: [...lines], version: PLUGIN_VERSION })
+
+    await run.passing(0)
+    await run.type(keys)
+    await run.passing(SEND_MS - 1)
+
+    expect(lettersText(run), 'held').toBe('')
+    await run.passing(1)
+
+    expect(lettersText(run)).toBe(await asTheCommandAnswers([...lines], NOW + SEND_MS, [...words]))
+    await run.type('q')
+  }
+})
+
+test("x's ignore goes the same way, as sitrep answer --ignore writes it", async () => {
+  const run = opened({ version: PLUGIN_VERSION })
+
+  await run.passing(0)
+  await run.type('j\rx')
+  await run.passing(SEND_MS)
+
+  expect(lettersText(run)).toBe(await asTheCommandAnswers(ASKED, NOW + SEND_MS, ['answer', 'k1', '--ignore', '--wants', 'yes', '--session', META.id]))
+  expect(JSON.parse(lettersText(run))).toMatchObject({ type: 'reply', item: 'k1', verdict: 'ignore' })
+  await run.type('q')
+})
+
+test('the panel draws the answer held on its own as the clock runs: its ring turned each half second, and the asks closed once it goes, its last ask gone', async () => {
+  const run = opened({ version: PLUGIN_VERSION })
+
+  await run.passing(0)
+  await run.type('j\r1')
+
+  expect(rowWith(run, 'Sending')?.trimEnd()).toBe('   Sending Approve  ◔  u undo')
+
+  for (const ring of ['◑', '◕', '●']) {
+    await run.passing(RING_MS)
+
+    expect(rowWith(run, 'Sending')?.trimEnd()).toBe(`   Sending Approve  ${ring}  u undo`)
+  }
+
+  await run.passing(RING_MS)
+
+  expect([rowWith(run, 'Sending'), screenOf(run.screen.writes).at(-1)]).toEqual([undefined, ' ↑↓ move  ⏎ expand  o open  q quit'])
+  await run.type('q')
+})
+
+test('u takes the answer back: nothing is written, however long after', async () => {
+  const run = opened({ version: PLUGIN_VERSION })
+
+  await run.passing(0)
+  await run.type('j\r1')
+  await run.passing(SEND_MS / 2)
+  await run.type('u')
+  await run.passing(2 * SEND_MS)
+
+  expect(lettersText(run)).toBe('')
+  expect(run.t.files.has(run.paths.letters('cli'))).toBe(false)
+  await run.type('q')
+})
+
+test('q or Ctrl-C while an answer is held sends it at once, then leaves, the terminal given back as ever', async () => {
+  for (const quit of ['q', '\x03']) {
+    const run = opened({ version: PLUGIN_VERSION })
+
+    await run.passing(0)
+    await run.type('j\r1')
+    await run.passing(SEND_MS / 4)
+    await run.type(quit)
+
+    expect(await run.ended()).toEqual({ exit: EXIT.done, err: '' })
+    expect(lettersText(run), JSON.stringify(quit)).toBe(await asTheCommandAnswers(ASKED, NOW + SEND_MS / 4, ['answer', 'k1', 'Approve', '--wants', 'yes', '--session', META.id]))
+    expect(run.screen.writes.at(-1)).toBe(LEAVE)
+    expect(givenBack(run)).toEqual(GIVEN_BACK)
+  }
+})
+
+test('a hangup or SIGTERM while an answer is held leaves at once and sends nothing', async () => {
+  for (const [signal, exit] of [['SIGTERM', 143], ['SIGHUP', 129]] as const) {
+    const run = opened({ version: PLUGIN_VERSION })
+
+    await run.passing(0)
+    await run.type('j\r1')
+    await run.signal(signal)
+
+    expect(await run.ended(), signal).toEqual({ exit, err: '' })
+    await run.passing(2 * SEND_MS)
+
+    expect(run.t.files.has(run.paths.letters('cli')), signal).toBe(false)
+    expect(givenBack(run), signal).toEqual(GIVEN_BACK)
+  }
+})
+
+test("an answer the command refuses says why above the key line, writing nothing: an ask Claude reshaped since it was shown, or one answered in its window meanwhile", async () => {
+  const reshaped = opened({ version: PLUGIN_VERSION })
+
+  await reshaped.passing(0)
+  await reshaped.type('j\r1')
+  windowPosts(reshaped, { type: 'edit', item: 'k1', changes: { wants: 'words' } })
+  await reshaped.passing(SEND_MS)
+
+  expect(lettersText(reshaped)).toBe('')
+  expect(screenOf(reshaped.screen.writes).slice(6, 9)).toEqual(['', ' ! k1 now wants words, not a yes: look', '   at it again.'])
+  await reshaped.type('q')
+
+  const meanwhile = opened({ version: PLUGIN_VERSION })
+
+  await meanwhile.passing(0)
+  await meanwhile.type('j\r1')
+  meanwhile.t.files.set(meanwhile.paths.letters(W1), { text: file([NOW, reply('r1', 'k1', 'yes')]), mtimeMs: NOW })
+  await meanwhile.passing(SEND_MS)
+
+  expect(lettersText(meanwhile)).toBe('')
+  expect(screenOf(meanwhile.screen.writes).slice(6, 9)).toEqual(['', ' ! An answer to k1 is on its way', '   already.'])
+  await meanwhile.type('q')
+})
+
+test("z on the asks, then ⏎, writes the line sitrep snooze --ask writes, the ask alone, in the CLI's own file", async () => {
+  const run = opened({ version: PLUGIN_VERSION })
+
+  await run.passing(0)
+  await run.type('j\rz\r')
+
+  expect(cliText(run)).toBe(await asTheCommandWrites(ASKED, ['snooze', '--ask', 'k1', '--until', String(IN_AN_HOUR), '--session', META.id]))
+  expect(JSON.parse(cliText(run))).toMatchObject({ type: 'snooze', item: 'k1', until: IN_AN_HOUR })
+  await run.type('q')
+})
+
+test('a tap on the asks lands only on what the frames have shown under it a beat: a tap as they open holds nothing, the same tap a beat on holds its answer', async () => {
+  const run = opened({ version: PLUGIN_VERSION })
+
+  await run.passing(0)
+  await run.type('j\r')
+
+  const y = screenOf(run.screen.writes).findIndex(row => row.includes('1 Approve'))
+  const onApprove = `\x1b[<0;6;${y + 1}M`
+
+  await run.type(onApprove)
+
+  expect(rowWith(run, 'Sending')).toBeUndefined()
+  await run.passing(BEAT_MS)
+  await run.type(onApprove)
+
+  expect(rowWith(run, 'Sending')?.trimEnd()).toBe('   Sending Approve  ◔  u undo')
+  await run.type('u')
+  await run.type('q')
+})
+
+test('Ctrl-Z while an answer is held sends it at once, as sitrep answer writes it, then gives the terminal back and stops; taken back, the asks have stepped on, and nothing goes again', async () => {
+  const run = opened({ version: PLUGIN_VERSION })
+
+  await run.passing(0)
+  await run.type('j\r1')
+  await run.passing(SEND_MS / 4)
+
+  const stopped = run.writesFrom()
+
+  await run.type('\x1a')
+
+  expect(lettersText(run)).toBe(await asTheCommandAnswers(ASKED, NOW + SEND_MS / 4, ['answer', 'k1', 'Approve', '--wants', 'yes', '--session', META.id]))
+  expect(stopped()).toEqual([LEAVE, STOPPED])
+  await run.passing(0)
+
+  expect(stopped()[2]).toBe(ENTER)
+  expect([rowWith(run, 'Sending'), screenOf(run.screen.writes).at(-1)]).toEqual([undefined, ' ↑↓ move  ⏎ expand  o open  q quit'])
+  await run.passing(2 * SEND_MS)
+
+  expect(lettersText(run).trimEnd().split('\n')).toHaveLength(1)
+  await run.type('q')
+})
+
+test("an answer refused while Claude has the terminal, `o` having opened its session, says why once the terminal is taken back", async () => {
+  const run = opened({ size: WIDE, where: IN_ZMX, directory: REPO, command: OWN, version: PLUGIN_VERSION })
+
+  await run.passing(0)
+  await run.type('j\r1')
+  await run.type('o')
+  windowPosts(run, { type: 'edit', item: 'k1', changes: { wants: 'words' } })
+  await run.passing(SEND_MS)
+
+  expect(run.screen.handed()).toHaveLength(1)
+  run.screen.end(0)
+  await run.passing(0)
+
+  expect(lettersText(run)).toBe('')
+  expect(rowsOf(run.screen.writes).filter(row => row.startsWith(' !'))).toEqual([' ! k1 now wants words, not a yes: look at it again.'])
+  await run.type('q')
+})
+
+/** A tap on the screen's row holding `words`, at column 5, as a terminal sends it, the screen `height` rows. */
+const tapping = (run: Run, words: string, height = SIZE.height) => `\x1b[<0;6;${screenOf(run.screen.writes, height).findIndex(row => row.includes(words)) + 1}M`
+
+test('taken back after a stop, the asks wait a beat on what the first frame shows: a tap or a digit at once holds nothing, a beat on they hold', async () => {
+  const run = opened({ version: PLUGIN_VERSION })
+
+  await run.passing(0)
+  await run.type('j\r')
+  await run.passing(2_000)
+  await run.type('\x1a')
+  await run.passing(0)
+
+  const onApprove = tapping(run, '1 Approve')
+
+  await run.type(onApprove)
+  await run.type('1')
+
+  expect(rowWith(run, 'Sending')).toBeUndefined()
+  await run.passing(BEAT_MS)
+  await run.type(onApprove)
+
+  expect(rowWith(run, 'Sending')?.trimEnd()).toBe('   Sending Approve  ◔  u undo')
+  await run.type('u')
+  await run.type('q')
+})
+
+test("taken back after a pick's program, the asks wait a beat on what the first frame shows: a digit or a tap at once holds nothing, a beat on they hold", async () => {
+  const run = opened({ size: WIDE, where: IN_ZMX, directory: REPO, command: OWN, version: PLUGIN_VERSION })
+  const sending = () => rowsOf(run.screen.writes).find(row => row.includes('Sending'))
+
+  await run.passing(0)
+  await run.type('j\r')
+  await run.passing(2_000)
+  await run.type('o')
+  await run.passing(3_000)
+  run.screen.end(0)
+  await run.passing(0)
+  await run.type('1')
+  await run.type(tapping(run, '1 Approve', WIDE.height))
+
+  expect(sending()).toBeUndefined()
+  await run.passing(BEAT_MS)
+  await run.type('1')
+
+  expect(sending()).toBe('   Sending Approve  ◔  u undo')
+  await run.type('u')
+  await run.type('q')
 })
