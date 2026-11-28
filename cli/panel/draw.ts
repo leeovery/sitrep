@@ -38,6 +38,7 @@ import {
   ANSWER,
   askingIn,
   asksLinesOf,
+  CHECK,
   hintColumns,
   hintsWidth,
   sendingColumns,
@@ -76,9 +77,6 @@ const STYLE = {
   otherDot: { tone: 'rule', isMeta: true },
   ring: { tone: 'orange' },
 } satisfies Record<string, Style>
-
-/** An answer sending's check, at its first line's right. */
-const CHECK = '✓'
 
 /** On the chosen row, where the view answers one of its asks: its asks to open, or open. */
 const ARROW = { folded: '▹', open: '▿' }
@@ -567,13 +565,13 @@ const askingHints = ({ ask, asks }: Asking, view: PanelView): Hint[] => {
 
 /**
  * The keys that work now, most needed first, and the one dropped last: in
- * the menu, its own and `esc cancel`; else `↑↓` only while a row is in view
- * to move to, the band's row's keys while there is one, `s` while Snoozed
- * holds rows, and `q quit`.
+ * the menu, its own, `u undo` while an answer sends, and `esc cancel`; else
+ * `↑↓` only while a row is in view to move to, the band's row's keys while
+ * there is one, `s` while Snoozed holds rows, and `q quit`.
  */
 const hintsOf = (view: PanelView, layout: Layout): { hints: Hint[]; last: Hint } => {
   if (view.menu !== undefined) {
-    return { hints: MENU_HINTS, last: CANCEL }
+    return { hints: [...MENU_HINTS, ...(view.sending === undefined ? [] : [UNDO])], last: CANCEL }
   }
 
   const row = bandRowOf(view)

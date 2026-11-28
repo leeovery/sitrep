@@ -255,8 +255,9 @@ const bodyOf = (sections: readonly Section[], height: number, foot: number, shap
 /**
  * A block cut to the body's `room` where it is taller: a row with its menu
  * keeps the menu whole under its first line at least, its own lines giving
- * way first, then the menu's last; one with none, an expanded row, is cut
- * to the body, down to its first line alone in a body of one row.
+ * way first, as many as they draw in the rows the menu leaves them, then
+ * the menu's last; one with none, an expanded row, is cut to the body, down
+ * to its first line alone in a body of one row.
  */
 const cutTo = (block: Block, room: number): Block => {
   if (block.kind !== 'row' || linesOf(block) <= room) {
@@ -267,7 +268,7 @@ const cutTo = (block: Block, room: number): Block => {
     return { ...block, height: block.fit(room) }
   }
 
-  const height = Math.min(block.height, Math.max(room - block.menu, 1))
+  const height = block.fit(Math.max(room - block.menu, 1))
 
   return { ...block, height, menu: Math.max(Math.min(block.menu, room - height), 0) }
 }

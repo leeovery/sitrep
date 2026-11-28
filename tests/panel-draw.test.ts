@@ -1658,10 +1658,17 @@ test('the opened row is kept whole in sight, the layout moving the least that sh
 
 // ---------------------------------------------------------------- an answer sending
 
-/** The band's asks open on Thread replies, `answer` held, the ring as given; an ignore with none. */
+/** The answer at `index` of the band's ask shown, as the view says it sending: its words as shown and as they send. */
+const heldOf = (band: PanelRow, at: number, index: number) => {
+  const ask = band.answerable?.[at]
+
+  return { words: ask?.answers[index] ?? '', sends: ask?.sends[index] ?? '' }
+}
+
+/** The band's asks open on Thread replies, the answer at `answer` held, the ring as given; an ignore with none. */
 const sendingOn = (answer: number | undefined, ring = '◑', band: PanelRow = ASKING, at = 0): PanelView => ({
   ...asking(band, { at }),
-  sending: { row: rowKey(band), ask: band.answerable?.[at]?.id ?? '', ring, ...(answer === undefined ? {} : { answer: { index: answer, words: band.answerable?.[at]?.answers[answer] ?? '' } }) },
+  sending: { row: rowKey(band), ask: band.answerable?.[at]?.id ?? '', ring, ...(answer === undefined ? {} : { answer: heldOf(band, at, answer) }) },
 })
 
 test("an answer held keeps its lines, its check at W−2, the sending line in the foot's place, the key line `u undo  esc close`, as round 5 drew it", () => {

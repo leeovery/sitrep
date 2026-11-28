@@ -1,5 +1,5 @@
 import { expect, test } from './kit'
-import { askKey, countdown, NEW_MS, rowKey, viewOf, type PanelRow, type Sending, type ViewState } from '../cli/panel/view'
+import { askKey, countdown, NEW_MS, rowKey, viewOf, type HeldAnswer, type PanelRow, type ViewState } from '../cli/panel/view'
 import {
   feedOf as boardOf,
   foldSession,
@@ -428,11 +428,11 @@ test("an ask's title and answers are cleaned of control characters, as the board
 
 test('an answer sending says its row, its ask and its answer, and its ring, a quarter more of it filled each half second of its two; an ignore says no answer', () => {
   const feed = boardWith(helpDesk([[T0, choiceAsk('k1', 'Which layout?', ['Flat', 'Threaded'])]]))
-  const sending: Sending = { row: META.id, session: META.id, ask: 'k1', wants: 'choice', answer: { index: 1, words: 'Threaded', sends: 'Threaded' }, at: ASKED_NOW }
+  const sending: HeldAnswer = { row: META.id, session: META.id, ask: 'k1', wants: 'choice', answer: { words: 'Threaded', sends: 'Threaded' }, at: ASKED_NOW }
   const at = (ms: number, held = sending) => viewOf(feed, { ...STATE, sending: held }, ASKED_NOW + ms, NONE).sending
 
-  expect(at(0)).toEqual({ row: META.id, ask: 'k1', answer: { index: 1, words: 'Threaded' }, ring: '◔' })
-  expect([499, 500, 1_000, 1_499, 1_500, 1_999, 2_500].map(ms => at(ms)?.ring)).toEqual(['◔', '◑', '◕', '◕', '●', '●', '●'])
+  expect(at(0)).toEqual({ row: META.id, ask: 'k1', answer: { words: 'Threaded', sends: 'Threaded' }, ring: '◔' })
+  expect([-1, 499, 500, 1_000, 1_499, 1_500, 1_999, 2_500].map(ms => at(ms)?.ring)).toEqual(['◔', '◔', '◑', '◕', '◕', '●', '●', '●'])
   expect(at(0, { row: META.id, session: META.id, ask: 'k1', wants: 'choice', at: ASKED_NOW })).toEqual({ row: META.id, ask: 'k1', ring: '◔' })
   expect(viewOf(feed, STATE, ASKED_NOW, NONE).sending).toBeUndefined()
 })

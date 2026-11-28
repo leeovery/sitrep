@@ -77,9 +77,31 @@ const tap = (y: number, x = 5): Key => ({ kind: 'tap', x, y })
 
 const read = (feed: Feed = board(), size: Size = SIZE): PanelState => step(opening(size, NOW), { board: feed, news: [], now: NOW }).state
 
-const stepped = (state: PanelState, ...events: PanelEvent[]) => events.reduce<PanelState>((sofar, event) => step(sofar, event).state, state)
+/** When the loop draws after an event: a key as pressed, a board as stepped in, the clock as it moved, a frame as drawn; else on the state's clock. */
+const drawnAfter = (state: PanelState, event: PanelEvent) => {
+  if ('key' in event) {
+    return event.at ?? state.now
+  }
+
+  if ('board' in event) {
+    return event.at ?? event.now
+  }
+
+  if ('tick' in event) {
+    return event.tick
+  }
+
+  return 'drawn' in event ? event.drawn : state.now
+}
+
+/** The events stepped in turn, a frame drawn after each, as the loop draws one. */
+const stepped = (state: PanelState, ...events: PanelEvent[]) =>
+  events.reduce<PanelState>((sofar, event) => step(step(sofar, event).state, { drawn: drawnAfter(sofar, event) }).state, state)
 
 const pressed = (state: PanelState, ...keys: Key[]) => stepped(state, ...keys.map(key => ({ key })))
+
+/** The keys pressed `ms` after NOW, each a step of its own. */
+const pressedAt = (state: PanelState, ms: number, ...keys: Key[]) => stepped(state, ...keys.map(key => ({ key, at: NOW + ms })))
 
 /** The band on the row at `index` among the open rows, from none. */
 const onRow = (state: PanelState, index: number) => pressed(state, ...Array.from({ length: index + 1 }, () => DOWN))
@@ -148,17 +170,19 @@ test('→ shows the ask after, ← the one before, at once, in the row\'s order,
   expect(frameOf(pressed(opened, RIGHT))[5]).toBe('   Asked 12m ago                  ━ ━━')
 })
 
-test('a tap on a page dot shows its ask, each dot taking its own cells and the space before it', () => {
+test('a tap on a page dot shows its ask, each dot taking its own cells and the space before it, once the dots have stood a beat', () => {
   const opened = open()
   const y = lineWith(opened, 'Asked')
   const line = frameOf(opened)[y] ?? ''
   const first = line.indexOf('━')
   const second = line.lastIndexOf('━')
+  const tapped = (...taps: Key[]) => pressedAt(opened, BEAT_MS, ...taps).asking
 
-  expect(pressed(opened, tap(y, second)).asking?.ask).toBe('k2')
-  expect(pressed(opened, tap(y, second - 1)).asking?.ask).toBe('k2')
-  expect(pressed(opened, tap(y, second), tap(y, first)).asking?.ask).toBe('k1')
-  expect(pressed(opened, tap(y, first - 1)).asking, 'left of the dots, on the ask: nothing').toEqual({ row: ASKING, ask: 'k1' })
+  expect(tapped(tap(y, second))?.ask).toBe('k2')
+  expect(tapped(tap(y, second - 1))?.ask).toBe('k2')
+  expect(tapped(tap(y, second), tap(y, first))?.ask, 'dot to dot, at once').toBe('k1')
+  expect(tapped(tap(y, first - 1)), 'left of the dots, on the ask: nothing').toEqual({ row: ASKING, ask: 'k1' })
+  expect(pressedAt(opened, BEAT_MS - 1, tap(y, second)).asking?.ask, 'as the asks open').toBe('k1')
 })
 
 test('esc closes the asks, the band kept; ↑ and ↓ close them and move the band, a row a press; at the first row ↑ closes them alone', () => {
@@ -169,7 +193,7 @@ test('esc closes the asks, the band kept; ↑ and ↓ close them and move the ba
   expect(shown(pressed(opened, UP))).toEqual([ASKING, undefined])
 })
 
-test('a tap anywhere but the ask closes the asks and does nothing more: on the row\'s head, on another row or off the rows; a tap on the ask, off a dot, does nothing yet', () => {
+test('a tap anywhere but the ask closes the asks and does nothing more, beat or none: on the row\'s head, on another row or off the rows; a tap on the ask\'s title does nothing', () => {
   const opened = open()
   const head = yOf(opened, ASKING)
 
@@ -177,8 +201,7 @@ test('a tap anywhere but the ask closes the asks and does nothing more: on the r
   expect(shown(pressed(opened, tap(head + 1)))).toEqual([ASKING, undefined])
   expect(shown(pressed(opened, tap(yOf(opened, YES))))).toEqual([ASKING, undefined])
   expect(shown(pressed(opened, tap(SIZE.height - 3)))).toEqual([ASKING, undefined])
-  expect(pressed(opened, tap(lineWith(opened, 'Thread replies'))).asking).toEqual({ row: ASKING, ask: 'k1' })
-  expect(pressed(opened, tap(lineWith(opened, 'Threaded'))).asking).toEqual({ row: ASKING, ask: 'k1' })
+  expect(pressedAt(opened, BEAT_MS, tap(lineWith(opened, 'Thread replies'))).asking).toEqual({ row: ASKING, ask: 'k1' })
 })
 
 test("with the asks open, s does nothing, and z and the digits reach none of the row's own keys: no row menu, no snooze of the session; o asks to open the session", () => {
@@ -241,17 +264,25 @@ test('the asks are kept whole in sight with their row as they open and as they p
   expect(frameOf(opened)[yOf(opened, ASKING)]).toBe(' ● Help desk redesign 3              ▿')
 })
 
+
 // ---------------------------------------------------------------- answering
 
-const [X, U, Q] = (['ignore', 'undo', 'quit'] as const).map(press) as [Key, Key, Key]
+const [X, U, Q, SUSPEND] = (['ignore', 'undo', 'quit', 'suspend'] as const).map(press) as [Key, Key, Key, Key]
 
 const digit = (n: number): Key => ({ kind: 'digit', n })
 
-/** The keys pressed `ms` after NOW, each a step of its own. */
-const pressedAt = (state: PanelState, ms: number, ...keys: Key[]) => stepped(state, ...keys.map(key => ({ key, at: NOW + ms })))
+/** The clock `ms` after NOW, as the panel's ticks step it, then drawn: the state, and the line it asks to write. */
+const tickedAt = (state: PanelState, ms: number) => {
+  const ticked = step(state, { tick: NOW + ms })
 
-/** The clock `ms` after NOW, as the panel's ticks step it: the state, and the line it asks to write. */
-const tickedAt = (state: PanelState, ms: number) => step(state, { tick: NOW + ms })
+  return { ...ticked, state: step(ticked.state, { drawn: NOW + ms }).state }
+}
+
+/** A frame drawn `ms` after NOW, the clock moved to it. */
+const drawnAt = (state: PanelState, ms: number) => stepped(state, { drawn: NOW + ms })
+
+/** The board stepped in `ms` after NOW, then drawn. */
+const boardedAt = (state: PanelState, feed: Feed, ms: number) => stepped(state, { board: feed, news: [], now: NOW + ms })
 
 /** Help desk redesign's second answer, Flat, held at NOW. */
 const holdingFlat = (feed: Feed = board()) => pressed(open(feed), digit(2))
@@ -261,6 +292,12 @@ const FLAT: Write = { command: 'answer', session: ASKING, ask: 'k1', wants: 'cho
 
 /** A yes of Help desk redesign's, asked after its choice. */
 const SHIP = boardAsk('k3', 'Ship it?', { wants: 'yes', yes: 'Ship' }, NOW - 8 * MIN)
+
+/** An answer that wraps to two lines. */
+const QUOTED = 'Flat, with a quote of the one it answers'
+
+/** A choice with an answer of two lines. */
+const LAYOUT = boardAsk('k1', 'Which layout?', { wants: 'choice', options: [QUOTED, 'Threaded'] }, NOW - 4 * MIN)
 
 /** The frame's line holding `words`. */
 const lineHolding = (state: PanelState, words: string) => frameOf(state)[lineWith(state, words)] ?? ''
@@ -273,7 +310,7 @@ const inLondon = (body: () => void) => () => inZone(LONDON, body)
 test("a digit holds the answer of its number, Claude's pick first, the band and the asks staying: its line ink on white with its check, the foot's place `Sending Flat  ◔  u undo`, the key line `u undo  esc close`", () => {
   const held = holdingFlat()
 
-  expect(held.sending).toEqual({ row: ASKING, session: ASKING, ask: 'k1', wants: 'choice', answer: { index: 1, words: 'Flat', sends: 'Flat' }, at: NOW })
+  expect(held.sending).toEqual({ row: ASKING, session: ASKING, ask: 'k1', wants: 'choice', answer: { words: 'Flat', sends: 'Flat' }, at: NOW })
   expect(shown(held)).toEqual([ASKING, { row: ASKING, ask: 'k1' }])
   expect(frameOf(held).slice(lineWith(held, '1 Threaded'), lineWith(held, 'Sending') + 1)).toEqual([
     '   1 Threaded · Recommended',
@@ -281,26 +318,37 @@ test("a digit holds the answer of its number, Claude's pick first, the band and 
     '   Sending Flat  ◔  u undo',
   ])
   expect(frameOf(held).at(-1)).toBe(' u undo  esc close')
-  expect(pressed(open(), digit(1)).sending?.answer).toEqual({ index: 0, words: 'Threaded', sends: 'Threaded' })
+  expect(pressed(open(), digit(1)).sending?.answer).toEqual({ words: 'Threaded', sends: 'Threaded' })
 })
 
-test('a tap on an answer holds it as its digit does, on any line of it', () => {
-  const long = boardAsk('k1', 'Which layout?', { wants: 'choice', options: ['Flat, with a quote of the one it answers', 'Threaded'] }, NOW - 4 * MIN)
-  const opened = open(board([long, OFFICE]))
+test('a tap on an answer holds it as its digit does, on any line of it, once it has stood a beat: a tap as the asks open does nothing', () => {
+  const opened = open(board([LAYOUT, OFFICE]))
   const first = lineWith(opened, 'Flat, with')
+  const held = (key: Key, ms = BEAT_MS) => pressedAt(opened, ms, key).sending?.answer?.words
 
   expect(frameOf(opened).slice(first, first + 2)).toEqual(['   1 Flat, with a quote of the one it', '     answers'])
-  expect(pressed(opened, tap(first + 1)).sending?.answer?.index).toBe(0)
-  expect(pressed(opened, tap(first, 36)).sending?.answer?.index).toBe(0)
-  expect(pressed(opened, tapOn(opened, 'Threaded')).sending?.answer).toEqual({ index: 1, words: 'Threaded', sends: 'Threaded' })
+  expect(held(tap(first + 1))).toBe(QUOTED)
+  expect(held(tap(first, 36))).toBe(QUOTED)
+  expect(held(tapOn(opened, 'Threaded'))).toBe('Threaded')
+  expect(held(tapOn(opened, 'Threaded'), BEAT_MS - 1)).toBeUndefined()
 })
 
 test("an answer held keeps its lines: its first, where its words would run under the check, cut to leave the check its room", () => {
-  const long = boardAsk('k1', 'Which layout?', { wants: 'choice', options: ['Flat, with a quote of the one it answers', 'Threaded'] }, NOW - 4 * MIN)
-  const held = pressed(open(board([long, OFFICE])), digit(1))
+  const held = pressed(open(board([LAYOUT, OFFICE])), digit(1))
   const first = lineWith(held, '✓')
 
   expect(frameOf(held).slice(first, first + 2)).toEqual(['   1 Flat, with a quote of the one…  ✓', '     answers'])
+})
+
+test("the check stays on the answer sending, found by its words, as an edit reorders the answers; with no answer its words now, there is none, the sending line still naming it", () => {
+  const held = holdingFlat()
+  const reordered = boardedAt(held, board([{ ...THREAD, recommended: 'Flat' }, OFFICE]), 500)
+  const dropped = boardedAt(held, board([{ ...THREAD, options: ['Threaded', 'Nested'] }, OFFICE]), 500)
+
+  expect(lineHolding(reordered, '✓')).toBe(`${'   1 Flat · Recommended'.padEnd(37)}✓`)
+  expect(lineHolding(reordered, '2 Threaded')).toBe('   2 Threaded')
+  expect(frameOf(dropped).some(line => line.includes('✓'))).toBe(false)
+  expect(lineHolding(dropped, 'Sending')).toBe('   Sending Flat  ◑  u undo')
 })
 
 test("x holds the ask's ignore the same way: no answer held, the foot's place `Ignoring  ◔  u undo`", () => {
@@ -320,8 +368,29 @@ test('a digit past the answers does nothing, nor any on a words ask; short of ro
   expect(pressed(pressed(open(), RIGHT), digit(1)).sending).toBeUndefined()
   expect([lineWith(short, '1 Threaded') >= 0, lineWith(short, '2 Flat')]).toEqual([true, -1])
   expect(pressed(short, digit(2)).sending).toBeUndefined()
-  expect(pressed(short, digit(1)).sending?.answer?.index).toBe(0)
+  expect(pressed(short, digit(1)).sending?.answer?.words).toBe('Threaded')
 })
+
+test(
+  'x and z act only while a line of the ask is in view: with its row scrolled out by the wheel, or a body so short only its head shows, they do nothing; with its title in view they act',
+  inLondon(() => {
+    const scrolled = pressed(open(board(), { width: 39, height: 12 }), { kind: 'wheel', by: 1 })
+    const four = 'Something else waits on you now, in another session of this project, and in one more beside it, and in a third, and a fourth one after that.'
+    const shortOf = (said: string) => stepped(open(board(), { width: 39, height: 8 }), { written: said })
+    const headOnly = shortOf(`${four.slice(0, -1)}, and a fifth.`)
+    const titled = shortOf(four)
+
+    expect(layoutIn(scrolled).rows.some(row => row.key === ASKING)).toBe(false)
+    expect(frameOf(headOnly).slice(0, 2)).toEqual([' ● Help desk redesi… 3  Northwind    ▿', ''])
+    expect(frameOf(titled)[1]).toBe('   Thread replies, or keep them flat?')
+
+    for (const hidden of [scrolled, headOnly]) {
+      expect([pressed(hidden, X).sending, pressed(hidden, Z).menu]).toEqual([undefined, undefined])
+    }
+
+    expect([pressed(titled, X).sending?.ask, pressed(titled, Z).menu]).toMatchObject(['k1', { ask: 'k1' }])
+  }),
+)
 
 test('u, or a tap on undo, takes the answer back within its two seconds, nothing going when they pass, and the foot back; a tap on the sending line off undo does nothing', () => {
   const held = holdingFlat()
@@ -336,6 +405,40 @@ test('u, or a tap on undo, takes the answer back within its two seconds, nothing
 
   expect(pressedAt(held, 1_500, tapOn(held, 'Sending')).sending).toEqual(held.sending)
   expect(pressed(held, ESC, U).sending, 'u takes it back with the asks closed too').toBeUndefined()
+})
+
+test(
+  "u takes the answer back with a menu open, as it does in every mode: the ask's snooze menu, or the row's; while it sends, the menu's key line keeps `u undo`, last but `esc cancel`",
+  inLondon(() => {
+    const asks = pressed(holdingFlat(), RIGHT, Z)
+    const row = pressed(holdingFlat(), ESC, Z)
+
+    expect([asks.menu, row.menu]).toMatchObject([{ ask: 'k2' }, { asks: ['k1', 'k2'] }])
+
+    for (const menu of [asks, row]) {
+      const undone = pressedAt(menu, 500, U)
+
+      expect(frameOf(menu).at(-1)).toBe(' ↑↓ pick  ⏎ snooze  u undo  esc cancel')
+      expect([undone.sending, undone.menu]).toEqual([undefined, menu.menu])
+      expect(tickedAt(undone, SEND_MS).write).toBeUndefined()
+      expect(frameOf(undone).at(-1)).toBe(' ↑↓ pick  ⏎ snooze  esc cancel')
+      expect(tickedAt(menu, SEND_MS).write, 'with no u').toEqual(FLAT)
+    }
+  }),
+)
+
+test("a tap on undo lands beat or none, so an undo is never lost; undoing starts the beat of what takes its place, so a second tap there lands on nothing the foot drew until it has stood", () => {
+  const held = holdingFlat(board([THREAD, SHIP]))
+  const y = lineWith(held, 'Sending')
+  const edited = boardedAt(held, board([{ ...THREAD, title: 'Thread the replies?' }, SHIP]), 1_000)
+  const undone = pressedAt(held, 500, tap(y, 20))
+
+  expect([lineHolding(held, 'Sending'), lineHolding(undone, 'x Ignore')]).toEqual(['   Sending Flat  ◔  u undo', '   x Ignore  z Snooze  o Open'])
+  expect(pressedAt(edited, 1_100, tapOn(edited, 'undo')).sending, "within the edit's beat").toBeUndefined()
+  expect(pressedAt(undone, 500 + BEAT_MS - 1, tap(y, 20)).menu, 'z Snooze, where u stood').toBeUndefined()
+  expect(step(undone, { key: tap(y, 24), at: NOW + 500 + BEAT_MS - 1 }).open, 'o Open, where undo stood').toBeUndefined()
+  expect(pressedAt(undone, 500 + BEAT_MS, tap(y, 20)).menu).toMatchObject({ ask: 'k1' })
+  expect(step(undone, { key: tap(y, 24), at: NOW + 500 + BEAT_MS }).open).toBe(ASKING)
 })
 
 test('while an answer is held, digits and x do nothing, on any ask; every other key acts as ever, and the answer still goes: esc closes the asks, ↓ moves the band, → pages', () => {
@@ -393,7 +496,7 @@ test("once it goes, its ask leaves the asks at once, the asks stepping to the se
   expect(pressed(last.state, ENTER).expanded).toBe(ASKING)
 })
 
-test("a send stepping on starts the beat: a digit, x or a tap on the ask within 300ms of it does nothing; a page dot shows its ask at once", () => {
+test("a send stepping on starts the beat: a digit or x within 300ms of it does nothing, nor a tap on a part of the next ask drawn anew; a page dot that shows the same ask as before takes its tap at once", () => {
   const gone = tickedAt(holdingFlat(board([THREAD, SHIP, OFFICE])), SEND_MS).state
   const early = SEND_MS + BEAT_MS - 1
   const dots = lineHolding(gone, 'Asked')
@@ -409,36 +512,88 @@ test("a send stepping on starts the beat: a digit, x or a tap on the ask within 
   expect(pressedAt(gone, early, tap(lineWith(gone, 'Asked'), dots.lastIndexOf('━'))).asking?.ask).toBe('k2')
 })
 
-test("the keys' own paging starts no beat: a digit pressed at once after → lands", () => {
-  const paged = pressed(open(board([THREAD, SHIP])), RIGHT)
+test("the keys' own paging starts no beat for a key: a digit pressed at once after → lands; a tap waits on the answers paging drew under it, as the notch's click does", () => {
+  const opened = open(board([THREAD, SHIP]))
+  const paged = pressedAt(opened, 1_000, RIGHT)
 
-  expect(pressedAt(paged, 0, digit(1)).sending?.answer?.words).toBe('Ship')
-  expect(pressedAt(pressed(paged, LEFT), 0, digit(1)).sending?.answer?.words).toBe('Threaded')
+  expect(pressedAt(paged, 1_000, digit(1)).sending?.answer?.words).toBe('Ship')
+  expect(pressedAt(paged, 1_000, LEFT, digit(1)).sending?.answer?.words).toBe('Threaded')
+  expect(pressedAt(paged, 1_000 + BEAT_MS - 1, tapOn(paged, '1 Ship')).sending).toBeUndefined()
+  expect(pressedAt(paged, 1_000 + BEAT_MS, tapOn(paged, '1 Ship')).sending?.answer?.words).toBe('Ship')
 })
 
-test('the board changing the ask shown starts the beat, an ask leaving or an edit; a tap on undo waits on it too, u not; a board that leaves the ask shown as it reads starts none', () => {
+test("the board changing the ask shown starts a key's beat, from when the board was stepped in, not read: an ask leaving or an edit; a board that leaves the ask as it reads starts none", () => {
   const opened = open(board([THREAD, SHIP]))
-  const at = (feed: Feed) => stepped(opened, { board: feed, news: [], now: NOW + 1_000 })
+  const at = (feed: Feed) => stepped(opened, { board: feed, news: [], now: NOW + 1_000, at: NOW + 1_200 })
   const edited = at(board([{ ...THREAD, title: 'Thread the replies?' }, SHIP]))
   const left = at(board([SHIP]))
   const newer = boardAsk('k4', 'Tag it?', { wants: 'yes', yes: 'Tag' }, NOW - MIN)
 
-  expect(pressedAt(edited, 1_000 + BEAT_MS - 1, digit(1)).sending).toBeUndefined()
-  expect(pressedAt(edited, 1_000 + BEAT_MS, digit(1)).sending?.answer?.words).toBe('Threaded')
-  expect([left.asking?.ask, pressedAt(left, 1_200, X).sending]).toEqual(['k3', undefined])
-  expect(pressedAt(at(board([THREAD, SHIP])), 1_000, digit(1)).sending).toBeDefined()
-  expect(pressedAt(at(board([newer, THREAD, SHIP])), 1_000, digit(1)).sending, 'an ask new beside it').toBeDefined()
+  expect(pressedAt(edited, 1_200 + BEAT_MS - 1, digit(1)).sending).toBeUndefined()
+  expect(pressedAt(edited, 1_200 + BEAT_MS, digit(1)).sending?.answer?.words).toBe('Threaded')
+  expect([left.asking?.ask, pressedAt(left, 1_400, X).sending]).toEqual(['k3', undefined])
+  expect(pressedAt(at(board([THREAD, SHIP])), 1_200, digit(1)).sending).toBeDefined()
+  expect(pressedAt(at(board([newer, THREAD, SHIP])), 1_200, digit(1)).sending, 'an ask new beside it').toBeDefined()
+})
 
-  const held = holdingFlat(board([THREAD, SHIP]))
-  const reworded = stepped(held, { board: board([{ ...THREAD, title: 'Thread the replies?' }, SHIP]), news: [], now: NOW + 1_000 })
+/** Invoice ledger, at a prompt newer than every ask, so its row stands above Help desk redesign's. */
+const ABOVE = boardRow('sr-tw0007', 'permission', { name: 'Invoice ledger', since: NOW - MIN })
 
-  expect(pressedAt(reworded, 1_100, tapOn(reworded, 'undo')).sending).toEqual(held.sending)
-  expect(pressedAt(reworded, 1_100, U).sending).toBeUndefined()
+/** The board, Help desk redesign's row as given and these rows above it. */
+const under = (above: readonly Row[], row: Row = askingRow([THREAD, OFFICE])) =>
+  feedOfRows([...above, row, ...OTHERS], [snoozedRow(ASLEEP, ['ask'], { name: 'Onboarding flow' })], { [ASKING]: [THREAD, OFFICE], [YES]: [ROTA] })
+
+test("a tap lands only on the part that has stood a beat under it: a row arriving above moves the asks down a line, and a tap a moment on, where Flat was, holds nothing; once Threaded has stood there, it holds Threaded", () => {
+  const opened = open()
+  const flat = lineWith(opened, '2 Flat')
+  const moved = boardedAt(opened, under([ABOVE]), 1_000)
+
+  expect([yOf(moved, ABOVE.session) < yOf(moved, ASKING), lineWith(moved, '2 Flat')]).toEqual([true, flat + 1])
+  expect(pressedAt(moved, 1_050, tap(flat)).sending).toBeUndefined()
+  expect(pressedAt(moved, 1_000 + BEAT_MS - 1, tap(flat)).sending).toBeUndefined()
+  expect(pressedAt(moved, 1_000 + BEAT_MS, tap(flat)).sending?.answer?.words).toBe('Threaded')
+  expect(pressedAt(moved, 1_050, digit(2)).sending?.answer?.words, 'a key is no tap: the ask itself reads as it did').toBe('Flat')
+})
+
+test("a row leaving above moves the asks up a line: a tap where Flat was, on the column of Ignore, ignores nothing until the foot has stood there a beat", () => {
+  const opened = pressed(onRow(read(under([ABOVE])), 1), ENTER)
+  const flat = lineWith(opened, '2 Flat')
+  const moved = boardedAt(opened, under([]), 1_000)
+
+  expect(frameOf(moved)[flat]).toBe('   x Ignore  z Snooze  o Open')
+  expect(pressedAt(moved, 1_050, tap(flat, 5)).sending).toBeUndefined()
+  expect(pressedAt(moved, 1_000 + BEAT_MS, tap(flat, 5)).sending).toEqual({ row: ASKING, session: ASKING, ask: 'k1', wants: 'choice', at: NOW + 1_000 + BEAT_MS })
+})
+
+test("the row's head rewrapping moves the ask under the tap: a name grown to two lines puts Threaded where Flat was, a beat before a tap lands on it", () => {
+  const opened = open()
+  const flat = lineWith(opened, '2 Flat')
+  const renamed = { ...askingRow([THREAD, OFFICE]), name: 'Help desk redesign for the second floor' }
+  const moved = boardedAt(opened, under([], renamed), 1_000)
+
+  expect(frameOf(moved).slice(yOf(moved, ASKING), yOf(moved, ASKING) + 3)).toEqual([
+    ' ● Help desk redesign for the        ▿',
+    '   second floor 3',
+    '   Northwind',
+  ])
+  expect(pressedAt(moved, 1_050, tap(flat)).sending).toBeUndefined()
+  expect(pressedAt(moved, 1_000 + BEAT_MS, tap(flat)).sending?.answer?.words).toBe('Threaded')
+})
+
+test("the asks giving way moves the ask under the tap: an answer line taking rows folds the head, the foot coming up where Threaded was, a beat before a tap lands on it", () => {
+  const opened = open(board(), { width: 39, height: 10 })
+  const threaded = lineWith(opened, '1 Threaded')
+  const said = stepped(drawnAt(opened, 1_000), { written: 'Something else waits on you now, in another session.' })
+
+  expect(frameOf(said)[0]).toBe(' ● Help desk redesi… 3  Northwind    ▿')
+  expect(frameOf(said)[threaded]).toBe('   x Ignore  z Snooze  o Open')
+  expect(pressedAt(said, 1_050, tap(threaded, 5)).sending).toBeUndefined()
+  expect(pressedAt(said, 1_000 + BEAT_MS, tap(threaded, 5)).sending).toMatchObject({ ask: 'k1' })
 })
 
 test('the board changing while an answer is held still sends it, the command to refuse what it must: its ask leaving the board, edited, or its row the band', () => {
   const held = holdingFlat()
-  const at = (feed: Feed) => stepped(held, { board: feed, news: [], now: NOW + 1_000 })
+  const at = (feed: Feed) => boardedAt(held, feed, 1_000)
   const left = at(board([OFFICE]))
   const passed = at(feedOfRows(OTHERS, [], { [YES]: [ROTA] }))
 
@@ -460,6 +615,17 @@ test("a refusal says the command's words in the answer line and brings the ask b
   expect(viewIn(refused).sections[0]?.rows[0]?.answerable?.map(ask => ask.id)).toEqual(['k1', 'k2'])
   expect(frameOf(refused).slice(-3)).toEqual([' ! k1 now wants words, not a choice:', '   look at it again.', ' ←→ ask  esc close'])
   expect(stepped(gone, { written: undefined, write })).toEqual(gone)
+})
+
+test("a refusal that comes while Claude has the terminal, `o` having opened its session, still says why as the pick ends with nothing to say; a pick's own words say themselves", () => {
+  const { state: gone, write } = tickedAt(pressed(holdingFlat(), O), SEND_MS)
+  const words = 'k1 now wants words, not a choice: look at it again.'
+  const refused = stepped(gone, { written: words, write })
+  const ended = 'The resume command ended with 1 for Help desk redesign.'
+
+  expect(stepped(refused, { opened: undefined }).answer).toBe(words)
+  expect(stepped(refused, { opened: ended }).answer).toBe(ended)
+  expect(stepped(gone, { opened: undefined }).answer).toBeUndefined()
 })
 
 test('the asks gone are left out until the board no longer lists them', () => {
@@ -505,6 +671,20 @@ test(
 )
 
 test(
+  "z opens the ask's menu by the clock the frame showed the foot on: Snooze's last time drawn still to come opens, though it passes before the press; drawn past, the foot drops `z Snooze` and z does nothing",
+  inLondon(() => {
+    const tonightOnly = snoozeSettingsOf('{"v":1,"hour":{"on":false},"later":{"on":false},"tonight":{"on":true,"at":"10:54"},"tomorrow":{"on":false},"weekend":{"on":false},"week":{"on":false}}')
+    const opened = stepped(open(), { snoozeSettings: tonightOnly })
+    const past = drawnAt(opened, MIN)
+
+    expect(lineHolding(opened, 'x Ignore')).toBe('   x Ignore  z Snooze  o Open')
+    expect(pressedAt(opened, MIN, Z).menu?.options.map(option => option.title)).toEqual(['Tonight'])
+    expect(lineHolding(past, 'x Ignore')).toBe('   x Ignore  o Open')
+    expect(pressedAt(past, MIN, Z).menu).toBeUndefined()
+  }),
+)
+
+test(
   "the ask's snooze menu closes as the ask shown changes: its ask leaving the board, the asks closing as the band moves on",
   inLondon(() => {
     const menu = pressed(open(), Z)
@@ -516,19 +696,46 @@ test(
   }),
 )
 
-test("taps on the foot's Ignore, Snooze and Open act as their keys, each on its key or its word; between them, nothing", () => {
+test(
+  "the ask's snooze menu stands right under the lines the ask draws, short of rows, where giving way drops a part of more lines than one: no blank row between",
+  inLondon(() => {
+    const wordy = boardAsk('k1', 'Which office moves to the new desk first, and which waits on the second floor?', { wants: 'choice', options: ['Flat', 'Threaded'] }, NOW - 4 * MIN)
+    const menu = pressed(open(board([wordy, OFFICE]), { width: 39, height: 12 }), Z)
+    const layout = layoutIn(menu)
+    const row = layout.rows.find(each => each.key === ASKING)
+
+    expect(frameOf(menu).slice(0, 7)).toEqual([
+      ' ● Help desk redesi… 3  Northwind    ▿',
+      '   Which office moves to the new desk…',
+      '   Asked 4m ago                   ━━ ━',
+      '   1 Flat',
+      '   2 Threaded',
+      `   1 ${snoozeTimes(NOW, SNOOZE_DEFAULTS)[0]?.title}`.padEnd(33) + snoozeTimes(NOW, SNOOZE_DEFAULTS)[0]?.time,
+      `   2 ${snoozeTimes(NOW, SNOOZE_DEFAULTS)[1]?.title}`.padEnd(33) + snoozeTimes(NOW, SNOOZE_DEFAULTS)[1]?.time,
+    ])
+    expect([row?.height, layout.menu?.y]).toEqual([5, 5])
+  }),
+)
+
+test("taps on the foot's Ignore, Snooze and Open act as their keys, each on its key or its word, once the foot has stood a beat; between them, nothing", () => {
   const opened = open()
   const foot = lineHolding(opened, 'x Ignore')
+  const at = (key: Key, ms = BEAT_MS) => pressedAt(opened, ms, key)
+  const between = at(tap(lineWith(opened, 'x Ignore'), foot.indexOf('Ignore') + 'Ignore'.length + 1))
 
-  expect(pressed(opened, tapOn(opened, 'Ignore')).sending).toEqual({ row: ASKING, session: ASKING, ask: 'k1', wants: 'choice', at: NOW })
-  expect(pressed(opened, tapOn(opened, 'x Ignore')).sending).toMatchObject({ ask: 'k1' })
-  expect(pressed(opened, tapOn(opened, 'Snooze')).menu).toMatchObject({ ask: 'k1' })
-  expect(step(opened, { key: tapOn(opened, 'Open') }).open).toBe(ASKING)
-  expect(pressed(opened, tap(lineWith(opened, 'x Ignore'), foot.indexOf('Ignore') + 'Ignore'.length + 1))).toEqual(opened)
+  expect(at(tapOn(opened, 'Ignore')).sending).toEqual({ row: ASKING, session: ASKING, ask: 'k1', wants: 'choice', at: NOW + BEAT_MS })
+  expect(at(tapOn(opened, 'x Ignore')).sending).toMatchObject({ ask: 'k1' })
+  expect(at(tapOn(opened, 'Snooze')).menu).toMatchObject({ ask: 'k1' })
+  expect(step(opened, { key: tapOn(opened, 'Open'), at: NOW + BEAT_MS }).open).toBe(ASKING)
+  expect(at(tapOn(opened, 'Ignore'), BEAT_MS - 1).sending).toBeUndefined()
+  expect([between.sending, between.menu, between.asking]).toEqual([undefined, undefined, opened.asking])
 })
 
-test('q or Ctrl-C while an answer is held sends it at once, its hold cut short; with none held, nothing', () => {
-  expect(step(holdingFlat(), { key: Q, at: NOW + 500 }).write).toEqual(FLAT)
-  expect(step(pressed(holdingFlat(), ESC, DOWN), { key: Q, at: NOW + 500 }).write).toEqual(FLAT)
-  expect(step(open(), { key: Q }).write).toBeUndefined()
-})
+test('q, Ctrl-C or Ctrl-Z while an answer is held sends it at once, its hold cut short, in any mode; with none held, nothing', inLondon(() => {
+  for (const key of [Q, SUSPEND]) {
+    expect(step(holdingFlat(), { key, at: NOW + 500 }).write, key.kind).toEqual(FLAT)
+    expect(step(pressed(holdingFlat(), ESC, DOWN), { key, at: NOW + 500 }).write, key.kind).toEqual(FLAT)
+    expect(step(pressed(holdingFlat(), RIGHT, Z), { key, at: NOW + 500 }).write, `${key.kind}, the menu open`).toEqual(FLAT)
+    expect(step(open(), { key }).write, key.kind).toBeUndefined()
+  }
+}))

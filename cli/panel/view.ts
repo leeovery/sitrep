@@ -101,8 +101,8 @@ export type PanelView = {
   menu?: Pick<Menu, 'row' | 'options' | 'at' | 'top'>
   /** The chosen row's asks, open under it: the row's key, the ask shown by its place among them, and whether Snooze offers a time. */
   asking?: { row: string; at: number; offersSnooze: boolean }
-  /** The answer sending: its row's key, its ask, the answer by its place and its words, none for an ignore, and its ring as it stands. */
-  sending?: { row: string; ask: string; answer?: { index: number; words: string }; ring: string }
+  /** The answer sending: its row's key, its ask, the answer's words as shown and as they send, none for an ignore, and its ring as it stands. */
+  sending?: { row: string; ask: string; answer?: { words: string; sends: string }; ring: string }
   top: number
   answer?: string
   board: 'looking' | 'read' | 'stale'
@@ -112,16 +112,16 @@ export type PanelView = {
 
 /**
  * An answer held for its two seconds before it goes, on the asks of the row
- * `row`: its session and ask, what the ask wanted as shown, and the answer
- * by its place among the ask's, its words as shown and as it sends them,
- * none for an ignore; and when it was held.
+ * `row`: its session and ask, what the ask wanted as shown, and the
+ * answer's words as shown and as it sends them, none for an ignore; and
+ * when it was held.
  */
-export type Sending = {
+export type HeldAnswer = {
   row: string
   session: string
   ask: string
   wants: Wants
-  answer?: { index: number; words: string; sends: string }
+  answer?: { words: string; sends: string }
   at: number
 }
 
@@ -136,7 +136,7 @@ export type ViewState = {
   /** The chosen row's asks, open under it, by its key, at the ask shown, by its id: never another row's. */
   asking?: { row: string; ask: string }
   /** The answer held, sending. */
-  sending?: Sending
+  sending?: HeldAnswer
   /** The asks whose answers have gone, by `askKey`, left out of their rows' asks. */
   sent?: ReadonlySet<string>
   /** Snooze's choices as Lee set them in SitRep; core's defaults where none were read. */
@@ -340,9 +340,9 @@ const sendingOf = ({ sending }: ViewState, now: number) => {
   }
 
   const { row, ask, answer, at } = sending
-  const ring = RING[Math.min(Math.max(Math.floor((now - at) / RING_MS), 0), RING.length - 1)] ?? ''
+  const ring = RING.reduce((shown, next, quarter) => (now - at >= quarter * RING_MS ? next : shown))
 
-  return { sending: { row, ask, ...(answer === undefined ? {} : { answer: { index: answer.index, words: answer.words } }), ring } }
+  return { sending: { row, ask, ...(answer === undefined ? {} : { answer }), ring } }
 }
 
 /**

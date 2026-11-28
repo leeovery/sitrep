@@ -36,21 +36,30 @@
  *   still on the board, else to the one before.
  * - On the asks, a digit, or a tap on an answer, holds that answer for
  *   SEND_MS, and `x`, or a tap on Ignore, the ask's ignore; a digit only
- *   while its answer is drawn. While one is held no other is: digits and
- *   `x` do nothing. `u`, or a tap on `undo`, takes it back, writing
- *   nothing; every other key acts as ever, and it still goes, as the clock
- *   reaches its time, or at once on `q` or Ctrl-C: its write asked for, its
- *   ask left out of its row's asks at once, the asks open on it stepping on
- *   as if the board had dropped it. A refusal brings the ask back, saying
- *   why. The asks left out come back once the board no longer lists them.
- * - A digit, `x` or a tap on the ask lands only once the ask shown has
- *   stood BEAT_MS since the board last changed it, by an ask leaving, an
- *   edit, or a send stepping on; the keys' own paging starts no beat, nor
- *   does a page dot wait on one.
+ *   while its answer is drawn, `x` only while a line of the ask is. While
+ *   one is held no other is: digits and `x` do nothing. `u`, or a tap on
+ *   `undo`, takes it back, writing nothing; every other key acts as ever,
+ *   and it still goes, as the clock reaches its time, or at once on `q`,
+ *   Ctrl-C or Ctrl-Z: its write asked for, its ask left out of its row's
+ *   asks at once, the asks open on it stepping on as if the board had
+ *   dropped it. A refusal brings the ask back, saying why. The asks left
+ *   out come back once the board no longer lists them.
+ * - A digit or `x` lands only once the ask shown has stood BEAT_MS since
+ *   the board last changed it, by an ask leaving, an edit, or a send
+ *   stepping on; the keys' own paging starts no beat.
+ * - A tap on the ask lands only on a part that has stood BEAT_MS under it,
+ *   as the frames drew it: the same answer of the same ask, as it reads,
+ *   the same hint of it, or the dot of the same ask, drawn in that cell
+ *   since. A row arriving or leaving above, a line rewrapping, the ask
+ *   giving way, the ask changing, the sending line going: each starts the
+ *   part's beat afresh where it moves what is under the tap. Paging leaves
+ *   a dot standing, which shows the same ask whatever ask shows; a tap on
+ *   `undo` never waits.
  * - `z` on the asks, or a tap on Snooze, opens the ask shown's snooze menu
- *   in the foot's place, while Snooze offers a time and the ask isn't the
- *   one sending: its times, and no Until it moves. A choice asks to snooze
- *   that ask alone; the menu closes as the ask shown changes.
+ *   in the foot's place, while Snooze offers a time, a line of the ask is
+ *   drawn, and the ask isn't the one sending: its times, and no Until it
+ *   moves. A choice asks to snooze that ask alone; the menu closes as the
+ *   ask shown changes.
  * - `z` on a row that needs Lee opens the snooze menu under it, its
  *   choices worked out at that moment (menu.ts), row and menu kept whole in
  *   sight; on a Snoozed row it asks to wake its session; on any other row
@@ -70,17 +79,22 @@
  *   band staying on its session, as on a changing board.
  * - Each line new to Needs you is stamped with the time of the board it
  *   came on, and dropped once NEW_MS old.
- * - `q`, Ctrl-C and Ctrl-Z are stepped as any key, dropping an answer, and
- *   change nothing else here but `q` and Ctrl-C sending the answer held:
- *   leaving and suspending are the loop's.
+ * - `q`, Ctrl-C, Ctrl-Z and `u` act in every mode, ahead of the menu's
+ *   keys, the asks' and the board's: the first three send the answer held
+ *   at once, and change nothing else here, leaving and suspending being
+ *   the loop's; `u` takes it back. Each drops an answer, as any key does.
+ * - A frame drawn moves the clock to when it was drawn, so the snooze
+ *   times, the ages and the ring are worked out as it showed them.
+ * - A pick done with nothing to say leaves the answer as it stands, so a
+ *   refusal that came while Claude had the terminal still says why.
  */
 import { answerableAsks, SNOOZE_DEFAULTS, type Feed, type SnoozeSettings, type Wants } from '../../core'
 import type { Size } from './cells'
 import type { Key, Press } from './keys'
-import { askingIn, asksLinesOf, isAnswerDrawn, isHeadLine, tapOn, type AsksLine, type AsksTap } from './asks'
+import { askingIn, asksLinesOf, isAnswerDrawn, isHeadLine, tapOn, type Asking, type AsksLine, type AsksTap } from './asks'
 import { layoutOf, topFor } from './layout'
 import { snoozeOptions, snoozeTimes, type Menu } from './menu'
-import { askKey, NEW_MS, rowKey, SEND_MS, viewOf, type PanelAsk, type PanelRow, type Sending, type ViewState } from './view'
+import { askKey, NEW_MS, rowKey, SEND_MS, viewOf, type HeldAnswer, type PanelAsk, type PanelRow, type ViewState } from './view'
 
 export type PanelState = ViewState & {
   /** The board last read; none before the first. */
@@ -94,20 +108,29 @@ export type PanelState = ViewState & {
   now: number
   /** The session `z` last asked to wake, until a board shows whether it woke. */
   waking?: string
-  /** When the board last changed the ask shown, the asks open: a digit, `x` or a tap on the ask lands only BEAT_MS on. */
+  /** When the board last changed the ask shown, the asks open: a digit or `x` lands only BEAT_MS on. */
   changedAt?: number
+  /** What a tap lands on in each cell of the opened row's lines as the frames drew them, and since when. */
+  stood?: Standing
 }
 
-/** How long the ask shown stands, once the board changes it, before a digit, `x` or a tap lands on it. */
+/** How long the ask shown stands, once the board changes it, before a digit or `x` lands on it; and a part of it, once drawn where a tap finds it, before the tap lands. */
 export const BEAT_MS = 300
 
+/** What a tap on a cell of the opened row's lines lands on, as one string, `''` for nothing; and since when the frames have drawn it there. */
+type Stood = { part: string; since: number }
+
+/** Each cell of the opened row's lines as last drawn, by terminal row, then column. */
+type Standing = ReadonlyMap<number, readonly Stood[]>
+
 /**
- * A look's board: the lines new to Needs you on it, when it was read, and
+ * A look's board: the lines new to Needs you on it, when it was read, when
+ * it was stepped in, where that was later, which the beat counts from, and
  * the sessions open on no device the panel is looked at from as SitRep
  * said them then, where the look read them, stepped with the board so the
  * band follows its row from where it was drawn.
  */
-type Board = { board: Feed; news: readonly string[]; now: number; notHere?: ReadonlySet<string> }
+type Board = { board: Feed; news: readonly string[]; now: number; at?: number; notHere?: ReadonlySet<string> }
 
 export type PanelEvent =
   | Board
@@ -118,6 +141,8 @@ export type PanelEvent =
   | { size: Size }
   /** The clock, moved on: the answer held goes once its time has come. */
   | { tick: number }
+  /** A frame drawn, and when: the clock moved to then, and what a tap lands on in each cell of it standing from then where it is new there. */
+  | { drawn: number }
   /** A pick done: what it leaves to say, if anything. */
   | { opened: string | undefined }
   /** A write done: why it failed, if it did, and what it was. */
@@ -170,8 +195,11 @@ const openRows = (state: PanelState): PanelRow[] =>
 
 const keysIn = (state: PanelState) => openRows(state).map(rowKey)
 
+/** The open row `key`, if one is. */
+const rowIn = (state: PanelState, key: string | undefined) => openRows(state).find(row => rowKey(row) === key)
+
 /** The state with `field` set, or without it, given none. */
-const withField = <K extends 'band' | 'expanded' | 'menu' | 'asking' | 'answer' | 'reason' | 'waking' | 'sending' | 'sent' | 'changedAt'>(
+const withField = <K extends 'band' | 'expanded' | 'menu' | 'asking' | 'answer' | 'reason' | 'waking' | 'sending' | 'sent' | 'changedAt' | 'stood'>(
   state: PanelState,
   field: K,
   value: PanelState[K],
@@ -240,16 +268,13 @@ const followed = (before: PanelState, after: PanelState): string | undefined => 
 
 /** The menu closed where its row can no longer be snoozed: its asks gone, or the row now Working or Snoozed. */
 const stillSnoozable = (state: PanelState): PanelState => {
-  const row = state.menu === undefined ? undefined : openRows(state).find(each => rowKey(each) === state.menu?.row)
+  const row = state.menu === undefined ? undefined : rowIn(state, state.menu.row)
 
   return state.menu === undefined || (row?.asks !== undefined && !row.isSnoozed) ? state : withField(state, 'menu', undefined)
 }
 
 /** The ids of the asks the view answers on the row `key`. */
-const askIdsOn = (state: PanelState, key: string) =>
-  openRows(state)
-    .find(row => rowKey(row) === key)
-    ?.answerable?.map(ask => ask.id) ?? []
+const askIdsOn = (state: PanelState, key: string) => rowIn(state, key)?.answerable?.map(ask => ask.id) ?? []
 
 /**
  * The asks open on `after`'s row, as the board changed from `before`: the
@@ -286,7 +311,7 @@ const reflowed = (state: PanelState, next: PanelState) =>
 const shownAsk = (state: PanelState): PanelAsk | undefined => {
   const { asking } = state
 
-  return asking === undefined ? undefined : openRows(state).find(row => rowKey(row) === asking.row)?.answerable?.find(ask => ask.id === asking.ask)
+  return asking === undefined ? undefined : rowIn(state, asking.row)?.answerable?.find(ask => ask.id === asking.ask)
 }
 
 /** What an ask reads as, its age aside: another ask, or the same reworded, reads otherwise. */
@@ -299,8 +324,8 @@ const beaten = (before: PanelState, after: PanelState, now: number): PanelState 
   return was === undefined || is === undefined || readingOf(was) === readingOf(is) ? after : { ...after, changedAt: now }
 }
 
-/** Whether a key or a tap at `at` lands on the ask: it has stood BEAT_MS since the board last changed it. */
-const hasStood = (state: PanelState, at: number) => state.changedAt === undefined || at - state.changedAt >= BEAT_MS
+/** Whether a key at `at` lands on the ask: it has stood BEAT_MS since the board last changed it. */
+const hasAskStood = (state: PanelState, at: number) => state.changedAt === undefined || at - state.changedAt >= BEAT_MS
 
 /** Each line new on the board stamped `now`, and those first shown NEW_MS ago or more dropped. */
 const arrived = (arrivals: ViewState['arrivals'], news: readonly string[], now: number) =>
@@ -314,7 +339,7 @@ const stillListed = (sent: ReadonlySet<string> | undefined, board: Feed) => {
   return kept.length === 0 ? undefined : new Set(kept)
 }
 
-const boarded = (state: PanelState, { board, news, now, notHere = state.notHere }: Board): PanelState => {
+const boarded = (state: PanelState, { board, news, now, at = now, notHere = state.notHere }: Board): PanelState => {
   const read: PanelState = {
     ...withField(withField(withField(state, 'reason', undefined), 'waking', undefined), 'sent', stillListed(state.sent, board)),
     feed: board,
@@ -325,7 +350,7 @@ const boarded = (state: PanelState, { board, news, now, notHere = state.notHere 
     notHere,
   }
 
-  return beaten(state, reflowed(state, read), now)
+  return beaten(state, reflowed(state, read), at)
 }
 
 /** A failed look at `now`: after a board, the board kept, stale; before any, why it can't be read. */
@@ -369,7 +394,7 @@ const toggled = (state: PanelState): PanelState => {
 
 /** `o`: the band's session to open, if there's a band. */
 const opened = (state: PanelState): Stepped => {
-  const session = openRows(state).find(row => rowKey(row) === state.band)?.session
+  const session = rowIn(state, state.band)?.session
 
   return session === undefined ? { state } : { state, open: session }
 }
@@ -385,7 +410,7 @@ const expanded = (state: PanelState): PanelState => {
 
 /** ⏎ on the band's row: its asks opened under it at the first, where the view answers one, the row folded, the two kept whole in sight; else the row expanded or folded. */
 const lookedCloser = (state: PanelState): PanelState => {
-  const first = openRows(state).find(row => rowKey(row) === state.band)?.answerable?.[0]
+  const first = rowIn(state, state.band)?.answerable?.[0]
 
   if (state.band === undefined || first === undefined) {
     return expanded(state)
@@ -423,7 +448,7 @@ const unsnoozable = (row: PanelRow) =>
 
 /** `z`: on a Snoozed row, its session to wake; on one that needs Lee, the menu opened under it, the two kept whole in sight; on any other, why not; nothing with no band. */
 const snoozing = (state: PanelState): Stepped => {
-  const row = openRows(state).find(each => rowKey(each) === state.band)
+  const row = rowIn(state, state.band)
 
   if (row === undefined) {
     return { state }
@@ -511,8 +536,14 @@ const MENU_KEY: { [K in Key['kind']]?: (state: PanelState, menu: Menu, key: Extr
 /** The answer sending taken back: nothing is written. */
 const undone = (state: PanelState) => withField(state, 'sending', undefined)
 
-/** What each key does to the state, its answer already dropped, and the state as it was drawn. */
-const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind: K }>, drawn: PanelState) => Stepped } = {
+/** The keys that act in every mode, ahead of the menu's, the asks' and the board's own. */
+type Everywhere = 'quit' | 'suspend' | 'undo'
+
+/** A key each mode takes in its own way. */
+type ModeKey = Exclude<Key, { kind: Everywhere }>
+
+/** What each key does to the state, its answer already dropped, and the state as it was drawn: every key but those that act in every mode. */
+const ON_KEY: { [K in ModeKey['kind']]: (state: PanelState, key: Extract<Key, { kind: K }>, drawn: PanelState) => Stepped } = {
   up: state => only(movedBy(state, -1)),
   down: state => only(movedBy(state, 1)),
   pageUp: state => only(movedBy(state, -pageOf(state))),
@@ -530,16 +561,13 @@ const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind
   right: only,
   digit: only,
   ignore: only,
-  undo: state => only(undone(state)),
-  quit: only,
-  suspend: only,
 }
 
 /** The asks open, as the state holds them: the row's key and the ask shown, by its id. */
 type AskShown = NonNullable<PanelState['asking']>
 
 /** The answer sending, as `sitrep answer` writes it: its words, or its ignore, with what its ask wanted as shown. */
-const answerWrite = ({ session, ask, wants, answer }: Sending): Write =>
+const answerWrite = ({ session, ask, wants, answer }: HeldAnswer): Write =>
   answer === undefined ? { command: 'ignore', session, ask, wants } : { command: 'answer', session, ask, wants, answer: answer.sends }
 
 /**
@@ -559,6 +587,15 @@ const goes = (state: PanelState, now: number): Stepped => {
 
   return { state: beaten(held, reflowed(held, gone), now), write: answerWrite(sending) }
 }
+
+/** What the keys that act in every mode do, as pressed at `at`: `q`, Ctrl-C and Ctrl-Z send the answer held at once, the loop leaving or suspending once it is written; `u` takes it back. */
+const EVERYWHERE: { [K in Everywhere]: (state: PanelState, at: number) => Stepped } = {
+  quit: goes,
+  suspend: goes,
+  undo: state => only(undone(state)),
+}
+
+const isEverywhere = (key: Key): key is Extract<Key, { kind: Everywhere }> => key.kind in EVERYWHERE
 
 /** The clock at `now`: the washes past their time dropped, and the answer sending gone once its time has come. */
 const ticked = (state: PanelState, now: number): Stepped => {
@@ -583,15 +620,15 @@ const writeDone = (state: PanelState, { written: why, write }: { written: string
 const isSendingShown = ({ sending }: PanelState, shown: AskShown) => sending?.row === shown.row && sending.ask === shown.ask
 
 /** The ask shown's answer at `index`, its words as shown and as it sends them; none past its answers. */
-const answerAt = (ask: PanelAsk, index: number): Sending['answer'] => {
+const answerAt = (ask: PanelAsk, index: number): HeldAnswer['answer'] => {
   const [words, sends] = [ask.answers[index], ask.sends[index]]
 
-  return words === undefined || sends === undefined ? undefined : { index, words, sends }
+  return words === undefined || sends === undefined ? undefined : { words, sends }
 }
 
 /** The ask shown's answer at `index`, or, with none, its ignore, as held from `at`; none past its answers. */
-const sendingFrom = (state: PanelState, shown: AskShown, index: number | undefined, at: number): Sending | undefined => {
-  const row = openRows(state).find(each => rowKey(each) === shown.row)
+const sendingFrom = (state: PanelState, shown: AskShown, index: number | undefined, at: number): HeldAnswer | undefined => {
+  const row = rowIn(state, shown.row)
   const ask = row?.answerable?.find(each => each.id === shown.ask)
 
   if (row === undefined || ask === undefined) {
@@ -609,16 +646,16 @@ const sendingFrom = (state: PanelState, shown: AskShown, index: number | undefin
   return answer === undefined ? undefined : { ...held, answer }
 }
 
-/** The ask shown's answer at `index` held from `at`, or, with none, its ignore: only while no other is sending and the ask has stood its beat. */
+/** The ask shown's answer at `index` held from `at`, or, with none, its ignore: only while no other is sending. */
 const holding = (state: PanelState, shown: AskShown, index: number | undefined, at: number): PanelState => {
-  const sending = state.sending === undefined && hasStood(state, at) ? sendingFrom(state, shown, index, at) : undefined
+  const sending = state.sending === undefined ? sendingFrom(state, shown, index, at) : undefined
 
   return sending === undefined ? state : { ...state, sending }
 }
 
-/** `z` on the asks: the ask shown's snooze menu in the foot's place, its times worked out now, the two kept whole in sight; nothing where Snooze offers no time, nor on the ask sending. */
+/** `z` on the asks: the ask shown's snooze menu in the foot's place, its times worked out on the clock the frame showed the foot by, the two kept whole in sight; nothing where Snooze offers no time, nor on the ask sending. */
 const snoozingAsk = (state: PanelState, shown: AskShown): Stepped => {
-  const row = openRows(state).find(each => rowKey(each) === shown.row)
+  const row = rowIn(state, shown.row)
   const options = snoozeTimes(state.now, state.snoozeSettings)
 
   if (row === undefined || options.length === 0 || isSendingShown(state, shown)) {
@@ -645,8 +682,8 @@ const shownAt = (state: PanelState, shown: AskShown, index: number): PanelState 
 const pagedBy = (state: PanelState, shown: AskShown, by: number) =>
   shownAt(state, shown, askIdsOn(state, shown.row).indexOf(shown.ask) + by)
 
-/** The opened row's lines as `drawn` lays them out, and the terminal row of its first; none where it isn't in view. */
-const drawnAsks = (drawn: PanelState, row: string): { y: number; lines: AsksLine[] } | undefined => {
+/** The opened row as `drawn` lays it out: its asks, its lines, the terminal row of its first, and the layout's width; none where it isn't in view. */
+const drawnAsks = (drawn: PanelState, row: string): { asking: Asking; y: number; lines: AsksLine[]; width: number } | undefined => {
   const layout = layoutIn(drawn)
   const placed = layout.placed.find(each => each.kind === 'row' && each.key === row)
 
@@ -656,7 +693,52 @@ const drawnAsks = (drawn: PanelState, row: string): { y: number; lines: AsksLine
 
   const asking = askingIn(viewIn(drawn), placed.row)
 
-  return asking === undefined ? undefined : { y: placed.y, lines: asksLinesOf(asking, layout.width, placed.lane, placed.height) }
+  return asking === undefined
+    ? undefined
+    : { asking, y: placed.y, lines: asksLinesOf(asking, layout.width, placed.lane, placed.height), width: layout.width }
+}
+
+/** Whether `drawn` draws a line of the ask shown in view, past the row's head. */
+const isAskInView = (drawn: PanelState, shown: AskShown) => drawnAsks(drawn, shown.row)?.lines.some(line => !isHeadLine(line)) ?? false
+
+/** What a tap lands on, as one string: a dot by the ask it shows, so paging leaves it standing; any other part with the ask it is of, as the ask reads. */
+const partOf = ({ row, asks, ask }: Asking, tap: AsksTap) =>
+  JSON.stringify('dot' in tap ? [rowKey(row), asks[tap.dot]?.id] : [rowKey(row), readingOf(ask), tap])
+
+/** Each cell of the opened row's lines in view, by terminal row, as the part a tap there lands on, `''` for none. */
+const partsDrawn = (state: PanelState): [number, string[]][] => {
+  const drawn = state.asking === undefined ? undefined : drawnAsks(state, state.asking.row)
+
+  if (drawn === undefined) {
+    return []
+  }
+
+  const { asking, y, lines, width } = drawn
+  const partAt = (line: AsksLine, x: number) => {
+    const tap = tapOn(line, x)
+
+    return tap === undefined ? '' : partOf(asking, tap)
+  }
+
+  return lines.map((line, at) => [y + at, Array.from({ length: width }, (_, x) => partAt(line, x))])
+}
+
+/** A cell's part drawn at `at`: standing since it was, where the frame before drew it there too, as `was` says; else from `at`. */
+const standing = (part: string, was: Stood | undefined, at: number): Stood => ({ part, since: was?.part === part ? was.since : at })
+
+/** A frame drawn at `at`: the clock moved to it, and each cell of the opened row standing as it is drawn now. */
+const drawnAt = (state: PanelState, at: number): PanelState => {
+  const moved = { ...state, now: at }
+  const stood = new Map(partsDrawn(moved).map(([y, parts]) => [y, parts.map((part, x) => standing(part, state.stood?.get(y)?.[x], at))]))
+
+  return withField(moved, 'stood', stood.size === 0 ? undefined : stood)
+}
+
+/** Whether the part a tap at `x`, `y` lands on in `drawn`, `part`, has stood there BEAT_MS by `at`, each frame since drawing it there. */
+const hasPartStood = (drawn: PanelState, x: number, y: number, part: string, at: number) => {
+  const stood = drawn.stood?.get(y)?.[x]
+
+  return stood?.part === part && at - stood.since >= BEAT_MS
 }
 
 /** A digit on the asks: the answer of its number held, where `drawn` draws it. */
@@ -669,24 +751,23 @@ const numbered = (state: PanelState, shown: AskShown, n: number, drawn: PanelSta
 /** The key each of the foot's hints, and the sending line's `undo`, stands for: a tap on one acts as its key. */
 const HINTED: Readonly<Record<string, Press>> = { x: 'ignore', z: 'snooze', o: 'open', u: 'undo' }
 
+/** Whether a tap lands on the sending line's `undo`, which waits on no beat, so an undo is never lost. */
+const isUndo = (tap: AsksTap) => 'key' in tap && HINTED[tap.key] === 'undo'
+
 /** What a key does on the asks, with the ask shown, the state as it was drawn, and when it was pressed. */
 type OnAsks<K extends Key['kind']> = (state: PanelState, shown: AskShown, key: Extract<Key, { kind: K }>, drawn: PanelState, at: number) => Stepped
 
 /** A key on the asks, as ASKS_KEY takes it; any it holds none for does nothing. */
-const onAsks = (state: PanelState, shown: AskShown, key: Key, drawn: PanelState, at: number): Stepped => {
-  const act = ASKS_KEY[key.kind] as OnAsks<Key['kind']> | undefined
+const onAsks = (state: PanelState, shown: AskShown, key: ModeKey, drawn: PanelState, at: number): Stepped => {
+  const act = ASKS_KEY[key.kind] as OnAsks<ModeKey['kind']> | undefined
 
   return act === undefined ? only(state) : act(state, shown, key, drawn, at)
 }
 
-/** A tap landed on the ask: a page dot shows its ask, beat or none; once the ask has stood its beat, an answer is held, and a hint acts as its key. */
+/** A tap landed on the ask: a page dot shows its ask; an answer is held; a hint acts as its key. */
 const landed = (state: PanelState, shown: AskShown, tap: AsksTap, drawn: PanelState, at: number): Stepped => {
   if ('dot' in tap) {
     return only(shownAt(state, shown, tap.dot))
-  }
-
-  if (!hasStood(state, at)) {
-    return only(state)
   }
 
   if ('answer' in tap) {
@@ -695,21 +776,27 @@ const landed = (state: PanelState, shown: AskShown, tap: AsksTap, drawn: PanelSt
 
   const kind = HINTED[tap.key]
 
-  return kind === undefined ? only(state) : onAsks(state, shown, { kind } as Key, drawn, at)
+  return kind === undefined ? only(state) : keyed(state, { kind } as Key, drawn, at)
 }
 
-/** A tap with a row's asks open, found where they stood as `drawn`: on the ask, where it lands (`landed`), on its other lines nothing; anywhere else, the asks closed and nothing more. */
+/**
+ * A tap with a row's asks open, found where they stood as `drawn`: on a
+ * part of the ask that has stood its beat under it, or on `undo`, where it
+ * lands (`landed`); on its other lines, or a part still new there, nothing;
+ * anywhere else, the asks closed and nothing more.
+ */
 const tappedAsks = (state: PanelState, shown: AskShown, { x, y }: Tap, drawn: PanelState, at: number): Stepped => {
-  const asks = x < layoutIn(drawn).width ? drawnAsks(drawn, shown.row) : undefined
-  const line = asks === undefined ? undefined : asks.lines[y - asks.y]
+  const asks = drawnAsks(drawn, shown.row)
+  const line = asks === undefined || x >= asks.width ? undefined : asks.lines[y - asks.y]
 
-  if (line === undefined || isHeadLine(line)) {
+  if (asks === undefined || line === undefined || isHeadLine(line)) {
     return only(closedAsks(state))
   }
 
   const tap = tapOn(line, x)
+  const lands = tap !== undefined && (isUndo(tap) || hasPartStood(drawn, x, y, partOf(asks.asking, tap), at))
 
-  return tap === undefined ? only(state) : landed(state, shown, tap, drawn, at)
+  return lands ? landed(state, shown, tap, drawn, at) : only(state)
 }
 
 /** The band moved as `onKey` moves it, the asks closed first. */
@@ -718,8 +805,8 @@ const closing =
   (state, _, key, drawn) =>
     onKey(closedAsks(state), key, drawn)
 
-/** What each key does with a row's asks open, its answer already dropped; any other does nothing, the loop's own aside. */
-const ASKS_KEY: { [K in Key['kind']]?: OnAsks<K> } = {
+/** What each key does with a row's asks open, its answer already dropped; any other does nothing, those that act in every mode aside. */
+const ASKS_KEY: { [K in ModeKey['kind']]?: OnAsks<K> } = {
   up: closing(ON_KEY.up),
   down: closing(ON_KEY.down),
   pageUp: closing(ON_KEY.pageUp),
@@ -731,21 +818,17 @@ const ASKS_KEY: { [K in Key['kind']]?: OnAsks<K> } = {
   left: (state, shown) => only(pagedBy(state, shown, -1)),
   right: (state, shown) => only(pagedBy(state, shown, 1)),
   digit: (state, shown, { n }, drawn, at) => only(numbered(state, shown, n, drawn, at)),
-  ignore: (state, shown, _, __, at) => only(holding(state, shown, undefined, at)),
-  snooze: (state, shown) => snoozingAsk(state, shown),
-  undo: state => only(undone(state)),
+  ignore: (state, shown, _, drawn, at) => only(isAskInView(drawn, shown) ? holding(state, shown, undefined, at) : state),
+  snooze: (state, shown, _, drawn) => (isAskInView(drawn, shown) ? snoozingAsk(state, shown) : only(state)),
   tap: tappedAsks,
   open: opened,
   wheel: (state, _, key, drawn) => ON_KEY.wheel(state, key, drawn),
-  suspend: only,
 }
 
-/** A key pressed at `at`, its answer dropped first: `q` and Ctrl-C sending the answer held at once; else to the menu, while it is open, to the asks, while they are, or as the board takes it. */
-const pressed = (drawn: PanelState, key: Key, at: number): Stepped => {
-  const state = withField(drawn, 'answer', undefined)
-
-  if (key.kind === 'quit') {
-    return goes(state, at)
+/** A key acted on at `at`: those that act in every mode first; then the menu's, while it is open, the asks', while they are, or the board's. */
+const keyed = (state: PanelState, key: Key, drawn: PanelState, at: number): Stepped => {
+  if (isEverywhere(key)) {
+    return EVERYWHERE[key.kind](state, at)
   }
 
   if (drawn.menu !== undefined) {
@@ -761,6 +844,17 @@ const pressed = (drawn: PanelState, key: Key, at: number): Stepped => {
   const onKey = ON_KEY[key.kind] as (state: PanelState, key: Key, drawn: PanelState) => Stepped
 
   return onKey(state, key, drawn)
+}
+
+/** Whether the beat holds a key pressed at `at`: a digit or `x` on the asks, within BEAT_MS of the board changing the ask shown. */
+const isBeaten = (drawn: PanelState, key: Key, at: number) =>
+  drawn.asking !== undefined && drawn.menu === undefined && (key.kind === 'digit' || key.kind === 'ignore') && !hasAskStood(drawn, at)
+
+/** A key pressed at `at`, its answer dropped first; nothing more where the beat holds it. */
+const pressed = (drawn: PanelState, key: Key, at: number): Stepped => {
+  const state = withField(drawn, 'answer', undefined)
+
+  return isBeaten(drawn, key, at) ? only(state) : keyed(state, key, drawn, at)
 }
 
 /** The panel's state after the event, and the session it asks to open or the line it asks to write, if any. */
@@ -782,7 +876,7 @@ export const step = (state: PanelState, event: PanelEvent): Stepped => {
   }
 
   if ('opened' in event) {
-    return only(answered(state, event.opened))
+    return only(answered(state, event.opened ?? state.answer))
   }
 
   if ('written' in event) {
@@ -795,6 +889,10 @@ export const step = (state: PanelState, event: PanelEvent): Stepped => {
 
   if ('snoozeSettings' in event) {
     return only({ ...state, snoozeSettings: event.snoozeSettings })
+  }
+
+  if ('drawn' in event) {
+    return only(drawnAt(state, event.drawn))
   }
 
   return ticked(state, event.tick)

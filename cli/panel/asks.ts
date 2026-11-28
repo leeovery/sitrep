@@ -20,7 +20,9 @@
  * - The foot: `x Ignore  z Snooze  o Open`, `z Snooze` only while Snooze
  *   offers a time. Short of columns whole hints go, `z Snooze` first, then
  *   `x Ignore`; `o Open` always stays.
- * - An answer sending: its lines held, the check at column W−2 on its
+ * - An answer sending, found among the ask's by the words it sends, so an
+ *   edit that reorders them leaves the check on it, and none where no
+ *   answer has them now: its lines held, the check at column W−2 on its
  *   first, which is cut where its words would reach the check, so its
  *   lines stay as they were; in the foot's place the sending line,
  *   `Sending` and the answer's words cut to fit, or `Ignoring`, then the
@@ -50,7 +52,7 @@ export type Dot = { x: number; text: string; isShown: boolean }
 /** The sending line: `Sending` and the answer's words, cut to fit, or `Ignoring` with none, and the ring as it stands. */
 export type SendingLine = { part: 'sending'; lead: string; words: string; ring: string }
 
-/** A line of the opened row, as draw.ts draws it; the first line, `head` or `folded`, carries `▿`. An answer's line says which answer it is, by its place, whether it is its first, and whether it is held. */
+/** A line of the opened row, as draw.ts draws it; the first line, `head` or `folded`, carries `▿`. An answer's line says which answer it is, by its place, whether it is its first, and whether it is the one sending. */
 export type AsksLine =
   | { part: 'head'; words: Tagged<Tag>[] }
   | { part: 'folded' }
@@ -61,14 +63,17 @@ export type AsksLine =
   | { part: 'foot'; hints: Hint[] }
   | SendingLine
 
-/** The answer sending on the ask shown: the answer, none for an ignore, and its ring. */
-type Sending = Omit<NonNullable<PanelView['sending']>, 'row' | 'ask'>
+/** The answer sending on the ask shown, as the asks draw it: the answer, none for an ignore, and its ring. */
+type ShownSending = Omit<NonNullable<PanelView['sending']>, 'row' | 'ask'>
 
 /** The asks open under a row: the row, its asks, the one shown and its place among them, whether Snooze offers a time, whether the ask's snooze menu is open, and the answer sending, where it is the ask shown's. */
-export type Asking = { row: PanelRow; asks: readonly PanelAsk[]; ask: PanelAsk; at: number; offersSnooze: boolean; hasMenu: boolean; sending?: Sending }
+export type Asking = { row: PanelRow; asks: readonly PanelAsk[]; ask: PanelAsk; at: number; offersSnooze: boolean; hasMenu: boolean; sending?: ShownSending }
 
 /** What a tap on a line of the ask lands on: an answer, by its place; a page dot's ask, by its place; or a hint, by its key. */
 export type AsksTap = { answer: number } | { dot: number } | { key: string }
+
+/** A stretch of a line of the ask a tap lands on, from its first column up to `to`, and what it lands on there. */
+type TapSpan = { from: number; to: number; tap: AsksTap }
 
 /** Where an answer's words start: past its number and a space. */
 export const ANSWER = NAME + 2
@@ -89,8 +94,11 @@ const OPEN: Hint = ['o', 'Open']
 
 export const UNDO: Hint = ['u', 'undo']
 
+/** The check at a held answer's first line's right. */
+export const CHECK = '✓'
+
 /** The cells a held answer's first line leaves its check: the check, and a space before it. */
-const CHECK = 2
+const CHECK_ROOM = 1 + widthOf(CHECK)
 
 /** The spaces either side of the sending line's ring. */
 const RING_GAP = 2
@@ -109,9 +117,9 @@ export const hintColumns = (hints: readonly Hint[], x: number): { hint: Hint; x:
     return [...placed, { hint, x: last === undefined ? x : last.x + hintWidth(last.hint) + 2 }]
   }, [])
 
-/** The hint whose cells a tap at column `x` lands on, the hints laid from `from`; none between them. */
-const hintAt = (hints: readonly Hint[], from: number, x: number) =>
-  hintColumns(hints, from).find(each => x >= each.x && x < each.x + hintWidth(each.hint))?.hint
+/** Each hint's cells, the hints laid from `from`, a tap there acting as its key; none between them. */
+const hintSpans = (hints: readonly Hint[], from: number): TapSpan[] =>
+  hintColumns(hints, from).map(({ hint, x }) => ({ from: x, to: x + hintWidth(hint), tap: { key: hint[0] } }))
 
 /** The answer sending, where it is the ask shown's. */
 const sendingOn = (view: PanelView, row: PanelRow, ask: PanelAsk): Pick<Asking, 'sending'> => {
@@ -159,13 +167,6 @@ const dotsOf = ({ asks, at }: Asking, end: number): Dot[] => {
   }, [])
 }
 
-/** The ask whose dot a tap at column `x` lands on, by its place: each dot takes its own cells and the space before it. */
-export const dotAt = (dots: readonly Dot[], x: number): number | undefined => {
-  const at = dots.findIndex((dot, index) => x >= dot.x - (index === 0 ? 0 : 1) && x < dot.x + widthOf(dot.text))
-
-  return at === -1 ? undefined : at
-}
-
 /** `Asked 4m ago`, as its line on the row ages it; `Asked just now` within its first minute, as the notch's asks panel says it. */
 const askedOf = (age: string) => (age === 'now' ? 'Asked just now' : `Asked ${age} ago`)
 
@@ -210,7 +211,7 @@ const answerLines = (words: string, isPick: boolean, index: number, cells: numbe
     index,
     isFirst: line === 0,
     isHeld,
-    runs: isHeld && line === 0 ? cutRuns(runs, cells - CHECK) : runs,
+    runs: isHeld && line === 0 ? cutRuns(runs, cells - CHECK_ROOM) : runs,
   }))
 
 /** Where the sending line's parts start: the answer's words, the ring, and `u undo`. */
@@ -221,7 +222,7 @@ export const sendingColumns = ({ lead, words, ring }: SendingLine) => {
 }
 
 /** The sending line at the layout's width: `Sending` and the answer's words, cut to leave the ring and `u undo` whole; or `Ignoring`. */
-const sendingLine = ({ answer, ring }: Sending, width: number): SendingLine => {
+const sendingLine = ({ answer, ring }: ShownSending, width: number): SendingLine => {
   const lead = answer === undefined ? 'Ignoring' : 'Sending'
   const room = width - 1 - NAME - widthOf(lead) - 1 - (RING_GAP + widthOf(ring) + RING_GAP + hintWidth(UNDO))
 
@@ -244,6 +245,7 @@ const partsOf = (asking: Asking, width: number, lane: Lane) => {
   const asked = askedOf(ask.age)
   const dots = dotsOf(asking, width - 1)
   const isRoomForDots = (dots[0]?.x ?? width) - 1 - NAME >= widthOf(asked)
+  const heldAt = sending?.answer === undefined ? -1 : ask.sends.indexOf(sending.answer.sends)
 
   return {
     head: [
@@ -254,7 +256,7 @@ const partsOf = (asking: Asking, width: number, lane: Lane) => {
     titleFirst: { part: 'title', text: wrapIn(ask.title, cells, 1)[0] ?? '' } satisfies AsksLine,
     asked: { part: 'asked', text: asked, dots: isRoomForDots ? dots : [] } satisfies AsksLine,
     answers: ask.answers.map((words, index) =>
-      answerLines(words, index === 0 && ask.pick !== undefined, index, width - 1 - ANSWER, sending?.answer?.index === index),
+      answerLines(words, index === 0 && ask.pick !== undefined, index, width - 1 - ANSWER, index === heldAt),
     ),
     foot: footLineOf(asking, width),
   }
@@ -307,27 +309,29 @@ export const asksLinesOf = (asking: Asking, width: number, lane: Lane, room = Nu
 /** Whether a line is the opened row's head, not its ask: a tap there closes the asks. */
 export const isHeadLine = (line: AsksLine) => line.part === 'head' || line.part === 'folded' || line.part === 'project'
 
-/** What a tap at column `x` on a line of the ask lands on; nothing off its answers, its dots and its hints. */
-export const tapOn = (line: AsksLine, x: number): AsksTap | undefined => {
+/**
+ * Where a tap on a line of the ask lands: on an answer anywhere on its
+ * lines; on a page dot's ask on the dot's cells and the space before it; on
+ * a hint, as its key, on its key and its word, `u undo` on the sending line
+ * among them; nowhere else.
+ */
+const tapsOn = (line: AsksLine): TapSpan[] => {
   switch (line.part) {
     case 'answer':
-      return { answer: line.index }
-    case 'asked': {
-      const dot = dotAt(line.dots, x)
-
-      return dot === undefined ? undefined : { dot }
-    }
-    case 'foot': {
-      const hint = hintAt(line.hints, NAME, x)
-
-      return hint === undefined ? undefined : { key: hint[0] }
-    }
+      return [{ from: 0, to: Number.POSITIVE_INFINITY, tap: { answer: line.index } }]
+    case 'asked':
+      return line.dots.map((dot, at) => ({ from: dot.x - (at === 0 ? 0 : 1), to: dot.x + widthOf(dot.text), tap: { dot: at } }))
+    case 'foot':
+      return hintSpans(line.hints, NAME)
     case 'sending':
-      return hintAt([UNDO], sendingColumns(line).undo, x) === undefined ? undefined : { key: UNDO[0] }
+      return hintSpans([UNDO], sendingColumns(line).undo)
     default:
-      return undefined
+      return []
   }
 }
+
+/** What a tap at column `x` on a line of the ask lands on, if anything. */
+export const tapOn = (line: AsksLine, x: number): AsksTap | undefined => tapsOn(line).find(span => x >= span.from && x < span.to)?.tap
 
 /** Whether the lines draw the answer at `index`: its first line among them, its number with it. */
 export const isAnswerDrawn = (lines: readonly AsksLine[], index: number) =>
