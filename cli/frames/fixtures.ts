@@ -525,6 +525,7 @@ const SCREENS: Record<string, Screen> = {
   narrow: { world: AT_REST, sizes: [[30, 27]] },
   small: { world: AT_REST, sizes: [[23, 10]] },
   docs: { world: FOR_DOCS, sizes: [[73, 18]] },
+  docsasks: { world: FOR_DOCS, keys: [...downTo(FOR_DOCS, 'Help desk redesign'), ENTER], sizes: [[73, 22]] },
   expanded: { world: EXPANDING, keys: [...downTo(EXPANDING, LONG_NAME), ENTER], sizes: [[52, 27], [114, 45]] },
   snoozing: { world: FOR_DOCS, keys: [...downTo(FOR_DOCS, 'Help desk redesign'), SNOOZE], sizes: [[52, 27], [114, 45]] },
   waking: { world: FOR_DOCS, keys: [SNOOZED, END], sizes: [[52, 27]] },

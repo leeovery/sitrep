@@ -54,7 +54,11 @@ In the asks panel, for the ask it shows:
 
 In the Snooze menu that `z` opens, and the **Snooze ▾** menu, `1` to `9` choose and `z` closes. There, `k` `j` move like `↑` `↓`.
 
-The terminal view keeps its own list: see [The board in any terminal](terminal.md).
+The terminal view keeps its own list: see [The board in any terminal](terminal.md). There, the asks take other keys:
+
+- `⏎` opens the asks of the chosen row.
+- `←` `→` page through them.
+- `u` undoes an answer, because `⌘Z` can't reach a terminal.
 
 If Show is set to Nothing, or a full-screen app hides the notch, ⌃⌥S opens the menu of the menu bar item.
 

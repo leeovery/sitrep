@@ -1,56 +1,55 @@
 # The board in any terminal
 
-Type `sitrep` in a terminal, and the terminal view fills it with the board: what waits on you, and what is running. Leave it open in a Ghostty tab, or reach it over SSH from a phone or iPad. Open a session no window runs, and your resume command carries it on there.
+Type `sitrep` in a terminal, and the terminal view fills it with the board: what waits on you, and what is running. Answer a yes or a choice with one key, even from a phone over SSH, away from your Mac. Open a session no window runs, and your resume command carries it on.
 
-![The terminal view in a terminal window. Under NEEDS YOU, counted 3 in orange and 1 in blue, come three sessions, each on two lines: the name and a time, then the project and what it waits on. Help desk redesign has an orange dot and a count of 2. Data import has a hollow orange dot and dimmed words. Shift schedules has a blue dot, Stopped. Under WORKING 2, Mobile app is running npm test, and Invoice ledger is waiting on 2 agents. SNOOZED 1 is folded. The last line reads ↑↓ pick, s snoozed, q quit.](../art/screens/terminal.webp)
+![The terminal view in a window titled sitrep. Under NEEDS YOU, Help desk redesign is the chosen row, with its asks open under it. The ask reads "Thread replies, or keep them flat?", asked 4m ago, with two dots for two asks. Its answers are 1 Threaded · Recommended, 2 Flat, and 3 Flat, with a quote of the one it answers. Under them reads x Ignore, z Snooze, o Open. Below come Data import, dimmed, and a blue Stopped row. WORKING 2 and a folded SNOOZED 1 follow. The last line reads 1–3 answer, ←→ ask, esc close.](../art/screens/terminal.webp)
 
-*Three sessions need you, one of them run by no window, while two work.*
+*The first of two asks in Help desk redesign, open: `1` answers Threaded.*
 
 ## Try it
 
 1. Open a terminal on your Mac. Or sign in to the Mac over SSH, with Remote Login on in System Settings › General › Sharing.
 2. Type `sitrep`. The board fills the terminal.
-3. Press `↓` to reach a session no window runs, then `o` to open it here.
-4. Press `q` to return to your shell.
+3. Press `↓` until the chosen row shows `▹` at its right end, then `⏎`. The asks of that session open under it.
+4. Press `1` to send the first answer. For two seconds, `u` takes it back.
 
-Homebrew links `sitrep` into the Homebrew `bin` folder, which a shell needs on its PATH.
+Press `q` to return to your shell. Homebrew links `sitrep` into the Homebrew `bin` folder, which a shell needs on its PATH.
 
 ## What happens
 
-- **Sessions come in three sections.** Needs you comes first, then Working. Snoozed comes last, folded until you press `s`. Each session takes two lines: the name, a count if more than one thing waits, and a time. Then come the project and what the session waits on or is doing. Press `⏎` to expand a row the width cuts short.
-- **A dot says what waits.** An orange dot has asks or a permission prompt waiting, and a blue dot is Stopped. A row new to Needs you shows `◉` for 2 seconds. In Working, `✻` runs a turn, and `◌` waits on work of its own.
-- **A dimmed session has dimmed words.** It isn't open on the device you're looking from. In Needs you, its dot is hollow, and a Working row keeps `✻` or `◌`. In Snoozed, nothing marks it.
-- **The board stays current** within a second, the chosen row following its session. Each new ask posts a terminal notification. To turn notifications off, type `sitrep --no-notify`.
-- **`o` runs your resume command here.** Set it in Settings › General. When it ends, the terminal view comes back.
-- **`z` snoozes the chosen row** from the Snooze menu, with your times from Settings › Snooze. In Snoozed, `z` wakes the row.
+- **Each session takes one line.** A row of asks shows the session name and a count. A Stopped or Working row shows what Claude did or is doing. The project and the time stand at the right. Press `⏎` to expand a row the width cuts short.
+- **A dot says what waits.** An orange dot has asks or a permission prompt waiting, and a blue dot is Stopped. In Working, `✻` runs a turn, and `◌` waits on work of its own. A row with a hollow dot and dimmed words isn't open on the device you're looking from. Without SitRep running, only a session no window runs is dimmed.
+- **`⏎` opens the asks on a row that shows `▹`.** Each ask shows its title and age, then numbered answers, Claude's pick first. With several asks, `←` `→` page through them. `⏎` or `esc` closes them.
+- **A digit answers, with two seconds to undo.** The foot reads `Sending Flat` beside a filling ring and `u undo`. Then the answer goes into the session inbox, and the session window sends it to Claude, starting "From the board:". `q` sends a held answer first, then leaves.
+- **The foot names the other keys for the ask shown.** `x` ignores it, with the same two seconds. `z` snoozes this ask only, and `o` opens its session.
+- **The board stays current** within a second, and each new ask posts a terminal notification. To turn notifications off, type `sitrep --no-notify`.
 
 ## Good to know
 
-- **The default command refuses a session a window still runs,** even a hollow one, because it would start a second Claude. To reach that window, set a script that takes `{tty}` and `{claude}`. It attaches the tmux or zmx session on `{tty}`, or resumes `{claude}` if `{tty}` is empty. A window in neither can't be reached from here. See [A click takes you there](jump.md).
-- **The command runs in your login shell:** sh, bash, zsh, dash or ksh only. With fish, `o` opens nothing, and says why. In zsh, it reads `.zprofile` but not `.zshrc`, so a `.zshrc` alias won't run. A script on your PATH will.
-- **Notifications need a terminal that shows them.** The terminal view sends OSC 777, which Ghostty shows as a macOS notification. Inside tmux, set `allow-passthrough on`, or tmux holds it back.
-- **Dimming needs SitRep running.** Without SitRep, only a session no window runs is dimmed.
+- **Permission prompts stay in Claude Code.** A row of only permission prompts shows no `▹`, and `⏎` expands it. A words ask shows no answers: press `o` to answer it in Claude.
+- **A refused answer says so.** If the ask was answered elsewhere or changed, the words above the keys say why, and the ask stays.
+- **The default resume command refuses a session a window still runs,** because it would start a second Claude. A script that takes `{tty}` can attach that window instead: see [A click takes you there](jump.md). The command runs in your login shell, so fish can't run it.
+- **Ghostty shows terminal notifications** as macOS notifications. Inside tmux, set `allow-passthrough on`, or tmux holds them back.
 
 ## Reference
 
-The last line names the main keys. Here is every key:
+The last line names the keys that work now.
 
 | Key | What it does |
 |---|---|
-| `↑` `↓`, `k` `j`, a click or a tap | Choose a row, then move between rows |
-| `PgUp` `PgDn`, `Home` `End` | Move a page, or to the first or last row |
-| The wheel, or a swipe | Scroll the rows; the chosen row stays |
-| `⏎`, or a tap on the chosen row | Expand the chosen row, or fold it |
-| `o` | Open the chosen row: run the resume command |
-| `z` | Snooze the chosen row, or wake it |
-| `1`–`9` | In the Snooze menu, take that snooze choice |
-| `s` | Unfold or fold Snoozed |
-| `q`, `Ctrl-C` | Leave; `Ctrl-Z` suspends, and `fg` brings it back |
+| `↑` `↓`, `k` `j`, a tap | Choose a row |
+| `⏎`, or a tap on the chosen row | Open its asks, or expand it; `⏎` again closes |
+| `1`–`9` | Answer the ask shown, or take a Snooze menu choice |
+| `←` `→` | Show the ask before or after |
+| `u` | Take back an answer, within 2 seconds |
+| `x` | Ignore the ask shown |
+| `z` | Snooze the row or the ask shown; wake a snoozed row |
+| `o` | Open the session: run the resume command |
 
-`esc` closes the Snooze menu, or else clears the choice. Any key clears the words above the keys. If `o` or `z` can't act, or the command fails within 2 seconds, those words say why. Every other command is in [The `sitrep` command](cli.md).
+`s` unfolds or folds Snoozed. `q` or `Ctrl-C` leaves, and `Ctrl-Z` suspends until `fg`. `esc` closes a menu, then the asks, then clears the choice. Every other command is in [The `sitrep` command](cli.md).
 
 ## Related
 
+- [Answering from the edge of your screen](answering-edge.md)
 - [A click takes you there](jump.md)
-- [Settings, pane by pane](settings.md)
 - [Same keys, wherever the board shows](keys.md)
